@@ -159,7 +159,8 @@ namespace MicroJ
         public override string ToString() {
             if (Ravel.Length == 1) {
                 return Ravel[0].ToString();
-            } else {
+            }
+            else {
                 var z = new StringBuilder();
                 long[] odometer = new long[Rank];
                 for(var i = 0; i < Count; i++) {
@@ -267,7 +268,7 @@ namespace MicroJ
     
     public class Verbs {
 
-        public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "=" };
+        public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "=", "|:" };
         public Adverbs Adverbs=null;
 
         
@@ -319,6 +320,37 @@ namespace MicroJ
             return v;
         }
 
+        public A<T> transpose<T> (A<T> y) where T : struct {
+            var shape = y.Shape.Reverse().ToArray();
+            var v = new A<T>(y.Count, shape);
+            var offsets = new long[y.Shape.Length];
+            for(var i = 1; i <= y.Shape.Length-1; i++) {
+                offsets[(i-1)] = prod(y.Shape.Skip(i).ToArray());
+            }
+            offsets[y.Shape.Length-1] = 1;
+            offsets = offsets.Reverse().ToArray();
+            var idx = 0;
+            long[] odometer = new long[shape.Length];
+            for(var i = 0; i < y.Count; i++) {
+                var offset = 0L;
+                for(var k = y.Shape.Length-1;k>=0;k--) {
+                    offset = offset + (offsets[k] * odometer[k]);
+                }
+                v.Ravel[idx] = y.Ravel[offset];
+                idx++;
+
+                odometer[shape.Length-1]++;
+
+                for(var k = y.Shape.Length-1;k>0;k--) {
+                    if (odometer[k] == shape[k]) {
+                        odometer[k] = 0;
+                        odometer[k-1]++;
+                    }
+                }
+            }
+            return v;
+        }
+        
         public long prod(long[] ri) {
             return ri.Aggregate(1L, (prod, next)=> prod*next);
         }
@@ -419,7 +451,6 @@ namespace MicroJ
                 }
 
             }
-
             else if (op == "$") {
                 if (x.GetType() == typeof(A<long>)) {
                     if (y.GetType() == typeof(A<long>)) {
@@ -435,6 +466,7 @@ namespace MicroJ
             throw new ArgumentException();
         }
 
+        //candidate for code generation
         public AType Call1(AType method, AType y)  {
             var verb = ((A<Verb>) method).Ravel[0];
             if (verb.adverb != null) {
@@ -450,6 +482,14 @@ namespace MicroJ
                 }
             } else if (op == "$") {
                 return shape(y);
+            }
+            else if (op == "|:") {
+                if (y.GetType() == typeof(A<int>)) {
+                    return transpose((A<int>)y);
+                }
+                else if (y.GetType() == typeof(A<long>)) {
+                    return transpose((A<long>)y);
+                }
             }
             throw new ArgumentException();
         }
@@ -476,8 +516,11 @@ namespace MicroJ
             //using trim is a hack
             var emit = new Action(() => { if (currentWord.Length > 0) { z.Add(currentWord.ToString().Trim()); } currentWord = new StringBuilder(); });
             char p = '\0';
-            Func<char, bool> isSymbol = (c) => Verbs.Words.Where(x=>x!="i.").Where(x=>x.Contains(c)).Count() > 0 || Adverbs.Words.Where(x=>x.Contains(c)).Count() > 0;
 
+            //Func<char, bool> isSymbol = //(c) => Verbs.Words.Where(x=>x!="i.").Where(x=>x.Contains(c)).Count() > 0 || Adverbs.Words.Where(x=>x.Contains(c)).Count() > 0;
+
+            //need to redo
+            Func<char, bool> isSymbol = (c) => c == '+' || c == '/' || c=='=';
             bool inQuote = false;
 
             foreach (var c in w)
@@ -514,10 +557,6 @@ namespace MicroJ
         }
         
         public AType parse(string cmd) {
-            //var parts = cmd.Split(' ');
-            
-            string[] parts = toWords(cmd);
-            
             var MARKER = "`";
             cmd = MARKER + " " + cmd;
 
@@ -633,6 +672,9 @@ namespace MicroJ
             }
             stack.Pop();
             var ret = stack.Pop().val;
+            if (ret == null) {
+                throw new ApplicationException("no value found on stack - after " + i.ToString() + " iterations");
+            }
             return ret;
 
         }
@@ -656,7 +698,7 @@ namespace MicroJ
             var j = new Parser();
 
             Func<string, AType> parse = (cmd) => j.parse(cmd);
-            Func<object, object, object[]> pair = (a,w) => new object[] { a,w };
+
 
             var tests = new Dictionary<string, Func<bool>>();
 
@@ -680,6 +722,7 @@ namespace MicroJ
             tests["no spaces 1+2"] = () => equals(toWords("1+2"), new string[] { "1", "+", "2" });
             tests["copula abc =: '123'"] = () => equals(toWords("abc =: '123'"), new string[] { "abc", "=:", "'123'" });
             tests["copula abc=:'123'"] = () => equals(toWords("abc=:'123'"), new string[] { "abc", "=:", "'123'" });
+            tests["|: i. 2 3"] = () => equals(toWords("|: i. 2 3"), new string[] { "|:", "i.", "2 3" });
 
             tests["verb assignment"] =() => {
                 var parser = new Parser();
@@ -703,54 +746,57 @@ namespace MicroJ
                 }
             }
 
-            var eqTests = new Dictionary<string, object[]>();
-            eqTests["add"] = pair(parse("1 + 2").ToString(), "3");
-            eqTests["add float"] = pair(parse("1.5 + 2.5").ToString(), "4");
-            eqTests["add float + int"] = pair(parse("4.5 + 3").ToString(), "7.5");
+            Action<object, object> pair = (x,y) => {
+                if (x == null) { throw new ApplicationException("input returned null"); }
+                if (x.ToString()!=y.ToString()) {
+                    throw new ApplicationException(String.Format("{0} != {1}", x,y));
+                }
+            };
+            var eqTests = new Dictionary<string, Action>();
+            
+            eqTests["add"] = new Action(()=>pair(parse("1 + 2").ToString(), "3"));
+            eqTests["add float"] = new Action(()=>pair(parse("1.5 + 2.5").ToString(), "4"));
+            eqTests["add float + int"] = new Action(()=>pair(parse("4.5 + 3").ToString(), "7.5"));
 
-            eqTests["subtract"] = pair(parse("4 - 3").ToString(), "1");
-            eqTests["subtract float - int"] = pair(parse("4.5 - 3").ToString(), "1.5");
-            eqTests["subtract int - float"] = pair(parse("4 - 3.5").ToString(), "0.5");
+            eqTests["subtract"] = new Action(()=>pair(parse("4 - 3").ToString(), "1"));
+            eqTests["subtract float - int"] = new Action(()=>pair(parse("4.5 - 3").ToString(), "1.5"));
+            eqTests["subtract int - float"] = new Action(()=>pair(parse("4 - 3.5").ToString(), "0.5"));
 
 
-            eqTests["multiply int"] = pair(parse("2 * 3").ToString(), "6");
-            eqTests["multiply float"] = pair(parse("2.5 * 2.5").ToString(), "6.25");
-            eqTests["multiply int*float"] = pair(parse("2 * 2.5").ToString(), "5");
+            eqTests["multiply int"] = new Action(()=>pair(parse("2 * 3").ToString(), "6"));
+            eqTests["multiply float"] = new Action(()=>pair(parse("2.5 * 2.5").ToString(), "6.25"));
+            eqTests["multiply int*float"] = new Action(()=>pair(parse("2 * 2.5").ToString(), "5"));
 
-            eqTests["divide int"] = pair(parse("10 % 2").ToString(), "5");
-            eqTests["divide float"] = pair(parse("1 % 4").ToString(), "0.25");
+            eqTests["divide int"] = new Action(()=>pair(parse("10 % 2").ToString(), "5"));
+            eqTests["divide float"] = new Action(()=>pair(parse("1 % 4").ToString(), "0.25"));
 
-            eqTests["iota simple"] = pair(parse("i. 3").ToString(), "0 1 2");
-            eqTests["shape iota simple"] = pair(parse("$ i. 3").ToString(), "3");
+            eqTests["iota simple"] = new Action(()=>pair(parse("i. 3").ToString(), "0 1 2"));
+            eqTests["shape iota simple"] = new Action(()=>pair(parse("$ i. 3").ToString(), "3"));
 
-            eqTests["reshape int"] = pair(parse("3 $ 3").ToString(),"3 3 3");
-            eqTests["reshape int"] = pair(parse("2 3 $ 3").ToString(),"3 3 3\n3 3 3");
-            eqTests["reshape double"] = pair(parse("3 $ 3.2").ToString(),"3.2 3.2 3.2");
-            eqTests["reshape string"] = pair(parse("3 2 $ 'abc'").ToString(),"ab\nca\nbc");
+            eqTests["reshape int"] = new Action(()=>pair(parse("3 $ 3").ToString(),"3 3 3"));
+            eqTests["reshape int"] = new Action(()=>pair(parse("2 3 $ 3").ToString(),"3 3 3\n3 3 3"));
+            eqTests["reshape double"] = new Action(()=>pair(parse("3 $ 3.2").ToString(),"3.2 3.2 3.2"));
+            eqTests["reshape string"] = new Action(()=>pair(parse("3 2 $ 'abc'").ToString(),"ab\nca\nbc"));
 
             
-            eqTests["adverb simple"] = pair(parse("+/ i. 4").ToString(), "6");
-            eqTests["multi-dimensional sum"] = pair(parse("+/ i. 2 3").ToString(),"3 5 7");
-            eqTests["multi-dimensional"] = pair(parse("i. 2 3").ToString(),"0 1 2\n3 4 5");
-            eqTests["multi-dimensional 2"] = pair(parse("i. 2 2 2").ToString(),"0 1\n2 3\n\n4 5\n6 7");
-            eqTests["multi-dimensional add "] = pair(parse("1 + i. 2 2").ToString(),"1 2\n3 4");
-            eqTests["multi-dimensional sum"] = pair(parse("+/ i. 2 3").ToString(),"3 5 7");
-            eqTests["multi-dimensional sum higher rank"] = pair(parse("+/ i. 2 2 2").ToString(),"4 6\n8 10");
-            eqTests["multi-dimensional sum higher rank 2"] = pair(parse("+/ i. 4 3 2").ToString(),"36 40\n44 48\n52 56");
-            eqTests["assignment"] = pair(parse("a + a=:5").ToString(),"10");
-            eqTests["*/ int"] = pair(parse("*/ 2 2 2").ToString(),"8");
+            eqTests["adverb simple"] = new Action(()=>pair(parse("+/ i. 4").ToString(), "6"));
+            eqTests["multi-dimensional sum"] = new Action(()=>pair(parse("+/ i. 2 3").ToString(),"3 5 7"));
+            eqTests["multi-dimensional"] = new Action(()=>pair(parse("i. 2 3").ToString(),"0 1 2\n3 4 5"));
+            eqTests["multi-dimensional 2"] = new Action(()=>pair(parse("i. 2 2 2").ToString(),"0 1\n2 3\n\n4 5\n6 7"));
+            eqTests["multi-dimensional add "] = new Action(()=>pair(parse("1 + i. 2 2").ToString(),"1 2\n3 4"));
+            eqTests["multi-dimensional sum"] = new Action(()=>pair(parse("+/ i. 2 3").ToString(),"3 5 7"));
+            eqTests["multi-dimensional sum higher rank"] = new Action(()=>pair(parse("+/ i. 2 2 2").ToString(),"4 6\n8 10"));
+            eqTests["multi-dimensional sum higher rank 2"] = new Action(()=>pair(parse("+/ i. 4 3 2").ToString(),"36 40\n44 48\n52 56"));
+            eqTests["assignment"] = new Action(()=>pair(parse("a + a=:5").ToString(),"10"));
+            eqTests["*/ int"] = new Action(()=>pair(parse("*/ 2 2 2").ToString(),"8"));
             
-            
+            eqTests["transpose"] = new Action(()=>pair(parse("|: i. 2 3"),"0 3\n1 4\n2 5"));
 
             foreach (var key in eqTests.Keys) {
-                var x=eqTests[key][0];
-                var y=eqTests[key][1];
-                if (x.ToString() != y.ToString()) {
-                    Console.WriteLine(String.Format("{0}\n{1} != {2}", key, x.ToString(), y.ToString()));
-                    //System.Diagnostics.Debugger.Launch();
-                    //System.Diagnostics.Debugger.Break();
-
-                    //throw new ApplicationException(key);
+                try {
+                    eqTests[key]();
+                } catch (Exception e) {
+                    Console.WriteLine("TEST " + key + " Exception:\n" + e.ToString());
                 }
             }
         }
