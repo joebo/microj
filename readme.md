@@ -1,4 +1,4 @@
-#WIP of a J clone in C#.
+#WIP of a Tiny [J](http://www.jsoftware.com/) implementation in C#.
 Motivation: I needed J's speed and expressiveness in C# for a webapp
 
 Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab/blob/master/csharp/jsharp/jsharp.cs). The initial version did not use generics and then was rewritten to its current form. Generics were chosen when I found I was adding type specific code to every verb.
@@ -24,3 +24,6 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 ## Todo:
 1. Boxed type
 1. More J primitives
+
+## Vision:
+Not intended to be a replacement for J. It may be useful to hack on to learn J better or embed in C#
