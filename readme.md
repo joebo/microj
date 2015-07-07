@@ -1,5 +1,6 @@
 #WIP of a Tiny [J](http://www.jsoftware.com/) implementation in C#.
 Motivation: I needed J's speed and expressiveness in C# for a webapp
+Credits: JSoftware, Inc. for releasing the source code and for making excellent documentation available. Heavily influenced by [An Implementation of J](http://www.jsoftware.com/books/pdf/aioj.pdf)
 
 Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab/blob/master/csharp/jsharp/jsharp.cs). The initial version did not use generics and then was rewritten to its current form. Generics were chosen when I found I was adding type specific code to every verb.
 
