@@ -1,11 +1,24 @@
 /*
-  Copyright (c) 2015 Joe Bogner joebogner@gmail.com
+Copyright (c) 2015 Joe Bogner joebogner@gmail.com
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 using System;
@@ -204,7 +217,8 @@ namespace MicroJ
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
             if (y.Rank == 1) {
                 var v = new A<T>(1);
-                for (var i = 0; i < y.Count; i++) {
+                v.Ravel[0] = y.Ravel[0];
+                for (var i = 1; i < y.Count; i++) {
                     var yi = new A<T>(1);
                     yi.Ravel[0] = y.Ravel[i];
                     v = (A<T>)Verbs.Call2(op, v, yi); //copy the ith item for procesing
@@ -706,13 +720,15 @@ namespace MicroJ
             eqTests["divide int"] = pair(parse("10 % 2").ToString(), "5");
             eqTests["divide float"] = pair(parse("1 % 4").ToString(), "0.25");
 
-
-
             eqTests["iota simple"] = pair(parse("i. 3").ToString(), "0 1 2");
             eqTests["shape iota simple"] = pair(parse("$ i. 3").ToString(), "3");
+
             eqTests["reshape int"] = pair(parse("3 $ 3").ToString(),"3 3 3");
+            eqTests["reshape int"] = pair(parse("2 3 $ 3").ToString(),"3 3 3\n3 3 3");
             eqTests["reshape double"] = pair(parse("3 $ 3.2").ToString(),"3.2 3.2 3.2");
             eqTests["reshape string"] = pair(parse("3 2 $ 'abc'").ToString(),"ab\nca\nbc");
+
+            
             eqTests["adverb simple"] = pair(parse("+/ i. 4").ToString(), "6");
             eqTests["multi-dimensional sum"] = pair(parse("+/ i. 2 3").ToString(),"3 5 7");
             eqTests["multi-dimensional"] = pair(parse("i. 2 3").ToString(),"0 1 2\n3 4 5");
@@ -722,6 +738,7 @@ namespace MicroJ
             eqTests["multi-dimensional sum higher rank"] = pair(parse("+/ i. 2 2 2").ToString(),"4 6\n8 10");
             eqTests["multi-dimensional sum higher rank 2"] = pair(parse("+/ i. 4 3 2").ToString(),"36 40\n44 48\n52 56");
             eqTests["assignment"] = pair(parse("a + a=:5").ToString(),"10");
+            eqTests["*/ int"] = pair(parse("*/ 2 2 2").ToString(),"8");
             
             
 
