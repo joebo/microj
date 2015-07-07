@@ -8,7 +8,7 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 ## Status: Proof of concept
 ### Building / Running
 1. run build.bat
-2. run jsharp.exe to get a repl, hit ctrl+c to exit or type exit
+2. run microj.exe to get a repl, hit ctrl+c to exit or type exit
 
 ### Command Line Options
 - -t to run tests (see tests at bottom of file)
