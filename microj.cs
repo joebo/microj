@@ -106,6 +106,16 @@ namespace MicroJ
                 a.Ravel = longs.ToArray();
                 return a;
             }
+            else if (word.Contains(" ") && word.Contains(".")) {
+                var doubles = new List<double>();
+                foreach (var part in word.Split(' ')) {
+                    doubles.Add(Double.Parse(part));
+                }
+                var a = new A<double>(doubles.Count);
+                a.Ravel = doubles.ToArray();
+                return a;
+            }
+
             else if (Int32.TryParse(word, out val)) {
                 A<long> a = new A<long>(1);
                 a.Ravel[0] = val;
@@ -260,6 +270,9 @@ namespace MicroJ
             else if (adverb == "/") {
                 if (y.GetType() == typeof(A<long>)) {
                     return reduce<long>(verb, (A<long>)y);
+                }
+                else if (y.GetType() == typeof(A<double>)) {
+                    return reduce<double>(verb, (A<double>)y);
                 }
             }
             throw new NotImplementedException();
@@ -789,6 +802,8 @@ namespace MicroJ
             eqTests["multi-dimensional sum higher rank 2"] = new Action(()=>pair(parse("+/ i. 4 3 2").ToString(),"36 40\n44 48\n52 56"));
             eqTests["assignment"] = new Action(()=>pair(parse("a + a=:5").ToString(),"10"));
             eqTests["*/ int"] = new Action(()=>pair(parse("*/ 2 2 2").ToString(),"8"));
+
+            eqTests["+/ 2.5 2.5"] = new Action(()=>pair(parse("+/ 2.5 2.5").ToString(),"5"));
             
             eqTests["transpose"] = new Action(()=>pair(parse("|: i. 2 3"),"0 3\n1 4\n2 5"));
 
