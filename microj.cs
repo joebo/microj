@@ -104,6 +104,10 @@ namespace MicroJ
             int val;
             double vald;
 
+            if (word.Length > 1 && word[0] == '_' && Char.IsDigit(word[1])) {
+                word = word.Replace("_", "-");
+            }
+            
             if (environment.Names.ContainsKey(word)) {
                 return environment.Names[word];
             }
@@ -116,7 +120,13 @@ namespace MicroJ
             }
             if (word.Contains(" ") && !word.Contains(".")) {
                 var longs = new List<long>();
-                foreach (var part in word.Split(' ')) {
+                foreach (var tpart in word.Split(' ')) {
+                    string part = tpart;
+
+                    if (part.Length > 1 && part[0] == '_' && Char.IsDigit(part[1])) {
+                        part = part.Replace("_", "-");
+                    }
+
                     longs.Add(Int32.Parse(part));
                 }
                 var a = new A<long>(longs.Count);
@@ -132,7 +142,6 @@ namespace MicroJ
                 a.Ravel = doubles.ToArray();
                 return a;
             }
-
             else if (Int32.TryParse(word, out val)) {
                 A<long> a = new A<long>(1);
                 a.Ravel[0] = val;
@@ -466,6 +475,7 @@ namespace MicroJ
             }
             return z;
         }
+
         public AType Call2(AType method, AType x, AType y)  {
             var op = ((A<Verb>) method).Ravel[0].op;
             if (op == "+") {
@@ -605,7 +615,8 @@ namespace MicroJ
             char p = '\0';
 
             Func<char, bool> isSymbol = (c) => symbols.Contains(c); 
-            Func<char, bool> isSymbolPrefix = (c) => symbolPrefixes.Contains(c); 
+            Func<char, bool> isSymbolPrefix = (c) => symbolPrefixes.Contains(c);
+            Func<char, bool> isDigit = (c) => Char.IsDigit(c) || c == '_';
             bool inQuote = false;
 
             foreach (var c in w)
@@ -614,15 +625,15 @@ namespace MicroJ
                 else if (inQuote && c == '\'') { currentWord.Append(c); emit();  inQuote = !inQuote; }
                 else if (inQuote) { currentWord.Append(c); }
                 else {
-                    if (!Char.IsDigit(p) && c == ' ') { emit(); }
-                    else if (p == ' ' && !Char.IsDigit(c)) { emit(); currentWord.Append(c); }
-                    else if (Char.IsDigit(p) && c != ' ' && c!= '.' && !Char.IsDigit(c)) { emit(); currentWord.Append(c); }
+                    if (!isDigit(p) && c == ' ') { emit(); }
+                    else if (p == ' ' && !isDigit(c)) { emit(); currentWord.Append(c); }
+                    else if (isDigit(p) && c != ' ' && c!= '.' && !isDigit(c)) { emit(); currentWord.Append(c); }
                     else if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
                     else if ((c == '.' && p == '=') || (c==':' && p== '=')) { currentWord.Append(c); emit(); }
                     else if ((c == '.' && p == 'i')) { currentWord.Append(c); emit(); } //special case for letter symbols
                     else if (isSymbol(p) && Char.IsLetter(c)) { emit(); currentWord.Append(c); }
                     else if (isSymbol(p) && isSymbol(c)) { emit(); currentWord.Append(c); emit(); }
-                    else if (isSymbol(p) && Char.IsDigit(c)) { emit(); currentWord.Append(c); } //1+2
+                    else if (isSymbol(p) && isDigit(c)) { emit(); currentWord.Append(c); } //1+2
                     else if (isSymbol(c) && !isSymbol(p)) { emit(); currentWord.Append(c); } 
                     else currentWord.Append(c);
                 }
@@ -802,7 +813,9 @@ namespace MicroJ
             tests["copula abc=:'123'"] = () => equals(toWords("abc=:'123'"), new string[] { "abc", "=:", "'123'" });
             tests["|: i. 2 3"] = () => equals(toWords("|: i. 2 3"), new string[] { "|:", "i.", "2 3" });
 
-
+            tests["negative numbers _5 _6"] = () => equals(toWords("_5 _6"), new string[] { "_5 _6" });
+            tests["negative numbers _5 6 _3"] = () => equals(toWords("_5 6 _3"), new string[] { "_5 6 _3" });
+            
             tests["verb assignment"] =() => {
                 var parser = new Parser();
                 parser.parse("plus=: +");
@@ -885,7 +898,9 @@ namespace MicroJ
             eqTests["1 $ 'abc'"] = () => pair(parse("1 $ 'abc'"), "a");
             eqTests["shape empty - $ ''"] = () => pair(parse("$ ''"), "0");
             eqTests["shape string $ 2 2 $ 'abcd'"] = () => pair(parse("$ 2 2 $ 'abcd'"), "2 2");
-            
+
+            eqTests["negative numbers add"] = () => pair(parse(" 1 + _5 _6"), "_4 _5");
+
             foreach (var key in eqTests.Keys) {
                 try {
                     eqTests[key]();
