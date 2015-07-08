@@ -549,7 +549,25 @@ namespace MicroJ
             else { v.Ravel[0] = y.Shape[0]; }
             return v;
         }
-        
+
+        public A<T> copy<T>(A<long> x, A<T> y) where T: struct {
+            
+            var copies = x.Ravel[0];
+            var ct = copies * y.Count;
+            var shape = y.Shape;
+            shape[0] = shape[0] * copies;
+            
+            var v = new A<T>(ct, shape);
+            long offset = 0;
+
+            for(var n = 0; n < y.Count; n++) {
+                for(var i = 0; i < copies; i++) {
+                    v.Ravel[offset++] = y.Ravel[n];
+                }
+            }
+            return v;
+        }
+
         public A<T> transpose<T> (A<T> y) where T : struct {
             var shape = y.Shape.Reverse().ToArray();
             var v = new A<T>(y.Count, shape);
@@ -716,7 +734,8 @@ namespace MicroJ
                         return reshape_str((A<long>)x,(A<JString>)y);
                     }
                 }
-            } else if (op == "=") {
+            }
+            else if (op == "=") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
                     return equals((A<long>)x,(A<long>)y);
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>))
@@ -724,6 +743,23 @@ namespace MicroJ
                 else if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>))
                     return equals((A<JString>)x,(A<JString>)y);
 
+            }
+            else if (op == "#") {
+                if (x.GetType() == typeof(A<long>)) {
+                    if (y.GetType() == typeof(A<long>)) {
+                        return copy((A<long>)x, (A<long>)y);
+                    }
+                    else if (y.GetType() == typeof(A<double>)) {
+                        return copy((A<long>)x, (A<double>)y);
+                    }
+                    else if (y.GetType() == typeof(A<JString>)) {
+                        return copy((A<long>)x, (A<JString>)y);
+                    }
+                    else if (y.GetType() == typeof(A<bool>)) {
+                        return copy((A<long>)x, (A<bool>)y);
+                    }
+
+                }
             }
             throw new NotImplementedException();
         }
@@ -1104,6 +1140,11 @@ namespace MicroJ
 
             eqTests["array + array"] = () => pair(parse("a+a=: i. 2 2"),"0 2\n4 6");
             eqTests["dyadic adverb call"] = () => pair(parse("2 4 +/ 1 3"),"3 5\n5 7");
+
+            eqTests["copy 5 # 3"] = () => pair(parse("5 # 3"),"3 3 3 3 3");
+
+            //failing for now
+            //eqTests["copy 3 # i. 1 2"] = () => pair(parse("3 # i. 1 2"),"0 1\n0 1\n0 1");
             
             foreach (var key in eqTests.Keys) {
                 try {
