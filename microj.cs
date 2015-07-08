@@ -555,12 +555,19 @@ namespace MicroJ
         public Verbs Verbs;
         public Adverbs Adverbs;
         public Dictionary<string, AType> Names;
+
+        char[] symbols = null;
+        char[] symbolPrefixes = null;
         
         public Parser() {
             Verbs = new Verbs();
             Adverbs = new Adverbs(Verbs);
             Verbs.Adverbs = Adverbs;
             Names = new Dictionary<string, AType>();
+
+            //symbols are the first letter of every verb or adverb, letter symbols cause problems currently
+            symbols = Verbs.Words.Select(x=>x[0]).Union(Adverbs.Words.Select(x=>x[0])).Where(x=>!Char.IsLetter(x)).ToArray();
+            symbolPrefixes = Verbs.Words.Where(x=>x.Length>1).Select(x=>x[1]).Union(Adverbs.Words.Where(x=>x.Length>1).Select(x=>x[1])).ToArray();
         }
         
         public string[] toWords(string w) {
@@ -571,10 +578,8 @@ namespace MicroJ
             var emit = new Action(() => { if (currentWord.Length > 0) { z.Add(currentWord.ToString().Trim()); } currentWord = new StringBuilder(); });
             char p = '\0';
 
-            //Func<char, bool> isSymbol = //(c) => Verbs.Words.Where(x=>x!="i.").Where(x=>x.Contains(c)).Count() > 0 || Adverbs.Words.Where(x=>x.Contains(c)).Count() > 0;
-
-            //need to redo
-            Func<char, bool> isSymbol = (c) => c == '+' || c == '/' || c=='=';
+            Func<char, bool> isSymbol = (c) => symbols.Contains(c); 
+            Func<char, bool> isSymbolPrefix = (c) => symbolPrefixes.Contains(c); 
             bool inQuote = false;
 
             foreach (var c in w)
@@ -588,6 +593,7 @@ namespace MicroJ
                     else if (Char.IsDigit(p) && c != ' ' && c!= '.' && !Char.IsDigit(c)) { emit(); currentWord.Append(c); }
                     else if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
                     else if ((c == '.' && p == '=') || (c==':' && p== '=')) { currentWord.Append(c); emit(); }
+                    else if ((c == '.' && p == 'i')) { currentWord.Append(c); emit(); } //special case for letter symbols
                     else if (isSymbol(p) && Char.IsLetter(c)) { emit(); currentWord.Append(c); }
                     else if (isSymbol(p) && isSymbol(c)) { emit(); currentWord.Append(c); emit(); }
                     else if (isSymbol(p) && Char.IsDigit(c)) { emit(); currentWord.Append(c); } //1+2
@@ -762,6 +768,8 @@ namespace MicroJ
             tests["op with numbers"] = () => equals(toWords("# 1 2 3 4"), new string[] { "#", "1 2 3 4" });
             tests["op with numbers 2"] = () => equals(toWords("1 + 2"), new string[] { "1", "+", "2" });
             tests["op with no spaces"] = () => equals(toWords("1+i. 10"), new string[] { "1", "+", "i.", "10" });
+            tests["op with no spaces 2-1"] = () => equals(toWords("2-1"), new string[] { "2", "-", "1" });
+            tests["op with no spaces i.5"] = () => equals(toWords("i.5"), new string[] { "i.", "5" });
             tests["adverb +/"] = () => equals(toWords("+/ 1 2 3"), new string[] { "+", "/", "1 2 3" });
             tests["no spaces 1+2"] = () => equals(toWords("1+2"), new string[] { "1", "+", "2" });
             tests["copula abc =: '123'"] = () => equals(toWords("abc =: '123'"), new string[] { "abc", "=:", "'123'" });
