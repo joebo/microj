@@ -207,12 +207,17 @@ namespace MicroJ
         public static Func<T, T, T> AddFunc;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public A<T> Atom(long n) {
+        public A<T> ToAtom(long n) {
             var z = new A<T>(1);
             z.Ravel[0] = Ravel[n];
             return z;
         }
-        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T GetAtom(AType a, long n) {
+            return ((A<T>)a).Ravel[n];
+        }
+
         //not used, but here for the future
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T a, T b) {
@@ -383,10 +388,10 @@ namespace MicroJ
                         var n = i+(k*ct);
                         if (k == y.Shape[0]-1) {
                             var np = i+((k-1)*ct);
-                            v.Ravel[i] = ((A<T>)Verbs.Call2(op, y.Atom(np), y.Atom(n))).Ravel[0];
+                            v.Ravel[i] = A<T>.GetAtom(Verbs.Call2(op, y.ToAtom(np), y.ToAtom(n)),0);
                             k--;
                         } else {
-                            v.Ravel[i] = ((A<T>)Verbs.Call2(op, y.Atom(n), v.Atom(i))).Ravel[0];
+                            v.Ravel[i] = A<T>.GetAtom(Verbs.Call2(op, y.ToAtom(n), v.ToAtom(i)),0);
                         }
                     }
                 }
