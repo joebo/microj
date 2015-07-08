@@ -26,7 +26,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Diagnostics;
-
+using System.Linq.Expressions; 
+using System.Runtime.CompilerServices;
 
 namespace App {
     using MicroJ;
@@ -52,7 +53,7 @@ namespace App {
                 }
                 watch.Stop();
                 Console.WriteLine("Output: " + ret.ToString());
-                Console.WriteLine(String.Format("Took: {0} ms", watch.ElapsedMilliseconds / (double)times));
+                Console.WriteLine(String.Format("Took: {0} ms", (watch.ElapsedMilliseconds)/ (double)times));
                 long kbAfter1 = GC.GetTotalMemory(false) / 1024;
                 long kbAfter2 = GC.GetTotalMemory(true) / 1024;
 
@@ -184,6 +185,21 @@ namespace MicroJ
         public T[] Ravel;
         public long Count { get { return Ravel.Length; } }
 
+        public static Func<T, T, T> AddFunc;
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Add(T a, T b) {
+            if (AddFunc == null) {
+                var par1 = Expression.Parameter(typeof(T));
+                var par2 = Expression.Parameter(typeof(T));
+
+                var add = Expression.Add(par1, par2);
+
+                AddFunc = Expression.Lambda<Func<T, T, T>>(add, par1, par2).Compile();
+            }
+            return AddFunc(a,b);
+        }
+        
         public A(long n) {
             //handle atoms
             if (n == 0) { n = 1; }
@@ -276,6 +292,30 @@ namespace MicroJ
             return ri.Aggregate(1L, (prod, next)=> prod*next);
         }
 
+        //special code for +/ rank 1 (not double or float)
+        public A<T> reduceplus<T>(A<T> y) where T : struct {
+            var v = new A<T>(1);
+            T total = default(T);
+
+            /* timing tests microj "+/ ( 10000000 $ 5 10)" -n 10
+               class-level lambda 90ms
+               function-level lambda 67ms
+               no lambda 45ms (reduceplus<long>)
+            */
+            var par1 = Expression.Parameter(typeof(T));
+            var par2 = Expression.Parameter(typeof(T));
+
+            var add = Expression.Add(par1, par2);
+
+            var addf = Expression.Lambda<Func<T, T, T>>(add, par1, par2).Compile();
+
+            for (var i = 0; i < y.Count; i++) {
+                total = addf(total, y.Ravel[i]);
+            }
+            v.Ravel[0] = total;
+            return v;
+        }
+
         //special code for +/ rank 1
         public A<long> reduceplus(A<long> y) {
             var v = new A<long>(1);
@@ -286,7 +326,18 @@ namespace MicroJ
             v.Ravel[0] = total;
             return v;
         }
-        
+
+        //special code for +/ rank 1
+        public A<double> reduceplus(A<double> y) {
+            var v = new A<double>(1);
+            double total = 0;
+            for (var i = 0; i < y.Count; i++) {
+                total+= (double)y.Ravel[i];
+            }
+            v.Ravel[0] = total;
+            return v;
+        }
+
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
             if (y.Rank == 1) {
                 var v = new A<T>(1);
@@ -328,6 +379,9 @@ namespace MicroJ
             //special code for +/
             if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<long>)) {
                 return reduceplus((A<long>)y);
+            }
+            else if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<double>)) {
+                return reduceplus((A<double>)y);
             }
             else if (adverb == "/") {
                 if (y.GetType() == typeof(A<long>)) {
@@ -382,6 +436,14 @@ namespace MicroJ
 
         //dynamic dispatch of math operations -- slowest, around 7x slower
         public A<double> mathmixed(dynamic x, dynamic y, Func<dynamic, dynamic, dynamic> op) { 
+            var z = new A<double>(y.Ravel.Length, y.Shape);
+            for(var i = 0; i < y.Ravel.Length; i++) {                   
+                z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+            }
+            return z;
+        }
+
+        public A<double> mathmixed(A<long> x, A<double> y, Func<dynamic, dynamic, dynamic> op) { 
             var z = new A<double>(y.Ravel.Length, y.Shape);
             for(var i = 0; i < y.Ravel.Length; i++) {                   
                 z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
@@ -489,10 +551,20 @@ namespace MicroJ
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) { 
                     return mathd((A<double>)x,(A<double>)y, (a,b)=>a+b);
                 }
+                else if (x.Rank == 0 && x.GetType() != y.GetType() &&
+                         x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    //experimental special code for 1 + (1.2 2.3 4.5)
+                    var newx = new A<double>(1);
+                    newx.Ravel[0] = ((A<long>)x).Ravel[0];
+                    return mathd((A<double>)newx,(A<double>)y, (a,b)=>a+b);
+                }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x,(A<double>)y, (a,b)=>a+b);
+                }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x,y, (a,b)=>a+b);
                 }
-
+                
             }
             else if (op == "-") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
