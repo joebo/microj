@@ -849,6 +849,7 @@ namespace MicroJ
                         }
                         else {
                             token.val = val;
+                            token.word = newWord.word;
                         }
                         stack.Push(token);
                     }
