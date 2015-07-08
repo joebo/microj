@@ -408,12 +408,13 @@ namespace MicroJ
         
         public A<long> iota<T>(A<T> y) where T : struct  {
             var shape = y.Ravel.Cast<long>().ToArray();
+            var ascending = shape.Where(x=>x<0).Count() == 0;
             long ct = prod(shape);
             var k = Math.Abs(ct);
             var z = new A<long>(k);
-            if (y.Rank > 0) { z.Shape = shape; }
+            if (y.Rank > 0) { z.Shape = shape.Select(x=>Math.Abs(x)).ToArray(); }
             //todo not implemented shape with different signs 3 _3 3
-            if (ct >= 0) {
+            if (ascending) {
                 for(var i = 0; i < k; i++) {
                     z.Ravel[i] = i;
                 }
@@ -964,6 +965,7 @@ namespace MicroJ
 
             eqTests["iota simple"] = () => pair(parse("i. 3").ToString(), "0 1 2");
             eqTests["iota simple negative"] = () => pair(parse("i. _3").ToString(), "2 1 0");
+            eqTests["iota negative array"] = () => pair(parse("i. _2 _2").ToString(), "3 2\n1 0");
             eqTests["shape iota simple"] = () => pair(parse("$ i. 3").ToString(), "3");
 
             eqTests["reshape int"] = () => pair(parse("3 $ 3").ToString(),"3 3 3");
