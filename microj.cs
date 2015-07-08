@@ -399,15 +399,23 @@ namespace MicroJ
 
         public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "=", "|:" };
         public Adverbs Adverbs=null;
-
+        
         
         public A<long> iota<T>(A<T> y) where T : struct  {
             var shape = y.Ravel.Cast<long>().ToArray();
-            long k = prod(shape);
+            long ct = prod(shape);
+            var k = Math.Abs(ct);
             var z = new A<long>(k);
             if (y.Rank > 0) { z.Shape = shape; }
-            for(var i = 0; i < k; i++) {
-                z.Ravel[i] = i;
+            //todo not implemented shape with different signs 3 _3 3
+            if (ct >= 0) {
+                for(var i = 0; i < k; i++) {
+                    z.Ravel[i] = i;
+                }
+            } else {
+                for(var i = k-1; i >= 0; i--) {
+                    z.Ravel[(k-i-1)] = i;
+                }
             }
             return z;
         }
@@ -947,6 +955,7 @@ namespace MicroJ
             eqTests["divide float"] = () => pair(parse("1 % 4").ToString(), "0.25");
 
             eqTests["iota simple"] = () => pair(parse("i. 3").ToString(), "0 1 2");
+            eqTests["iota simple negative"] = () => pair(parse("i. _3").ToString(), "2 1 0");
             eqTests["shape iota simple"] = () => pair(parse("$ i. 3").ToString(), "3");
 
             eqTests["reshape int"] = () => pair(parse("3 $ 3").ToString(),"3 3 3");
