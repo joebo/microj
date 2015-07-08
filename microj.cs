@@ -184,13 +184,21 @@ namespace MicroJ
         
         public override string ToString() {
             if (Ravel.Length == 1) {
-                return Ravel[0].ToString();
+                if (typeof(T) != typeof(bool)) {
+                    return Ravel[0].ToString();
+                } else {
+                    return Convert.ToBoolean(Ravel[0]) ? "1" : "0";
+                }
             }
             else {
                 var z = new StringBuilder();
                 long[] odometer = new long[Rank];
                 for(var i = 0; i < Count; i++) {
-                    z.Append(Ravel[i].ToString());
+                    if (typeof(T) != typeof(bool)) {
+                        z.Append(Ravel[i].ToString());
+                    } else {
+                        z.Append(Convert.ToBoolean(Ravel[i]) ? "1" : "0");
+                    }
                     odometer[Rank-1]++;
 
                     if (odometer[Rank-1] != Shape[Rank-1]) {
@@ -348,7 +356,7 @@ namespace MicroJ
             v.Ravel = y.Shape;
             return v;
         }
-
+        
         public A<T> transpose<T> (A<T> y) where T : struct {
             var shape = y.Shape.Reverse().ToArray();
             var v = new A<T>(y.Count, shape);
@@ -423,6 +431,15 @@ namespace MicroJ
             return v;
         }
 
+        public A<bool> equals<T,T2>(A<T> x, A<T2> y) where T : struct where T2 : struct {
+            //todo handle application errors without exceptions
+            if (x.Count != y.Count) { throw new ArgumentException("Length Error"); }
+            var z = new A<bool>(y.Count);
+            for(var i = 0; i < y.Count; i++) {
+                z.Ravel[i] = x.Ravel[i].Equals(y.Ravel[i]);
+            }
+            return z;
+        }
         public AType Call2(AType method, AType x, AType y)  {
             var op = ((A<Verb>) method).Ravel[0].op;
             if (op == "+") {
@@ -491,8 +508,16 @@ namespace MicroJ
                         return reshape_str((A<long>)x,(A<JString>)y);
                     }
                 }
+            } else if (op == "=") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
+                    return equals((A<long>)x,(A<long>)y);
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>))
+                    return equals((A<double>)x,(A<double>)y);
+                else if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>))
+                    return equals((A<JString>)x,(A<JString>)y);
+
             }
-            throw new ArgumentException();
+            throw new NotImplementedException();
         }
 
         //candidate for code generation
@@ -743,6 +768,7 @@ namespace MicroJ
             tests["copula abc=:'123'"] = () => equals(toWords("abc=:'123'"), new string[] { "abc", "=:", "'123'" });
             tests["|: i. 2 3"] = () => equals(toWords("|: i. 2 3"), new string[] { "|:", "i.", "2 3" });
 
+
             tests["verb assignment"] =() => {
                 var parser = new Parser();
                 parser.parse("plus=: +");
@@ -812,7 +838,15 @@ namespace MicroJ
             eqTests["+/ 2.5 2.5"] = () => pair(parse("+/ 2.5 2.5").ToString(),"5");
             
             eqTests["transpose"] = () => pair(parse("|: i. 2 3"),"0 3\n1 4\n2 5");
-
+            eqTests["equals true"] = () => pair(parse("3 = 3"), "1");
+            eqTests["equals false"] = () => pair(parse("3 = 2"), "0");
+            eqTests["equals float false"] = () => pair(parse("3.2 = 2.2"), "0");
+            eqTests["equals float true"] = () => pair(parse("3.2 = 3.2"), "1");
+            eqTests["equals string"] = () => pair(parse("'abc' = 'abc'"), "1");
+            eqTests["equals string false"] = () => pair(parse("'abc' = 'abb'"), "0");
+            eqTests["equals array"] = () => pair(parse("( 0 1 2 ) = i. 3"), "1 1 1");
+            eqTests["equals array false"] = () => pair(parse("( 0 1 3 ) = i. 3"), "1 1 0");
+                                                
             foreach (var key in eqTests.Keys) {
                 try {
                     eqTests[key]();
