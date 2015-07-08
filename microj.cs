@@ -28,6 +28,7 @@ using System.Text;
 using System.Diagnostics;
 using System.Linq.Expressions; 
 using System.Runtime.CompilerServices;
+using System.Reflection;
 
 namespace App {
     using MicroJ;
@@ -46,14 +47,16 @@ namespace App {
                 }
                 long kbAtExecution = GC.GetTotalMemory(false) / 1024;
                 var watch = new Stopwatch();
+                var parser = new Parser();
                 watch.Start();
                 AType ret = null;
                 for(var i = 0; i < times; i++) {
-                    ret = new Parser().parse(args[0]);
+                    ret = parser.parse(args[0]);
                 }
                 watch.Stop();
                 Console.WriteLine(ret.ToString());
                 Console.WriteLine(String.Format("Took: {0} ms", (watch.ElapsedMilliseconds)/ (double)times));
+                Console.WriteLine(String.Format("Total: {0} ms", (watch.ElapsedMilliseconds)));
                 long kbAfter1 = GC.GetTotalMemory(false) / 1024;
                 long kbAfter2 = GC.GetTotalMemory(true) / 1024;
 
@@ -468,7 +471,40 @@ namespace MicroJ
 
         public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:" };
         public Adverbs Adverbs=null;
-        
+
+        //Func<A<long>, A<JString>, A<JString>> copyFunc;
+        //Delegate copyFunc;
+
+        Dictionary<Tuple<string, Type, Type>, Delegate> expressionDict;
+        public Verbs() {
+            expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
+        }
+
+        public AType InvokeExpression(string op, AType x, AType y, int generics) {
+            var key = new Tuple<string, Type, Type>(op, x.GetType(), y.GetType());
+            Delegate d;
+            if (!expressionDict.TryGetValue(key, out d)) {
+                var calleeType = typeof(Verbs);
+
+                MethodInfo meth;
+                if (generics == 1) {
+                    meth = calleeType.GetMethod(op).MakeGenericMethod(y.GetType().GetGenericArguments().First());
+                } else {
+                    meth = calleeType.GetMethod(op).MakeGenericMethod(x.GetType().GetGenericArguments().First(), y.GetType().GetGenericArguments().First());
+                }
+                var par1 = Expression.Parameter(x.GetType());
+                var par2 = Expression.Parameter(y.GetType());
+                var me = this;
+                var instance = Expression.Constant(me);
+                var call = Expression.Call(instance, meth, par1, par2);
+
+                d = Expression.Lambda(call, par1, par2).Compile();
+                
+                expressionDict[key] = d;
+            }
+
+            return (AType) d.DynamicInvoke(x,y);
+        }
         
         public A<long> iota<T>(A<T> y) where T : struct  {
             var shape = y.Ravel.Cast<long>().ToArray();
@@ -677,6 +713,7 @@ namespace MicroJ
             return z;
         }
 
+        
         public AType Call2(AType method, AType x, AType y)  {
             var verb = ((A<Verb>) method).Ravel[0];
             if (verb.adverb != null) {
@@ -746,30 +783,20 @@ namespace MicroJ
                 }
             }
             else if (op == "=") {
+                //need to profile since equals might be called many times
+                return InvokeExpression("equals", x, y,2);
+                /*
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
                     return equals((A<long>)x,(A<long>)y);
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>))
                     return equals((A<double>)x,(A<double>)y);
                 else if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>))
                     return equals((A<JString>)x,(A<JString>)y);
+                    */
 
             }
             else if (op == "#") {
-                if (x.GetType() == typeof(A<long>)) {
-                    if (y.GetType() == typeof(A<long>)) {
-                        return copy((A<long>)x, (A<long>)y);
-                    }
-                    else if (y.GetType() == typeof(A<double>)) {
-                        return copy((A<long>)x, (A<double>)y);
-                    }
-                    else if (y.GetType() == typeof(A<JString>)) {
-                        return copy((A<long>)x, (A<JString>)y);
-                    }
-                    else if (y.GetType() == typeof(A<bool>)) {
-                        return copy((A<long>)x, (A<bool>)y);
-                    }
-
-                }
+                return InvokeExpression("copy", x, y,1);
             }
             throw new NotImplementedException();
         }
