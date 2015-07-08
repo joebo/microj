@@ -65,9 +65,25 @@ namespace App {
                 new Tests().TestAll();
             }
             else {
+                string prompt = "    ";
                 string line = "";
                 var parser = new Parser();
-                while((line = Console.ReadLine()) != "exit") {
+                while(true) {
+                    Console.Write(prompt);
+
+                    line = Console.ReadLine();
+                    if(line == null)
+                        break;
+
+                    // on Linux, pressing arrow keys will insert null characters to line
+                    line = line.Replace("\0", "");
+                    if(line == "exit")
+                        break;
+
+                    line = line.Trim();
+                    if(line == "")
+                        continue;
+
                     var ret = parser.parse(line);
                     Console.WriteLine(ret.ToString());
                 }
@@ -693,17 +709,7 @@ namespace MicroJ
         }
     }
     public class Tests {
-        bool equals(string[] a1, params string[] a2) {
-            return a1.OrderBy(a => a).SequenceEqual(a2.OrderBy(a => a));
-        }
-    
-        bool equals(long[] a1, params long[] a2) {
-            return a1.OrderBy(a => a).SequenceEqual(a2.OrderBy(a => a));
-        }
-        bool equals(double[] a1, params double[] a2) {
-            return a1.OrderBy(a => a).SequenceEqual(a2.OrderBy(a => a));
-        }
-        bool equals(bool[] a1, params bool[] a2) {
+        bool equals<T>(T[] a1, params T[] a2) {
             return a1.OrderBy(a => a).SequenceEqual(a2.OrderBy(a => a));
         }
 
