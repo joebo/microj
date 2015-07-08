@@ -38,7 +38,7 @@ namespace App {
             if (args.Length == 2 && args[1] == "-d") {
                 System.Diagnostics.Debugger.Launch();                
             }
-            if (args.Length > 0 && args[0] != "-t")
+            if (args.Length > 0 && args[0] != "-t" && args[0] != "-i")
             {
                 int times = 1;
                 if (args.Length > 1 && args[1] == "-n") {
@@ -993,6 +993,17 @@ namespace MicroJ
 
             eqTests["negative numbers add"] = () => pair(parse(" 1 + _5 _6"), "_4 _5");
 
+            // should evaluate right to left, not left to right
+            eqTests["$/ 1 1 5"] = () => pair(parse("$/ 1 1 5").ToString(),"5");
+            eqTests["$/ 5 1 1"] = () => pair(parse("$/ 5 1 1").ToString(),"1 1 1 1 1");
+
+            eqTests["*/ 1 + i. 3"] = () => pair(parse("*/ 1 + i. 3").ToString(),"6");
+
+            eqTests["4 $ 'ab'"] = () => pair(parse("*/ 1 + i. 3").ToString(),"abab");
+
+            eqTests["0%0'"] = () => pair(parse("0%0").ToString(),"0");
+            eqTests["1%0"] = () => pair(parse("1%0").ToString(),"_");
+            
             foreach (var key in eqTests.Keys) {
                 try {
                     eqTests[key]();
