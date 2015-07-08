@@ -408,7 +408,7 @@ namespace MicroJ
         
         public A<long> iota<T>(A<T> y) where T : struct  {
             var shape = y.Ravel.Cast<long>().ToArray();
-            var ascending = shape.Where(x=>x<0).Count() == 0;
+            var ascending = shape.All(x=>x>=0);
             long ct = prod(shape);
             var k = Math.Abs(ct);
             var z = new A<long>(k);
@@ -751,7 +751,7 @@ namespace MicroJ
 
         public bool IsValidName(string word) {
             if (word == null) { return false; }
-            return word.Where(x=>!Char.IsDigit(x) && !Char.IsLetter(x) && x != '_').Count() == 0;
+            return word.All(x=>Char.IsDigit(x) || Char.IsLetter(x) || x == '_');
         }
         
         public AType parse(string cmd) {
