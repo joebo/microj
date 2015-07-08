@@ -111,6 +111,7 @@ namespace MicroJ
                 var str = word.Substring(1, word.Length-2);
                 var a = new A<JString>(1);
                 a.Ravel[0] = new JString { str = str };
+                a.Shape = new long[] { str.Length };
                 return a;
             }
             if (word.Contains(" ") && !word.Contains(".")) {
@@ -171,6 +172,8 @@ namespace MicroJ
         public long Count { get { return Ravel.Length; } }
 
         public A(long n) {
+            //handle atoms
+            if (n == 0) { n = 1; }
             Ravel = new T[n];
             if (n > 0) {
                 Shape = new long[] { n };
@@ -183,7 +186,7 @@ namespace MicroJ
         }
         
         public override string ToString() {
-            if (Ravel.Length == 1) {
+            if (Rank == 0) {
                 if (typeof(T) != typeof(bool)) {
                     return Ravel[0].ToString();
                 } else {
@@ -199,7 +202,12 @@ namespace MicroJ
                     } else {
                         z.Append(Convert.ToBoolean(Ravel[i]) ? "1" : "0");
                     }
-                    odometer[Rank-1]++;
+                    if (typeof(T) != typeof(JString)) {
+                        odometer[Rank-1]++;
+                    } else {
+                        //hack since Ravel[0] is a string instance, not an array
+                        odometer[Rank-1]+=((JString)(object)Ravel[i]).str.Length;
+                    }
 
                     if (odometer[Rank-1] != Shape[Rank-1]) {
                         z.Append(" ");
@@ -353,7 +361,8 @@ namespace MicroJ
 
         public A<long> shape(AType y) {
             var v = new A<long>(y.Rank);
-            v.Ravel = y.Shape;
+            if (y.Rank == 0) { v.Ravel[0] = 0; }
+            else { v.Ravel = y.Shape; }
             return v;
         }
         
@@ -421,7 +430,7 @@ namespace MicroJ
             }
             var size = x.Rank >= 1 ? x.Ravel[0] : 1;
             var len = x.Rank  >= 1 ?  x.Ravel[x.Rank] : x.Ravel[0];
-            var v = new A<JString>(size, new long[] { size, 1 });
+            var v = new A<JString>(size, new long[] { size, len });
             for(var i = 0; i < size; i++) {
                 //intern string saves 4x memory in simple test and 20% slower
                 v.Ravel[i].str =  String.Intern(new String(chars, (int)(i*len), (int)len));
@@ -856,6 +865,8 @@ namespace MicroJ
             eqTests["equals array false"] = () => pair(parse("( 0 1 3 ) = i. 3"), "1 1 0");
 
             eqTests["1 $ 'abc'"] = () => pair(parse("1 $ 'abc'"), "a");
+            eqTests["shape empty - $ ''"] = () => pair(parse("$ ''"), "0");
+            eqTests["shape string $ 2 2 $ 'abcd'"] = () => pair(parse("$ 2 2 $ 'abcd'"), "2 2");
             
             foreach (var key in eqTests.Keys) {
                 try {
