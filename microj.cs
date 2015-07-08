@@ -441,13 +441,13 @@ namespace MicroJ
     
     public class Verbs {
 
-        public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "=", "|:" };
+        public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:" };
         public Adverbs Adverbs=null;
         
         
         public A<long> iota<T>(A<T> y) where T : struct  {
             var shape = y.Ravel.Cast<long>().ToArray();
-            var ascending = shape.Where(x=>x<0).Count() == 0;
+            var ascending = shape.All(x=>x>=0);
             long ct = prod(shape);
             var k = Math.Abs(ct);
             var z = new A<long>(k);
@@ -540,6 +540,13 @@ namespace MicroJ
             var v = new A<long>(y.Rank);
             if (y.Rank == 0) { v.Ravel[0] = 0; }
             else { v.Ravel = y.Shape; }
+            return v;
+        }
+
+        public A<long> tally(AType y) {
+            var v = new A<long>(1);
+            if (y.Rank == 0) { v.Ravel[0] = 1; }
+            else { v.Ravel[0] = y.Shape[0]; }
             return v;
         }
         
@@ -737,6 +744,8 @@ namespace MicroJ
                 }
             } else if (op == "$") {
                 return shape(y);
+            } else if (op == "#") {
+                return tally(y);
             }
             else if (op == "|:") {
                 if (y.GetType() == typeof(A<int>)) {
@@ -815,7 +824,7 @@ namespace MicroJ
 
         public bool IsValidName(string word) {
             if (word == null) { return false; }
-            return word.Where(x=>!Char.IsDigit(x) && !Char.IsLetter(x) && x != '_').Count() == 0;
+            return word.All(x=>Char.IsDigit(x) || Char.IsLetter(x) || x == '_');
         }
         
         public AType parse(string cmd) {
@@ -1074,6 +1083,11 @@ namespace MicroJ
             eqTests["1 $ 'abc'"] = () => pair(parse("1 $ 'abc'"), "a");
             eqTests["shape empty - $ ''"] = () => pair(parse("$ ''"), "0");
             eqTests["shape string $ 2 2 $ 'abcd'"] = () => pair(parse("$ 2 2 $ 'abcd'"), "2 2");
+
+            eqTests["tally"] = () => pair(parse("# 1"), "1");
+            eqTests["tally i."] = () => pair(parse("# i. 5"), "5");
+            eqTests["tally multidimensional"] = () => pair(parse("# i. 5 4 3"), "5");
+            eqTests["tally empty"] = () => pair(parse("# 0 $ 0"), "0");
 
             eqTests["negative numbers add"] = () => pair(parse(" 1 + _5 _6"), "_4 _5");
 
