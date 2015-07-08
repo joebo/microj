@@ -52,7 +52,7 @@ namespace App {
                     ret = new Parser().parse(args[0]);
                 }
                 watch.Stop();
-                Console.WriteLine("Output: " + ret.ToString());
+                Console.WriteLine(ret.ToString());
                 Console.WriteLine(String.Format("Took: {0} ms", (watch.ElapsedMilliseconds)/ (double)times));
                 long kbAfter1 = GC.GetTotalMemory(false) / 1024;
                 long kbAfter2 = GC.GetTotalMemory(true) / 1024;
