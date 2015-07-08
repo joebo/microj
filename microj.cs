@@ -232,6 +232,9 @@ namespace MicroJ
             else if (typeof(T) == typeof(double)) {
                 double v = (double)(object)val;
                 if (v < 0) { return "_" + Math.Abs(v); }
+                else if (double.IsInfinity(v)) { return "_"; }
+                else if (v > 0) { return v.ToString(); }
+                else if (double.IsNaN(v)) { return "0"; }
                 else { return v.ToString(); }
             }
             else {
@@ -341,11 +344,13 @@ namespace MicroJ
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
             if (y.Rank == 1) {
                 var v = new A<T>(1);
-                v.Ravel[0] = y.Ravel[0];
-                for (var i = 1; i < y.Count; i++) {
-                    var yi = new A<T>(1);
-                    yi.Ravel[0] = y.Ravel[i];
-                    v = (A<T>)Verbs.Call2(op, v, yi); //copy the ith item for procesing
+                v.Ravel[0] = y.Ravel[y.Count-2];
+                var next = new A<T>(1);
+                next.Ravel[0] = y.Ravel[y.Count-1];
+                v = (A<T>)Verbs.Call2(op, v, next); 
+                for (var i = y.Count - 3; i >= 0; i--) {
+                    next.Ravel[0] = y.Ravel[i];
+                    v = (A<T>)Verbs.Call2(op, next, v); 
                 }
                 return v;
             } else {
@@ -997,9 +1002,9 @@ namespace MicroJ
             eqTests["$/ 1 1 5"] = () => pair(parse("$/ 1 1 5").ToString(),"5");
             eqTests["$/ 5 1 1"] = () => pair(parse("$/ 5 1 1").ToString(),"1 1 1 1 1");
 
-            eqTests["*/ 1 + i. 3"] = () => pair(parse("*/ 1 + i. 3").ToString(),"6");
+            eqTests["*/ 1 + i. 3"] = () => pair(parse("*/ ( 1 + i. 3 )").ToString(),"6");
 
-            eqTests["4 $ 'ab'"] = () => pair(parse("*/ 1 + i. 3").ToString(),"abab");
+            eqTests["4 $ 'ab'"] = () => pair(parse("4 $ 'ab'").ToString(),"abab");
 
             eqTests["0%0'"] = () => pair(parse("0%0").ToString(),"0");
             eqTests["1%0"] = () => pair(parse("1%0").ToString(),"_");
