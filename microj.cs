@@ -768,12 +768,17 @@ namespace MicroJ
                 i++;
             }
             stack.Pop();
-            var ret = stack.Pop().val;
-            if (ret == null) {
-                throw new ApplicationException("no value found on stack - after " + i.ToString() + " iterations");
+            var ret = stack.Pop();
+            if (ret.val == null && ret.word != null) {
+                var retv = new A<JString>(1);
+                retv.Ravel[0] = new JString { str = ret.word };
+                return retv;
             }
-            return ret;
+            else if (ret.val != null) {
+                return ret.val;
 
+            }
+            throw new ApplicationException("no value found on stack - after " + i.ToString() + " iterations");
         }
     }
     public class Tests {
