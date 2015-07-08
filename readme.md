@@ -6,8 +6,9 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 
 
 ## Status: Proof of concept
-### Building / Running
-1. run build.bat
+
+### Building / Running (tested on windows/linux)
+1. run build.bat (windows) or mcs microj.cs (mono)
 2. run microj.exe to get a repl, hit ctrl+c to exit or type exit
 
 ### Command Line Options
