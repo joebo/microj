@@ -184,24 +184,41 @@ namespace MicroJ
             Ravel = new T[n];
             Shape = shape;
         }
-        
+
+        public string StringConverter(T val) {
+            var str  = "";
+            if (typeof(T) == typeof(bool)) {
+                str = Convert.ToBoolean(val) ? "1" : "0";
+            }
+            else if (typeof(T) == typeof(int)) {
+                int v = (int)(object)val;
+                if (v < 0) { return "_" + Math.Abs(v); }
+                else { return v.ToString(); }
+            }
+            else if (typeof(T) == typeof(long)) {
+                long v = (long)(object)val;
+                if (v < 0) { return "_" + Math.Abs(v); }
+                else { return v.ToString(); }
+            }
+            else if (typeof(T) == typeof(double)) {
+                double v = (double)(object)val;
+                if (v < 0) { return "_" + Math.Abs(v); }
+                else { return v.ToString(); }
+            }
+            else {
+                str = val.ToString();                
+            }
+            return str;
+        }
         public override string ToString() {
             if (Rank == 0) {
-                if (typeof(T) != typeof(bool)) {
-                    return Ravel[0].ToString();
-                } else {
-                    return Convert.ToBoolean(Ravel[0]) ? "1" : "0";
-                }
+                return StringConverter(Ravel[0]);
             }
             else {
                 var z = new StringBuilder();
                 long[] odometer = new long[Rank];
                 for(var i = 0; i < Count; i++) {
-                    if (typeof(T) != typeof(bool)) {
-                        z.Append(Ravel[i].ToString());
-                    } else {
-                        z.Append(Convert.ToBoolean(Ravel[i]) ? "1" : "0");
-                    }
+                    z.Append(StringConverter(Ravel[i]));
                     if (typeof(T) != typeof(JString)) {
                         odometer[Rank-1]++;
                     } else {
@@ -824,6 +841,7 @@ namespace MicroJ
             eqTests["subtract float - int"] = () => pair(parse("4.5 - 3").ToString(), "1.5");
             eqTests["subtract int - float"] = () => pair(parse("4 - 3.5").ToString(), "0.5");
 
+            eqTests["subtract negative"] = () => pair(parse("5 - 6").ToString(), "_1");
 
             eqTests["multiply int"] = () => pair(parse("2 * 3").ToString(), "6");
             eqTests["multiply float"] = () => pair(parse("2.5 * 2.5").ToString(), "6.25");
