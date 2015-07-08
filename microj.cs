@@ -84,8 +84,12 @@ namespace App {
                     if(line == "")
                         continue;
 
-                    var ret = parser.parse(line);
-                    Console.WriteLine(ret.ToString());
+                    try {
+                        var ret = parser.parse(line);
+                        Console.WriteLine(ret.ToString());
+                    } catch (Exception e) {
+                        Console.WriteLine(e.ToString());
+                    }
                 }
             }
             
