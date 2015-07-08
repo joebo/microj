@@ -98,7 +98,7 @@ namespace MicroJ
     public abstract class AType
     {
         public long[] Shape;
-        public int Rank { get { return Shape.Length; } }
+        public int Rank { get { return Shape[0] == 1 ? 0 : Shape.Length; } }
 
         public static AType MakeA(string word, Parser environment)  {
             int val;
@@ -410,7 +410,7 @@ namespace MicroJ
             var ct = prod(x.Ravel);
             long offset = 0;
             var ylen = y.Count;
-            
+
             char[] chars = new char[ct];
             ylen = y.Ravel[0].str.Length;
             
@@ -419,8 +419,8 @@ namespace MicroJ
                 offset++;
                 if (offset > ylen-1) { offset = 0; }
             }
-            var size = x.Ravel[0];
-            var len = x.Ravel[1];
+            var size = x.Rank >= 1 ? x.Ravel[0] : 1;
+            var len = x.Rank  >= 1 ?  x.Ravel[x.Rank] : x.Ravel[0];
             var v = new A<JString>(size, new long[] { size, 1 });
             for(var i = 0; i < size; i++) {
                 //intern string saves 4x memory in simple test and 20% slower
@@ -854,7 +854,9 @@ namespace MicroJ
             eqTests["equals string false"] = () => pair(parse("'abc' = 'abb'"), "0");
             eqTests["equals array"] = () => pair(parse("( 0 1 2 ) = i. 3"), "1 1 1");
             eqTests["equals array false"] = () => pair(parse("( 0 1 3 ) = i. 3"), "1 1 0");
-                                                
+
+            eqTests["1 $ 'abc'"] = () => pair(parse("1 $ 'abc'"), "a");
+            
             foreach (var key in eqTests.Keys) {
                 try {
                     eqTests[key]();
