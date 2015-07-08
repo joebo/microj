@@ -767,45 +767,45 @@ namespace MicroJ
             };
             var eqTests = new Dictionary<string, Action>();
             
-            eqTests["add"] = new Action(()=>pair(parse("1 + 2").ToString(), "3"));
-            eqTests["add float"] = new Action(()=>pair(parse("1.5 + 2.5").ToString(), "4"));
-            eqTests["add float + int"] = new Action(()=>pair(parse("4.5 + 3").ToString(), "7.5"));
+            eqTests["add"] = () => pair(parse("1 + 2").ToString(), "3");
+            eqTests["add float"] = () => pair(parse("1.5 + 2.5").ToString(), "4");
+            eqTests["add float + int"] = () => pair(parse("4.5 + 3").ToString(), "7.5");
 
-            eqTests["subtract"] = new Action(()=>pair(parse("4 - 3").ToString(), "1"));
-            eqTests["subtract float - int"] = new Action(()=>pair(parse("4.5 - 3").ToString(), "1.5"));
-            eqTests["subtract int - float"] = new Action(()=>pair(parse("4 - 3.5").ToString(), "0.5"));
+            eqTests["subtract"] = () => pair(parse("4 - 3").ToString(), "1");
+            eqTests["subtract float - int"] = () => pair(parse("4.5 - 3").ToString(), "1.5");
+            eqTests["subtract int - float"] = () => pair(parse("4 - 3.5").ToString(), "0.5");
 
 
-            eqTests["multiply int"] = new Action(()=>pair(parse("2 * 3").ToString(), "6"));
-            eqTests["multiply float"] = new Action(()=>pair(parse("2.5 * 2.5").ToString(), "6.25"));
-            eqTests["multiply int*float"] = new Action(()=>pair(parse("2 * 2.5").ToString(), "5"));
+            eqTests["multiply int"] = () => pair(parse("2 * 3").ToString(), "6");
+            eqTests["multiply float"] = () => pair(parse("2.5 * 2.5").ToString(), "6.25");
+            eqTests["multiply int*float"] = () => pair(parse("2 * 2.5").ToString(), "5");
 
-            eqTests["divide int"] = new Action(()=>pair(parse("10 % 2").ToString(), "5"));
-            eqTests["divide float"] = new Action(()=>pair(parse("1 % 4").ToString(), "0.25"));
+            eqTests["divide int"] = () => pair(parse("10 % 2").ToString(), "5");
+            eqTests["divide float"] = () => pair(parse("1 % 4").ToString(), "0.25");
 
-            eqTests["iota simple"] = new Action(()=>pair(parse("i. 3").ToString(), "0 1 2"));
-            eqTests["shape iota simple"] = new Action(()=>pair(parse("$ i. 3").ToString(), "3"));
+            eqTests["iota simple"] = () => pair(parse("i. 3").ToString(), "0 1 2");
+            eqTests["shape iota simple"] = () => pair(parse("$ i. 3").ToString(), "3");
 
-            eqTests["reshape int"] = new Action(()=>pair(parse("3 $ 3").ToString(),"3 3 3"));
-            eqTests["reshape int"] = new Action(()=>pair(parse("2 3 $ 3").ToString(),"3 3 3\n3 3 3"));
-            eqTests["reshape double"] = new Action(()=>pair(parse("3 $ 3.2").ToString(),"3.2 3.2 3.2"));
-            eqTests["reshape string"] = new Action(()=>pair(parse("3 2 $ 'abc'").ToString(),"ab\nca\nbc"));
+            eqTests["reshape int"] = () => pair(parse("3 $ 3").ToString(),"3 3 3");
+            eqTests["reshape int"] = () => pair(parse("2 3 $ 3").ToString(),"3 3 3\n3 3 3");
+            eqTests["reshape double"] = () => pair(parse("3 $ 3.2").ToString(),"3.2 3.2 3.2");
+            eqTests["reshape string"] = () => pair(parse("3 2 $ 'abc'").ToString(),"ab\nca\nbc");
 
             
-            eqTests["adverb simple"] = new Action(()=>pair(parse("+/ i. 4").ToString(), "6"));
-            eqTests["multi-dimensional sum"] = new Action(()=>pair(parse("+/ i. 2 3").ToString(),"3 5 7"));
-            eqTests["multi-dimensional"] = new Action(()=>pair(parse("i. 2 3").ToString(),"0 1 2\n3 4 5"));
-            eqTests["multi-dimensional 2"] = new Action(()=>pair(parse("i. 2 2 2").ToString(),"0 1\n2 3\n\n4 5\n6 7"));
-            eqTests["multi-dimensional add "] = new Action(()=>pair(parse("1 + i. 2 2").ToString(),"1 2\n3 4"));
-            eqTests["multi-dimensional sum"] = new Action(()=>pair(parse("+/ i. 2 3").ToString(),"3 5 7"));
-            eqTests["multi-dimensional sum higher rank"] = new Action(()=>pair(parse("+/ i. 2 2 2").ToString(),"4 6\n8 10"));
-            eqTests["multi-dimensional sum higher rank 2"] = new Action(()=>pair(parse("+/ i. 4 3 2").ToString(),"36 40\n44 48\n52 56"));
-            eqTests["assignment"] = new Action(()=>pair(parse("a + a=:5").ToString(),"10"));
-            eqTests["*/ int"] = new Action(()=>pair(parse("*/ 2 2 2").ToString(),"8"));
+            eqTests["adverb simple"] = () => pair(parse("+/ i. 4").ToString(), "6");
+            eqTests["multi-dimensional sum"] = () => pair(parse("+/ i. 2 3").ToString(),"3 5 7");
+            eqTests["multi-dimensional"] = () => pair(parse("i. 2 3").ToString(),"0 1 2\n3 4 5");
+            eqTests["multi-dimensional 2"] = () => pair(parse("i. 2 2 2").ToString(),"0 1\n2 3\n\n4 5\n6 7");
+            eqTests["multi-dimensional add "] = () => pair(parse("1 + i. 2 2").ToString(),"1 2\n3 4");
+            eqTests["multi-dimensional sum"] = () => pair(parse("+/ i. 2 3").ToString(),"3 5 7");
+            eqTests["multi-dimensional sum higher rank"] = () => pair(parse("+/ i. 2 2 2").ToString(),"4 6\n8 10");
+            eqTests["multi-dimensional sum higher rank 2"] = () => pair(parse("+/ i. 4 3 2").ToString(),"36 40\n44 48\n52 56");
+            eqTests["assignment"] = () => pair(parse("a + a=:5").ToString(),"10");
+            eqTests["*/ int"] = () => pair(parse("*/ 2 2 2").ToString(),"8");
 
-            eqTests["+/ 2.5 2.5"] = new Action(()=>pair(parse("+/ 2.5 2.5").ToString(),"5"));
+            eqTests["+/ 2.5 2.5"] = () => pair(parse("+/ 2.5 2.5").ToString(),"5");
             
-            eqTests["transpose"] = new Action(()=>pair(parse("|: i. 2 3"),"0 3\n1 4\n2 5"));
+            eqTests["transpose"] = () => pair(parse("|: i. 2 3"),"0 3\n1 4\n2 5");
 
             foreach (var key in eqTests.Keys) {
                 try {
