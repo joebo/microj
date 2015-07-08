@@ -370,13 +370,9 @@ namespace MicroJ
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
             if (y.Rank == 1) {
                 var v = new A<T>(1);
-                v.Ravel[0] = y.Ravel[y.Count-2];
-                var next = new A<T>(1);
-                next.Ravel[0] = y.Ravel[y.Count-1];
-                v = (A<T>)Verbs.Call2(op, v, next); 
+                v = (A<T>)Verbs.Call2(op, y.ToAtom(y.Count-2), y.ToAtom(y.Count-1)); 
                 for (var i = y.Count - 3; i >= 0; i--) {
-                    next.Ravel[0] = y.Ravel[i];
-                    v = (A<T>)Verbs.Call2(op, next, v); 
+                    v = (A<T>)Verbs.Call2(op, y.ToAtom(i), v); 
                 }
                 return v;
             } else {
