@@ -377,10 +377,33 @@ namespace MicroJ
             throw new NotImplementedException();
         }
 
+        public A<T> table<T>(AType op, A<T> x, A<T> y) where T : struct {
+            var ct = x.Count * y.Count;
+            var shape = new long[] { x.Count, y.Count };
+            var v = new A<T>(ct, shape);
+            long offset = 0;
+            for(var xi = 0; xi < x.Count; xi++) {
+                for(var yi = 0; yi < y.Count; yi++) {
+                    var xt = new A<T>(1);
+                    xt.Ravel[0] = x.Ravel[xi];
+
+                    var yt = new A<T>(1);
+                    yt.Ravel[0] = y.Ravel[yi];
+
+                    v.Ravel[offset] = ((A<T>)Verbs.Call2(op, xt, yt)).Ravel[0];
+                    offset++;
+                }
+            }
+            return v;
+        }
         public AType Call1(AType verb, AType y)  {
             var adverb = ((A<Verb>)verb).Ravel[0].adverb;
             var op = ((A<Verb>)verb).Ravel[0].op;
 
+            //create a new verb without the adverb component so we can safely pass it around
+            var newVerb = new A<Verb>(1);
+            newVerb.Ravel[0] = new Verb { op = op };
+            
             //special code for +/
             if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<long>)) {
                 return reduceplus((A<long>)y);
@@ -390,14 +413,30 @@ namespace MicroJ
             }
             else if (adverb == "/") {
                 if (y.GetType() == typeof(A<long>)) {
-                    return reduce<long>(verb, (A<long>)y);
+                    return reduce<long>(newVerb, (A<long>)y);
                 }
                 else if (y.GetType() == typeof(A<double>)) {
-                    return reduce<double>(verb, (A<double>)y);
+                    return reduce<double>(newVerb, (A<double>)y);
                 }
             }
             throw new NotImplementedException();
         }
+
+        public AType Call2(AType verb, AType x, AType y)  {
+            var adverb = ((A<Verb>)verb).Ravel[0].adverb;
+            var op = ((A<Verb>)verb).Ravel[0].op;
+
+            //create a new verb without the adverb component so we can safely pass it around
+            var newVerb = new A<Verb>(1);
+            newVerb.Ravel[0] = new Verb { op = op };
+
+            if (adverb == "/" && y.GetType() == typeof(A<long>) && x.GetType() == typeof(A<long>)) {
+                return table(newVerb, (A<long>)x, (A<long>)y);
+            }
+
+            throw new NotImplementedException();
+        }
+
     }
     
     public class Verbs {
@@ -430,20 +469,34 @@ namespace MicroJ
             return (T) ((dynamic)a+((T)(dynamic)b));
         }
 
-        
+        //lambdas add about 3% overhead based upon tests of 100 times, for now worth it for code clarity
         public A<long> mathi(A<long> x, A<long> y, Func<long, long, long> op) { 
             var z = new A<long>(y.Ravel.Length, y.Shape);
-            for(var i = 0; i < y.Ravel.Length; i++) {
-                //lambdas add about 3% overhead based upon tests of 100 times, for now worth it for code clarity
-                z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
-                //z.Ravel[i] = x.Ravel[0] +  y.Ravel[i];
+
+            //split out for performance reasons/otherwise rank was evaluated in the loop
+            if (x.Rank == 0) {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+                }
+            }
+            else {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
+                }
             }
             return z;
         }
         public A<double> mathd(A<double> x, A<double> y, Func<double, double, double> op) { 
             var z = new A<double>(y.Ravel.Length, y.Shape);
-            for(var i = 0; i < y.Ravel.Length; i++) {
-                z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+            if (x.Rank == 0) {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+                }
+            }
+            else {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
+                }
             }
             return z;
         }
@@ -451,8 +504,15 @@ namespace MicroJ
         //dynamic dispatch of math operations -- slowest, around 7x slower
         public A<double> mathmixed(dynamic x, dynamic y, Func<dynamic, dynamic, dynamic> op) { 
             var z = new A<double>(y.Ravel.Length, y.Shape);
-            for(var i = 0; i < y.Ravel.Length; i++) {                   
-                z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+            if (x.Rank == 0) {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+                }
+            }
+            else {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
+                }
             }
             return z;
         }
@@ -463,8 +523,15 @@ namespace MicroJ
             var newx = new A<double>(1);
             newx.Ravel[0] = ((A<long>)x).Ravel[0];
 
-            for(var i = 0; i < y.Ravel.Length; i++) {                   
-                z.Ravel[i] = op(newx.Ravel[0], y.Ravel[i]);
+            if (x.Rank == 0) {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+                }
+            }
+            else {
+                for(var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
+                }
             }
             return z;
         }
@@ -561,7 +628,13 @@ namespace MicroJ
         }
 
         public AType Call2(AType method, AType x, AType y)  {
-            var op = ((A<Verb>) method).Ravel[0].op;
+            var verb = ((A<Verb>) method).Ravel[0];
+            if (verb.adverb != null) {
+                return Adverbs.Call2(method, x, y);
+            }
+            var op = verb.op;
+
+
             if (op == "+") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return mathi((A<long>)x,(A<long>)y, (a,b)=>a+b);
@@ -1014,6 +1087,9 @@ namespace MicroJ
 
             eqTests["0%0'"] = () => pair(parse("0%0").ToString(),"0");
             eqTests["1%0"] = () => pair(parse("1%0").ToString(),"_");
+
+            eqTests["array + array"] = () => pair(parse("a+a=: i. 2 2"),"0 2\n4 6");
+            eqTests["dyadic adverb call"] = () => pair(parse("2 4 +/ 1 3"),"3 5\n5 7");
             
             foreach (var key in eqTests.Keys) {
                 try {
