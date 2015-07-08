@@ -104,6 +104,25 @@ namespace MicroJ
     {
         public long[] Shape;
         public int Rank { get { return Shape[0] == 1 ? 0 : Shape.Length; } }
+        public Type Type;
+
+        public AType(Type t) {
+            this.Type = t;
+        }
+
+        public A<double> ConvertDouble() {
+            if (Type == typeof(double)) {
+                return (A<double>) this;
+            }
+            else if (Type == typeof(long)) {
+                var a = (A<long>)this;
+                var z = new A<double>(a.Count, a.Shape);
+                z.Ravel = a.Ravel.Select(x=>(double)x).ToArray();
+                return z;
+            }
+            throw new NotImplementedException();
+        }
+
 
         public static AType MakeA(string word, Parser environment)  {
             int val;
@@ -186,7 +205,15 @@ namespace MicroJ
         public long Count { get { return Ravel.Length; } }
 
         public static Func<T, T, T> AddFunc;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public A<T> Atom(long n) {
+            var z = new A<T>(1);
+            z.Ravel[0] = Ravel[n];
+            return z;
+        }
         
+        //not used, but here for the future
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T a, T b) {
             if (AddFunc == null) {
@@ -200,7 +227,7 @@ namespace MicroJ
             return AddFunc(a,b);
         }
         
-        public A(long n) {
+        public A(long n) : base(typeof(T)) {
             //handle atoms
             if (n == 0) { n = 1; }
             Ravel = new T[n];
@@ -209,7 +236,7 @@ namespace MicroJ
             }
         }
 
-        public A(long n, long[] shape ) {
+        public A(long n, long[] shape ) : base(typeof(T)) {
             Ravel = new T[n];
             Shape = shape;
         }
@@ -274,12 +301,6 @@ namespace MicroJ
                 ret = ret.Substring(0, ret.Length - (Shape.Length-1));
                 return ret;
             }
-        }
-
-        public A<T2> CopyTo<T2>() where T2 : struct {
-            A<T2> z = new A<T2>(Count, Shape);
-            z.Ravel = Ravel.Cast<T2>().ToArray();
-            return z;
         }
     }
 
@@ -356,19 +377,17 @@ namespace MicroJ
             } else {
                 var newShape = y.Shape.Skip(1).ToArray();
                 var ct = prod(newShape);
-                
                 var v = new A<T>(ct, newShape);
-                for(var i = 0; i < ct; i++) {
-                    for(var k = 0; k < y.Shape[0];k++) {
+                for(var i = ct-1; i>=0; i--) {
+                    for(var k = y.Shape[0]-1; k >= 0;k--) {
                         var n = i+(k*ct);
-
-                        var yi = new A<T>(1);
-                        yi.Ravel[0] = y.Ravel[n];
-
-                        var vi = new A<T>(1);
-                        vi.Ravel[0] = v.Ravel[i];
-
-                        v.Ravel[i] = ((A<T>)Verbs.Call2(op, vi, yi)).Ravel[0]; 
+                        if (k == y.Shape[0]-1) {
+                            var np = i+((k-1)*ct);
+                            v.Ravel[i] = ((A<T>)Verbs.Call2(op, y.Atom(np), y.Atom(n))).Ravel[0];
+                            k--;
+                        } else {
+                            v.Ravel[i] = ((A<T>)Verbs.Call2(op, y.Atom(n), v.Atom(i))).Ravel[0];
+                        }
                     }
                 }
                 return v;
@@ -410,6 +429,11 @@ namespace MicroJ
             }
             else if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<double>)) {
                 return reduceplus((A<double>)y);
+            }
+            else if (adverb == "/" && op == "%" && y.GetType() == typeof(A<long>)) {
+                //special code to convert longs to double for division
+                var newY = y.ConvertDouble();
+                return reduce<double>(newVerb, (A<double>)newY);
             }
             else if (adverb == "/") {
                 if (y.GetType() == typeof(A<long>)) {
@@ -704,24 +728,9 @@ namespace MicroJ
                 }
             }
             else if (op == "%") {
-                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
-                    //always convert to double for division
-                    var a1 = ((A<long>)x);
-                    var b1 = ((A<long>)y);
-                    
-                    var a2 = new A<double>(a1.Count, x.Shape);
-                    a2.Ravel = a1.Ravel.Select(d=>(double)d).ToArray();
-
-                    var b2= new A<double>(b1.Count, y.Shape);
-                    b2.Ravel = b1.Ravel.Select(d=>(double)d).ToArray();
-                    
-                    return mathd(a2,b2, (a,b)=>a/b);
-                }
-                else {
-                    //division using dynamic is about 7x slower
-                    return mathmixed(x,y, (a,b)=>(double)a/(double)b);
-                }
-
+                var a2 = x.ConvertDouble();
+                var b2 = y.ConvertDouble();
+                return mathd(a2,b2, (a,b)=>a/b);
             }
             else if (op == "$") {
                 if (x.GetType() == typeof(A<long>)) {
@@ -835,10 +844,11 @@ namespace MicroJ
                 else if (inQuote && c == '\'') { currentWord.Append(c); emit();  inQuote = !inQuote; }
                 else if (inQuote) { currentWord.Append(c); }
                 else {
-                    if (!isDigit(p) && c == ' ') { emit(); }
+                    
+                    if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
+                    else if (!isDigit(p) && c == ' ') { emit(); }
                     else if (p == ' ' && !isDigit(c)) { emit(); currentWord.Append(c); }
                     else if (isDigit(p) && c != ' ' && c!= '.' && !isDigit(c) && !Char.IsLetter(c)) { emit(); currentWord.Append(c); }
-                    else if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
                     else if ((c == '.' && p == '=') || (c==':' && p== '=')) { currentWord.Append(c); emit(); }
                     else if ((c == '.' && p == 'i')) { currentWord.Append(c); emit(); } //special case for letter symbols
                     else if (isSymbol(p) && Char.IsLetter(c)) { emit(); currentWord.Append(c); }
@@ -1143,8 +1153,10 @@ namespace MicroJ
 
             eqTests["copy 5 # 3"] = () => pair(parse("5 # 3"),"3 3 3 3 3");
 
+            eqTests["divide array"] = () => pair(parse("%/ (3 2 $ 1 1 5 5)"), "0.2 0.2");
             //failing for now
             //eqTests["copy 3 # i. 1 2"] = () => pair(parse("3 # i. 1 2"),"0 1\n0 1\n0 1");
+            //eqTests["copy string"] = () => pair(parse("3 # 'ab'"),"aaabbbccc");
             
             foreach (var key in eqTests.Keys) {
                 try {
