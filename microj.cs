@@ -718,7 +718,7 @@ namespace MicroJ
                 else {
                     if (!isDigit(p) && c == ' ') { emit(); }
                     else if (p == ' ' && !isDigit(c)) { emit(); currentWord.Append(c); }
-                    else if (isDigit(p) && c != ' ' && c!= '.' && !isDigit(c)) { emit(); currentWord.Append(c); }
+                    else if (isDigit(p) && c != ' ' && c!= '.' && !isDigit(c) && !Char.IsLetter(c)) { emit(); currentWord.Append(c); }
                     else if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
                     else if ((c == '.' && p == '=') || (c==':' && p== '=')) { currentWord.Append(c); emit(); }
                     else if ((c == '.' && p == 'i')) { currentWord.Append(c); emit(); } //special case for letter symbols
@@ -741,7 +741,7 @@ namespace MicroJ
 
         public bool IsValidName(string word) {
             if (word == null) { return false; }
-            return word.Where(x=>!Char.IsDigit(x) && !Char.IsLetter(x)).Count() == 0;
+            return word.Where(x=>!Char.IsDigit(x) && !Char.IsLetter(x) && x != '_').Count() == 0;
         }
         
         public AType parse(string cmd) {
@@ -911,7 +911,10 @@ namespace MicroJ
 
             tests["negative numbers _5 _6"] = () => equals(toWords("_5 _6"), new string[] { "_5 _6" });
             tests["negative numbers _5 6 _3"] = () => equals(toWords("_5 6 _3"), new string[] { "_5 6 _3" });
-            
+
+            tests["names with number"] = () => equals(toWords("a1b =: 1"), new string[] { "a1b", "=:", "1" });
+            tests["names with underscore"] = () => equals(toWords("a_b =: 1"), new string[] { "a_b", "=:", "1" });
+
             tests["verb assignment"] =() => {
                 var parser = new Parser();
                 parser.parse("plus=: +");
