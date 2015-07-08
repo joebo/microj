@@ -443,10 +443,14 @@ namespace MicroJ
             return z;
         }
 
-        public A<double> mathmixed(A<long> x, A<double> y, Func<dynamic, dynamic, dynamic> op) { 
+        //convert long to double
+        public A<double> mathmixed(A<long> x, A<double> y, Func<double, double, double> op) { 
             var z = new A<double>(y.Ravel.Length, y.Shape);
+            var newx = new A<double>(1);
+            newx.Ravel[0] = ((A<long>)x).Ravel[0];
+
             for(var i = 0; i < y.Ravel.Length; i++) {                   
-                z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+                z.Ravel[i] = op(newx.Ravel[0], y.Ravel[i]);
             }
             return z;
         }
@@ -551,13 +555,6 @@ namespace MicroJ
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) { 
                     return mathd((A<double>)x,(A<double>)y, (a,b)=>a+b);
                 }
-                else if (x.Rank == 0 && x.GetType() != y.GetType() &&
-                         x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
-                    //experimental special code for 1 + (1.2 2.3 4.5)
-                    var newx = new A<double>(1);
-                    newx.Ravel[0] = ((A<long>)x).Ravel[0];
-                    return mathd((A<double>)newx,(A<double>)y, (a,b)=>a+b);
-                }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x,(A<double>)y, (a,b)=>a+b);
                 }
@@ -573,10 +570,12 @@ namespace MicroJ
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return mathd((A<double>)x,(A<double>)y, (a,b)=>a-b);
                 }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x,(A<double>)y, (a,b)=>a-b);
+                }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x,y, (a,b)=>a-b);
                 }
-
             }
             else if (op == "*") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
@@ -585,6 +584,9 @@ namespace MicroJ
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return mathd((A<double>)x,(A<double>)y, (a,b)=>a*b);
                 }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x,(A<double>)y, (a,b)=>a*b);
+                }                
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x,y, (a,b)=>a*b);
                 }
