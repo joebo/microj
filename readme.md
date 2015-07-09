@@ -12,9 +12,12 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 2. run microj.exe to get a repl, hit ctrl+c to exit or type exit
 
 ### Command Line Options
-- -t to run tests (see tests at bottom of file)
-- "1+1" to run a string
-- "+/ i. 5" -n [times] to run an operations N times
+- filename 
+- -tp to run parser tests (see tests at bottom of file)
+- -t to run the supplied file in test mode
+- -q to suppress output on file run
+- -js "1+1" to run a string
+- -n 10 -js "+/ i. 5" to run an operations N times
 
 ### Ready
 1. long/double data types
