@@ -324,31 +324,7 @@ namespace MicroJ
             return ri.Aggregate(1L, (prod, next)=> prod*next);
         }
 
-        //special code for +/ rank 1 (not double or float)
-        public A<T> reduceplus<T>(A<T> y) where T : struct {
-            var v = new A<T>(1);
-            T total = default(T);
-
-            /* timing tests microj "+/ ( 10000000 $ 5 10)" -n 10
-               class-level lambda 90ms
-               function-level lambda 67ms
-               no lambda 45ms (reduceplus<long>)
-            */
-            var par1 = Expression.Parameter(typeof(T));
-            var par2 = Expression.Parameter(typeof(T));
-
-            var add = Expression.Add(par1, par2);
-
-            var addf = Expression.Lambda<Func<T, T, T>>(add, par1, par2).Compile();
-
-            for (var i = 0; i < y.Count; i++) {
-                total = addf(total, y.Ravel[i]);
-            }
-            v.Ravel[0] = total;
-            return v;
-        }
-
-        //special code for +/ rank 1
+        //special code for +/ rank 1 (long)
         public A<long> reduceplus(A<long> y) {
             var v = new A<long>(1);
             long total = 0;
@@ -359,7 +335,7 @@ namespace MicroJ
             return v;
         }
 
-        //special code for +/ rank 1
+        //special code for +/ rank 1 (double)
         public A<double> reduceplus(A<double> y) {
             var v = new A<double>(1);
             double total = 0;
@@ -783,17 +759,13 @@ namespace MicroJ
                 }
             }
             else if (op == "=") {
-                //need to profile since equals might be called many times
-                return InvokeExpression("equals", x, y,2);
-                /*
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
                     return equals((A<long>)x,(A<long>)y);
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>))
                     return equals((A<double>)x,(A<double>)y);
                 else if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>))
                     return equals((A<JString>)x,(A<JString>)y);
-                    */
-
+                else return InvokeExpression("equals", x, y,2);
             }
             else if (op == "#") {
                 return InvokeExpression("copy", x, y,1);
