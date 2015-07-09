@@ -348,7 +348,11 @@ namespace MicroJ
                 vs[i] = (A<T>)Verbs.Call1(newVerb, newY);
             }
             var ct = vs.Length * vs[0].Count;
-            var v = new A<T>(ct, newShape.Union(vs[0].Shape).ToArray() );
+
+            if (vs[0].Shape != null) {
+                newShape = newShape.Union(vs[0].Shape).ToArray();
+            }
+            var v = new A<T>(ct, newShape );
             int offset=0;
             for(var i = 0; i < vs.Length; i++) {
                 for(var k = 0; k < vs[0].Count; k++) {
@@ -639,7 +643,7 @@ namespace MicroJ
         }
 
         public A<long> tally(AType y) {
-            var v = new A<long>(1);
+            var v = new A<long>(0);
             if (y.Rank == 0) { v.Ravel[0] = 1; }
             else { v.Ravel[0] = y.Shape[0]; }
             return v;
@@ -1253,8 +1257,9 @@ namespace MicroJ
             eqTests["rank shape - rank-1"] = () => pair(parse("$\"2 i. 3 2 1"), "2 1\n2 1\n2 1");
             eqTests["rank shape - rank-2"] = () => pair(parse("$\"1 i. 3 2 1"), "1\n1\n\n1\n1\n\n1\n1");
             
-            //eqTests["rank shape - 1"] = () => pair(parse("$ $\"2 i. 3 2 1"), "3 2");
-            //eqTests["rank shape - 2"] = () => pair(parse("$ $\"1 i. 3 2 1"), "3 3 1");
+            eqTests["rank shape - 1"] = () => pair(parse("$ $\"2 i. 3 2 1"), "3 2");
+            eqTests["rank shape - 2"] = () => pair(parse("$ $\"1 i. 3 2 1"), "3 2 1");
+            eqTests["rank shape tally"] = () => pair(parse("$ #\"1 i. 3 2 1"), "3 2");
             
             
             foreach (var key in eqTests.Keys) {
