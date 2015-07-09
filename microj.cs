@@ -367,7 +367,7 @@ namespace MicroJ
     }
 
     public class Conjunctions {
-        public static string[] Words = new string[] { "\"" };
+        public static string[] Words = new string[] { "\"", "!:" };
         public Verbs Verbs;
 
         public Conjunctions(Verbs verbs) {
@@ -651,25 +651,8 @@ namespace MicroJ
             return (T) ((dynamic)a+((T)(dynamic)b));
         }
 
-        //lambdas add about 3% overhead based upon tests of 100 times, for now worth it for code clarity
-        public A<long> mathi(A<long> x, A<long> y, Func<long, long, long> op) { 
-            var z = new A<long>(y.Ravel.Length, y.Shape);
-
-            //split out for performance reasons/otherwise rank was evaluated in the loop
-            if (x.Rank == 0) {
-                for(var i = 0; i < y.Ravel.Length; i++) {
-                    z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
-                }
-            }
-            else {
-                for(var i = 0; i < y.Ravel.Length; i++) {
-                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
-                }
-            }
-            return z;
-        }
-        public A<double> mathd(A<double> x, A<double> y, Func<double, double, double> op) { 
-            var z = new A<double>(y.Ravel.Length, y.Shape);
+        public A<T> math<T>(A<T> x, A<T> y, Func<T, T, T> op) where T : struct { 
+            var z = new A<T>(y.Ravel.Length, y.Shape);
             if (x.Rank == 0) {
                 for(var i = 0; i < y.Ravel.Length; i++) {
                     z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
@@ -889,10 +872,10 @@ namespace MicroJ
 
             if (op == "+") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
-                    return mathi((A<long>)x,(A<long>)y, (a,b)=>a+b);
+                    return math((A<long>)x,(A<long>)y, (a,b)=>a+b);
                 }
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) { 
-                    return mathd((A<double>)x,(A<double>)y, (a,b)=>a+b);
+                    return math((A<double>)x,(A<double>)y, (a,b)=>a+b);
                 }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x,(A<double>)y, (a,b)=>a+b);
@@ -904,10 +887,10 @@ namespace MicroJ
             }
             else if (op == "-") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
-                    return mathi((A<long>)x,(A<long>)y, (a,b)=>a-b);
+                    return math((A<long>)x,(A<long>)y, (a,b)=>a-b);
                 }
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
-                    return mathd((A<double>)x,(A<double>)y, (a,b)=>a-b);
+                    return math((A<double>)x,(A<double>)y, (a,b)=>a-b);
                 }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x,(A<double>)y, (a,b)=>a-b);
@@ -918,10 +901,10 @@ namespace MicroJ
             }
             else if (op == "*") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
-                    return mathi((A<long>)x,(A<long>)y, (a,b)=>a*b);
+                    return math((A<long>)x,(A<long>)y, (a,b)=>a*b);
                 }
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
-                    return mathd((A<double>)x,(A<double>)y, (a,b)=>a*b);
+                    return math((A<double>)x,(A<double>)y, (a,b)=>a*b);
                 }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x,(A<double>)y, (a,b)=>a*b);
@@ -933,7 +916,7 @@ namespace MicroJ
             else if (op == "%") {
                 var a2 = x.ConvertDouble();
                 var b2 = y.ConvertDouble();
-                return mathd(a2,b2, (a,b)=>a/b);
+                return math(a2,b2, (a,b)=>a/b);
             }
             else if (op == "$") {
                 if (x.GetType() == typeof(A<long>)) {
@@ -1137,7 +1120,7 @@ namespace MicroJ
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isAdverb(w3) && true) { step = 3; } //adverb
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isConj(w3) &&  (isNoun(w2) || isVerb(w2))) { step = 4; }
                 else if ((isNoun(w1) || isName(w1)) && (w2.word == "=:" || w2.word == "=.") && true && true) { step = 7; }
-                else if (w1.word == "(" && isNoun(w2) && w3.word == ")" && true) { step = 8; }
+                else if (w1.word == "(" && (isNoun(w2) || isVerb(w2)) && w3.word == ")" && true) { step = 8; }
 
                 //Console.WriteLine(step);
                 if (step >= 0) {
@@ -1186,7 +1169,11 @@ namespace MicroJ
                         var rhs = stack.Pop();
                         var z = new A<Verb>(0);
                         //todo handle conjunction returning noun
-                        z.Ravel[0] = ((A<Verb>)lhs.val).Ravel[0];
+                        if (isVerb(lhs)) {
+                            z.Ravel[0] = ((A<Verb>)lhs.val).Ravel[0];
+                        } else {
+                            z.Ravel[0].op = lhs.word;
+                        }
                         z.Ravel[0].conj = conj.word;
                         z.Ravel[0].rhs = rhs.word;
                         stack.Push(new Token { val = z });
@@ -1287,6 +1274,7 @@ namespace MicroJ
             tests["names with number"] = () => equals(toWords("a1b =: 1"), new string[] { "a1b", "=:", "1" });
             tests["names with underscore"] = () => equals(toWords("a_b =: 1"), new string[] { "a_b", "=:", "1" });
             tests["is with no parens"] = () => equals(toWords("i.3-:3"), new string[] { "i.", "3", "-:", "3" });
+            tests["foreign conjunction"] = () => equals(toWords("(15!:0) 'abc'"), new string[] { "15", "!:", "0", "'abc'" });
 
             tests["verb assignment"] =() => {
                 var parser = new Parser();
