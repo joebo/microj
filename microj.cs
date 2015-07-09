@@ -106,11 +106,15 @@ namespace MicroJ
     public abstract class AType
     {
         public long[] Shape;
-        public int Rank { get { return Shape[0] == 1 ? 0 : Shape.Length; } }
+        public int Rank { get { return Shape == null ? 0 : Shape.Length; } }
         public Type Type;
 
         public AType(Type t) {
             this.Type = t;
+        }
+
+        public long ShapeProduct(long[] ri) {
+            return ri.Aggregate(1L, (prod, next)=> prod*next);
         }
 
         public A<double> ConvertDouble() {
@@ -170,12 +174,12 @@ namespace MicroJ
                 return a;
             }
             else if (Int32.TryParse(word, out val)) {
-                A<long> a = new A<long>(1);
+                A<long> a = new A<long>(0);
                 a.Ravel[0] = val;
                 return a;
             }
             else if (Double.TryParse(word, out vald)) {
-                var a = new A<double>(1);
+                var a = new A<double>(0);
                 a.Ravel[0] = vald;
                 return a;
             }
@@ -193,6 +197,8 @@ namespace MicroJ
     public struct Verb {
         public string op;
         public string adverb;
+        public string conj;
+        public string rhs;
     }
 
     //tbd should we use chars instead?
@@ -236,9 +242,8 @@ namespace MicroJ
         }
         
         public A(long n) : base(typeof(T)) {
-            //handle atoms
-            if (n == 0) { n = 1; }
-            Ravel = new T[n];
+            //hold atoms
+            Ravel = new T[n != 0 ? n : (n+1)];
             if (n > 0) {
                 Shape = new long[] { n };
             }
@@ -312,6 +317,58 @@ namespace MicroJ
         }
     }
 
+    public class Conjunctions {
+        public static string[] Words = new string[] { "\"" };
+        public Verbs Verbs;
+
+        public Conjunctions(Verbs verbs) {
+            Verbs = verbs;
+        }
+
+        public A<T> rankex1<T>(AType method, A<T> y) where T : struct {
+            var verb = ((A<Verb>) method).Ravel[0];
+            var newRank = Convert.ToInt32(verb.rhs);
+
+            //create a new verb without the conj component so we can safely pass it around
+            var newVerb = new A<Verb>(1);
+            newVerb.Ravel[0] = new Verb { op = verb.op };
+
+            if (newRank == y.Rank) { return (A<T>)Verbs.Call1(newVerb, y); }
+
+            var newShape = y.Shape.Take(y.Rank-newRank).ToArray();
+            var newCt = y.ShapeProduct(newShape);
+            var vs = new A<T>[newCt];
+            var subShape = y.Shape.Skip(y.Rank-newRank).ToArray();
+            var subShapeCt = y.ShapeProduct(subShape);
+            for(var i = 0; i < vs.Length; i++) {
+                var newY = new A<T>(subShapeCt, subShape);
+                for(var k = 0; k < newY.Count; k++) {
+                    newY.Ravel[k] = y.Ravel[k+i];
+                }
+                vs[i] = (A<T>)Verbs.Call1(newVerb, newY);
+            }
+            var ct = vs.Length * vs[0].Count;
+            var v = new A<T>(ct, newShape.Union(vs[0].Shape).ToArray() );
+            int offset=0;
+            for(var i = 0; i < vs.Length; i++) {
+                for(var k = 0; k < vs[0].Count; k++) {
+                    v.Ravel[offset++] = vs[i].Ravel[k];
+                }
+            }
+            return v;
+        }
+        
+        public AType Call1(AType method, AType y)  {
+            var verb = ((A<Verb>) method).Ravel[0];
+
+            if (verb.conj == "\"") {
+                if (y.GetType() == typeof(A<long>)) { return rankex1(method, (A<long>)y); }
+                //todo: evaluate performance of dynamic dispatch of rank -- probably ok
+                else return Verbs.InvokeExpression("rankex1", method, y,1, this);
+            }
+            throw new NotImplementedException();
+        }
+    }
     public class Adverbs {
         public static string[] Words = new string[] { "/" };
         public Verbs Verbs;
@@ -447,7 +504,8 @@ namespace MicroJ
 
         public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:" };
         public Adverbs Adverbs=null;
-
+        public Conjunctions Conjunctions = null;
+        
         //Func<A<long>, A<JString>, A<JString>> copyFunc;
         //Delegate copyFunc;
 
@@ -456,11 +514,11 @@ namespace MicroJ
             expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
         }
 
-        public AType InvokeExpression(string op, AType x, AType y, int generics) {
+        public AType InvokeExpression(string op, AType x, AType y, int generics, object callee=null) {
             var key = new Tuple<string, Type, Type>(op, x.GetType(), y.GetType());
             Delegate d;
             if (!expressionDict.TryGetValue(key, out d)) {
-                var calleeType = typeof(Verbs);
+                var calleeType = callee == null ? typeof(Verbs) : callee.GetType();
 
                 MethodInfo meth;
                 if (generics == 1) {
@@ -470,7 +528,7 @@ namespace MicroJ
                 }
                 var par1 = Expression.Parameter(x.GetType());
                 var par2 = Expression.Parameter(y.GetType());
-                var me = this;
+                var me = callee == null ? this : callee;
                 var instance = Expression.Constant(me);
                 var call = Expression.Call(instance, meth, par1, par2);
 
@@ -591,7 +649,7 @@ namespace MicroJ
             
             var copies = x.Ravel[0];
             var ct = copies * y.Count;
-            var shape = y.Shape;
+            var shape = y.Shape != null ? y.Shape : new long[] { 1 };
             shape[0] = shape[0] * copies;
             
             var v = new A<T>(ct, shape);
@@ -779,6 +837,12 @@ namespace MicroJ
             if (verb.adverb != null) {
                 return Adverbs.Call1(method, y);
             }
+
+            //future: add check for integrated rank support
+            if (verb.conj != null) {
+                return Conjunctions.Call1(method, y);
+            }
+            
             var op = verb.op;
             if (op == "i.") {
                 if (y.GetType() == typeof(A<int>)) {
@@ -809,6 +873,8 @@ namespace MicroJ
 
         public Verbs Verbs;
         public Adverbs Adverbs;
+        public Conjunctions Conjunctions;
+        
         public Dictionary<string, AType> Names;
 
         char[] symbols = null;
@@ -817,11 +883,15 @@ namespace MicroJ
         public Parser() {
             Verbs = new Verbs();
             Adverbs = new Adverbs(Verbs);
+            Conjunctions = new Conjunctions(Verbs);
+            
             Verbs.Adverbs = Adverbs;
+            Verbs.Conjunctions = Conjunctions;
+            
             Names = new Dictionary<string, AType>();
 
             //symbols are the first letter of every verb or adverb, letter symbols cause problems currently
-            symbols = Verbs.Words.Select(x=>x[0]).Union(Adverbs.Words.Select(x=>x[0])).Where(x=>!Char.IsLetter(x)).ToArray();
+            symbols = Verbs.Words.Select(x=>x[0]).Union(Adverbs.Words.Select(x=>x[0])).Union(Conjunctions.Words.Select(x=>x[0])).Where(x=>!Char.IsLetter(x)).ToArray();
             symbolPrefixes = Verbs.Words.Where(x=>x.Length>1).Select(x=>x[1]).Union(Adverbs.Words.Where(x=>x.Length>1).Select(x=>x[1])).ToArray();
         }
         
@@ -880,6 +950,7 @@ namespace MicroJ
             Func<Token, bool> isEdge = (token) => token.word == MARKER || token.word == "=:" || token.word == "(";
             Func<Token, bool> isVerb = (token) => (token.val != null && token.val.GetType() == typeof(A<Verb>)); //|| (token.word != null && verbs.ContainsKey(token.word));
             Func<Token, bool> isAdverb = (token) => token.word != null && Adverbs.Words.Contains(token.word);
+            Func<Token, bool> isConj = (token) => token.word != null && Conjunctions.Words.Contains(token.word);
             Func<Token, bool> isNoun = (token) => (token.val != null && token.val.GetType() != typeof(A<Verb>));
             Func<Token, bool> isEdgeOrNotConj = (token) => isEdge(token) || isVerb(token) || isNoun(token) || token.word == "";
             Func<Token, bool> isName = (token) => IsValidName(token.word);
@@ -908,6 +979,7 @@ namespace MicroJ
                 else if (isEdgeOrNotConj(w1) && isVerb(w2) && isVerb(w3) && isNoun(w4)) { step = 1; }
                 else if (isEdgeOrNotConj(w1) && isNoun(w2) && isVerb(w3) && isNoun(w4)) { step = 2; }
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isAdverb(w3) && true) { step = 3; } //adverb
+                else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isConj(w3) &&  (isNoun(w2) || isVerb(w2))) { step = 4; }
                 else if ((isNoun(w1) || isName(w1)) && (w2.word == "=:" || w2.word == "=.") && true && true) { step = 7; }
                 else if (w1.word == "(" && isNoun(w2) && w3.word == ")" && true) { step = 8; }
 
@@ -951,6 +1023,20 @@ namespace MicroJ
                         stack.Push(new Token { val = z });
                         stack.Push(p1);
                     }
+                    else if (step == 4) { //conjunction
+                        var p1 = stack.Pop();
+                        var lhs = stack.Pop();
+                        var conj = stack.Pop();
+                        var rhs = stack.Pop();
+                        var z = new A<Verb>(1);
+                        //todo handle conjunction returning noun
+                        z.Ravel[0] = ((A<Verb>)lhs.val).Ravel[0];
+                        z.Ravel[0].conj = conj.word;
+                        z.Ravel[0].rhs = rhs.word;
+                        stack.Push(new Token { val = z });
+                        stack.Push(p1);
+                    }
+
                     else if (step == 7) { //copula
                         var name = stack.Pop();
                         var copula = stack.Pop();
@@ -1060,6 +1146,8 @@ namespace MicroJ
                 return z == "3";
             };
 
+            tests["rank conjunction /+\"1 i.3"] = () => equals(toWords("/+\"1 i.3"), new string[] { "/", "+", "\"", "1", "i.", "3" });
+            
             foreach (var key in tests.Keys) {
                 if (!tests[key]()) {
                     //throw new ApplicationException(key);
@@ -1095,6 +1183,8 @@ namespace MicroJ
             eqTests["iota simple"] = () => pair(parse("i. 3").ToString(), "0 1 2");
             eqTests["iota simple negative"] = () => pair(parse("i. _3").ToString(), "2 1 0");
             eqTests["iota negative array"] = () => pair(parse("i. _2 _2").ToString(), "3 2\n1 0");
+            //todo failing
+            //eqTests["iota negative mixed"] = () => pair(parse("i. 3 _3"), "2 1 0\n5 4 3\n8 7 6");
             eqTests["shape iota simple"] = () => pair(parse("$ i. 3").ToString(), "3");
 
             eqTests["reshape int"] = () => pair(parse("3 $ 3").ToString(),"3 3 3");
@@ -1157,6 +1247,15 @@ namespace MicroJ
             //failing for now
             //eqTests["copy 3 # i. 1 2"] = () => pair(parse("3 # i. 1 2"),"0 1\n0 1\n0 1");
             //eqTests["copy string"] = () => pair(parse("3 # 'ab'"),"aaabbbccc");
+
+            eqTests["rank shape full"] = () => pair(parse("$\"3 i. 3 2 1"), "3 2 1");
+            eqTests["rank shape full 1"] = () => pair(parse("$ $\"3 i. 3 2 1"), "3");
+            eqTests["rank shape - rank-1"] = () => pair(parse("$\"2 i. 3 2 1"), "2 1\n2 1\n2 1");
+            eqTests["rank shape - rank-2"] = () => pair(parse("$\"1 i. 3 2 1"), "1\n1\n\n1\n1\n\n1\n1");
+            
+            //eqTests["rank shape - 1"] = () => pair(parse("$ $\"2 i. 3 2 1"), "3 2");
+            //eqTests["rank shape - 2"] = () => pair(parse("$ $\"1 i. 3 2 1"), "3 3 1");
+            
             
             foreach (var key in eqTests.Keys) {
                 try {
