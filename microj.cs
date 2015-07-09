@@ -368,7 +368,7 @@ namespace MicroJ
             var verb = ((A<Verb>) method).Ravel[0];
 
             if (verb.conj == "\"") {
-                //todo: add special code for +/"n or use some type of integrated rank support
+                //future: add special code for +/"n or use some type of integrated rank support
                 if (y.GetType() == typeof(A<long>)) { return rank1ex(method, (A<long>)y); }
                 //todo: evaluate performance of dynamic dispatch of rank -- probably ok
                 else return Verbs.InvokeExpression("rank1ex", method, y,1, this);
