@@ -74,7 +74,7 @@ namespace App {
                 Console.WriteLine(kbAfter1 - kbAtExecution + " Amt. Added.");
                 Console.WriteLine(kbAfter2 + " Amt. After Collection");
                 Console.WriteLine(kbAfter2 - kbAfter1 + " Amt. Collected by GC.");       
-            } else if (args.Length > 0 && args[0] == "-to") {
+            } else if (args.Length > 0 && args[0] == "-tp") {
                 new Tests().TestAll();
             } else if (args.Length > 0) {
                 if (!File.Exists(args[0])) {
