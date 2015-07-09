@@ -352,7 +352,7 @@ namespace MicroJ
             var ct = vs.Length * vs[0].Count;
 
             if (vs[0].Shape != null) {
-                newShape = newShape.Union(vs[0].Shape).ToArray();
+                newShape = newShape.Concat(vs[0].Shape).ToArray();
             }
             var v = new A<T>(ct, newShape );
             offset=0;
@@ -517,7 +517,7 @@ namespace MicroJ
     
     public class Verbs {
 
-        public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:" };
+        public static string[] Words = new string[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|." };
         public Adverbs Adverbs=null;
         public Conjunctions Conjunctions = null;
         
@@ -554,7 +554,29 @@ namespace MicroJ
 
             return (AType) d.DynamicInvoke(x,y);
         }
-        
+
+        public AType InvokeExpression(string op, AType y, object callee=null) {
+            var key = new Tuple<string, Type, Type>(op, null, y.GetType());
+            Delegate d;
+            if (!expressionDict.TryGetValue(key, out d)) {
+                var calleeType = callee == null ? typeof(Verbs) : callee.GetType();
+
+                MethodInfo meth;
+                meth = calleeType.GetMethod(op).MakeGenericMethod(y.GetType().GetGenericArguments().First());
+                
+                var par1 = Expression.Parameter(y.GetType());
+                var me = callee == null ? this : callee;
+                var instance = Expression.Constant(me);
+                var call = Expression.Call(instance, meth, par1);
+
+                d = Expression.Lambda(call, par1).Compile();
+                
+                expressionDict[key] = d;
+            }
+
+            return (AType) d.DynamicInvoke(y);
+        }
+
         public A<long> iota<T>(A<T> y) where T : struct  {
             var shape = y.Ravel.Cast<long>().ToArray();
             var ascending = shape.All(x=>x>=0);
@@ -562,14 +584,15 @@ namespace MicroJ
             var k = Math.Abs(ct);
             var z = new A<long>(k);
             if (y.Rank > 0) { z.Shape = shape.Select(x=>Math.Abs(x)).ToArray(); }
-            //todo not implemented shape with different signs 3 _3 3
-            if (ascending) {
-                for(var i = 0; i < k; i++) {
-                    z.Ravel[i] = i;
-                }
-            } else {
-                for(var i = k-1; i >= 0; i--) {
-                    z.Ravel[(k-i-1)] = i;
+            z.Ravel = permutationIdx(z.Shape);
+            if (!ascending) {
+                for(var i=z.Rank-1;i>=0;i--) {
+                    if (shape[i] < 0) {
+                        var nr = z.Rank-i;
+                        var conj = new A<Verb>(0);
+                        conj.Ravel[0] = new Verb { op = "|.", conj="\"", rhs= nr.ToString() };
+                        z = Conjunctions.rank1ex(conj, z);
+                    }
                 }
             }
             return z;
@@ -708,7 +731,48 @@ namespace MicroJ
             }
             return v;
         }
+
+        //permutation idx
+        public long[] permutationIdx(long[] y, bool asc=true) {
+            long tail = y.Length > 1 ? y.Skip(1).Aggregate((a,b)=>a*b) : 1;
+            var head = y[0]; 
+            var v = new long[head*tail];    
+            if (asc == true) {
+                for(var i = 0; i < head*tail; i++) {
+                    v[i] = i;
+                }
+            } else {
+                long offset=head*tail-1;        
+                for(var i=0;i<head;i++) {  
+                    var max = (i+1)*tail;
+                    for(var k=0;k<tail;k++) {
+                        v[offset--]=max-k-1;
+                    }
+                }; 
+            }
+            return v;
+        }
         
+        public A<T> reverse<T> (A<T> y) where T : struct {
+            var v = new A<T>(y.Count, y.Shape);
+            var pidx = permutationIdx(y.Shape, false);
+            for(var i=0;i<y.Count;i++) {
+                v.Ravel[i] = y.Ravel[pidx[i]];
+            }
+            return v;
+        }
+
+        public A<JString> reverse_str(A<JString> y) {
+            var v = new A<JString>(y.Count, y.Shape);
+            var ct = y.Count;
+
+            for(var i = 0; i < y.Count; i++) {
+                var str = new string(y.Ravel[ct-i-1].str.ToCharArray().Reverse().ToArray());
+                v.Ravel[i].str = String.Intern(str);
+            }
+            return v;
+        }
+
         public long prod(long[] ri) {
             return ri.Aggregate(1L, (prod, next)=> prod*next);
         }
@@ -741,7 +805,7 @@ namespace MicroJ
                 if (offset > ylen-1) { offset = 0; }
             }
             var size = x.Rank >= 1 ? x.Ravel[0] : 1;
-            var len = x.Rank  >= 1 ?  x.Ravel[x.Rank] : x.Ravel[0];
+            var len = x.Rank  >= 1 ? x.Ravel[x.Rank] : x.Ravel[0];
             var v = new A<JString>(size, new long[] { size, len });
             for(var i = 0; i < size; i++) {
                 //intern string saves 4x memory in simple test and 20% slower
@@ -843,6 +907,7 @@ namespace MicroJ
             else if (op == "#") {
                 return InvokeExpression("copy", x, y,1);
             }
+
             throw new NotImplementedException();
         }
 
@@ -879,6 +944,17 @@ namespace MicroJ
                     return transpose((A<long>)y);
                 }
             }
+            else if (op == "|.") {
+                if (y.GetType() == typeof(A<long>)) {
+                    return reverse((A<long>)y);
+                }
+                else if (y.GetType() == typeof(A<JString>)) {
+                    return reverse_str((A<JString>)y);
+                }
+                return InvokeExpression("reverse", y);
+            }
+
+
             throw new ArgumentException();
         }
     }
@@ -1200,8 +1276,7 @@ namespace MicroJ
             eqTests["iota simple"] = () => pair(parse("i. 3").ToString(), "0 1 2");
             eqTests["iota simple negative"] = () => pair(parse("i. _3").ToString(), "2 1 0");
             eqTests["iota negative array"] = () => pair(parse("i. _2 _2").ToString(), "3 2\n1 0");
-            //todo failing
-            //eqTests["iota negative mixed"] = () => pair(parse("i. 3 _3"), "2 1 0\n5 4 3\n8 7 6");
+            eqTests["iota negative mixed"] = () => pair(parse("i. 3 _3"), "2 1 0\n5 4 3\n8 7 6");
             eqTests["shape iota simple"] = () => pair(parse("$ i. 3").ToString(), "3");
 
             eqTests["reshape int"] = () => pair(parse("3 $ 3").ToString(),"3 3 3");
@@ -1275,7 +1350,11 @@ namespace MicroJ
             eqTests["rank shape tally"] = () => pair(parse("$ #\"1 i. 3 2 1"), "3 2");
 
             eqTests["conjunction with adverb +/"] = () => pair(parse("+/\"1 i. 3 3"), "3 12 21");
-            
+
+            eqTests["reverse ints"] = () => pair(parse("|. i.3"), "2 1 0");
+            eqTests["reverse str"] = () => pair(parse("|. 'abc'"), "cba");
+            eqTests["reverse array"] = () => pair(parse("|. 2 3 $ 1 2 3"), "1 2 3\n1 2 3");
+            eqTests["reverse array"] = () => pair(parse("|. i. 2 2 2"), "4 5\n6 7\n\n0 1\n2 3");
             
             foreach (var key in eqTests.Keys) {
                 try {
