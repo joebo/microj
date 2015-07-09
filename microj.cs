@@ -1060,7 +1060,7 @@ namespace MicroJ
             }
             
             Func<char, bool> isSymbol = (c) => symbols.Contains(c); 
-            Func<char, bool> isSymbolPrefix = (c) => symbolPrefixes.Contains(c);
+            Func<char, bool> isSymbolPrefix = (c) => c != '.' && symbolPrefixes.Contains(c);
             Func<char, bool> isDigit = (c) => Char.IsDigit(c) || c == '_';
             bool inQuote = false;
 
