@@ -325,13 +325,13 @@ namespace MicroJ
             Verbs = verbs;
         }
 
-        public A<T> rankex1<T>(AType method, A<T> y) where T : struct {
+        public A<T> rank1ex<T>(AType method, A<T> y) where T : struct {
             var verb = ((A<Verb>) method).Ravel[0];
             var newRank = Convert.ToInt32(verb.rhs);
 
             //create a new verb without the conj component so we can safely pass it around
             var newVerb = new A<Verb>(1);
-            newVerb.Ravel[0] = new Verb { op = verb.op };
+            newVerb.Ravel[0] = new Verb { op = verb.op, adverb = verb.adverb };
 
             if (newRank == y.Rank) { return (A<T>)Verbs.Call1(newVerb, y); }
 
@@ -340,10 +340,12 @@ namespace MicroJ
             var vs = new A<T>[newCt];
             var subShape = y.Shape.Skip(y.Rank-newRank).ToArray();
             var subShapeCt = y.ShapeProduct(subShape);
+            var offset = 0;
             for(var i = 0; i < vs.Length; i++) {
                 var newY = new A<T>(subShapeCt, subShape);
                 for(var k = 0; k < newY.Count; k++) {
-                    newY.Ravel[k] = y.Ravel[k+i];
+                    newY.Ravel[k] = y.Ravel[offset];
+                    offset++;
                 }
                 vs[i] = (A<T>)Verbs.Call1(newVerb, newY);
             }
@@ -353,7 +355,7 @@ namespace MicroJ
                 newShape = newShape.Union(vs[0].Shape).ToArray();
             }
             var v = new A<T>(ct, newShape );
-            int offset=0;
+            offset=0;
             for(var i = 0; i < vs.Length; i++) {
                 for(var k = 0; k < vs[0].Count; k++) {
                     v.Ravel[offset++] = vs[i].Ravel[k];
@@ -366,9 +368,9 @@ namespace MicroJ
             var verb = ((A<Verb>) method).Ravel[0];
 
             if (verb.conj == "\"") {
-                if (y.GetType() == typeof(A<long>)) { return rankex1(method, (A<long>)y); }
+                if (y.GetType() == typeof(A<long>)) { return rank1ex(method, (A<long>)y); }
                 //todo: evaluate performance of dynamic dispatch of rank -- probably ok
-                else return Verbs.InvokeExpression("rankex1", method, y,1, this);
+                else return Verbs.InvokeExpression("rank1ex", method, y,1, this);
             }
             throw new NotImplementedException();
         }
@@ -376,6 +378,8 @@ namespace MicroJ
     public class Adverbs {
         public static string[] Words = new string[] { "/" };
         public Verbs Verbs;
+        public Conjunctions Conjunctions;
+        
         public Adverbs(Verbs verbs) {
             Verbs = verbs;
         }
@@ -387,7 +391,7 @@ namespace MicroJ
 
         //special code for +/ rank 1 (long)
         public A<long> reduceplus(A<long> y) {
-            var v = new A<long>(1);
+            var v = new A<long>(0);
             long total = 0;
             for (var i = 0; i < y.Count; i++) {
                 total+= (long)y.Ravel[i];
@@ -398,7 +402,7 @@ namespace MicroJ
 
         //special code for +/ rank 1 (double)
         public A<double> reduceplus(A<double> y) {
-            var v = new A<double>(1);
+            var v = new A<double>(0);
             double total = 0;
             for (var i = 0; i < y.Count; i++) {
                 total+= (double)y.Ravel[i];
@@ -409,7 +413,7 @@ namespace MicroJ
 
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
             if (y.Rank == 1) {
-                var v = new A<T>(1);
+                var v = new A<T>(0);
                 v = (A<T>)Verbs.Call2(op, y.ToAtom(y.Count-2), y.ToAtom(y.Count-1)); 
                 for (var i = y.Count - 3; i >= 0; i--) {
                     v = (A<T>)Verbs.Call2(op, y.ToAtom(i), v); 
@@ -444,10 +448,10 @@ namespace MicroJ
             long offset = 0;
             for(var xi = 0; xi < x.Count; xi++) {
                 for(var yi = 0; yi < y.Count; yi++) {
-                    var xt = new A<T>(1);
+                    var xt = new A<T>(0);
                     xt.Ravel[0] = x.Ravel[xi];
 
-                    var yt = new A<T>(1);
+                    var yt = new A<T>(0);
                     yt.Ravel[0] = y.Ravel[yi];
 
                     v.Ravel[offset] = ((A<T>)Verbs.Call2(op, xt, yt)).Ravel[0];
@@ -456,14 +460,20 @@ namespace MicroJ
             }
             return v;
         }
-        public AType Call1(AType verb, AType y)  {
-            var adverb = ((A<Verb>)verb).Ravel[0].adverb;
-            var op = ((A<Verb>)verb).Ravel[0].op;
+        public AType Call1(AType method, AType y)  {
+            var verb = ((A<Verb>)method).Ravel[0];
+            var adverb = verb.adverb;
+            var op = verb.op;
 
             //create a new verb without the adverb component so we can safely pass it around
-            var newVerb = new A<Verb>(1);
+            var newVerb = new A<Verb>(0);
             newVerb.Ravel[0] = new Verb { op = op };
-            
+
+            //future: add check for integrated rank support
+            if (verb.conj != null) {
+                return Conjunctions.Call1(method, y);
+            }
+
             //special code for +/
             if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<long>)) {
                 return reduceplus((A<long>)y);
@@ -492,7 +502,7 @@ namespace MicroJ
             var op = ((A<Verb>)verb).Ravel[0].op;
 
             //create a new verb without the adverb component so we can safely pass it around
-            var newVerb = new A<Verb>(1);
+            var newVerb = new A<Verb>(0);
             newVerb.Ravel[0] = new Verb { op = op };
 
             if (adverb == "/" && y.GetType() == typeof(A<long>) && x.GetType() == typeof(A<long>)) {
@@ -619,7 +629,7 @@ namespace MicroJ
         //convert long to double
         public A<double> mathmixed(A<long> x, A<double> y, Func<double, double, double> op) { 
             var z = new A<double>(y.Ravel.Length, y.Shape);
-            var newx = new A<double>(1);
+            var newx = new A<double>(0);
             newx.Ravel[0] = ((A<long>)x).Ravel[0];
 
             if (x.Rank == 0) {
@@ -888,10 +898,12 @@ namespace MicroJ
             Verbs = new Verbs();
             Adverbs = new Adverbs(Verbs);
             Conjunctions = new Conjunctions(Verbs);
+
+            Adverbs.Conjunctions = Conjunctions;
             
             Verbs.Adverbs = Adverbs;
             Verbs.Conjunctions = Conjunctions;
-            
+
             Names = new Dictionary<string, AType>();
 
             //symbols are the first letter of every verb or adverb, letter symbols cause problems currently
@@ -1021,7 +1033,7 @@ namespace MicroJ
                         var p1 = stack.Pop();
                         var op = stack.Pop();
                         var adv = stack.Pop();
-                        var z = new A<Verb>(1);
+                        var z = new A<Verb>(0);
                         z.Ravel[0] = ((A<Verb>)op.val).Ravel[0];
                         z.Ravel[0].adverb = adv.word;
                         stack.Push(new Token { val = z });
@@ -1032,7 +1044,7 @@ namespace MicroJ
                         var lhs = stack.Pop();
                         var conj = stack.Pop();
                         var rhs = stack.Pop();
-                        var z = new A<Verb>(1);
+                        var z = new A<Verb>(0);
                         //todo handle conjunction returning noun
                         z.Ravel[0] = ((A<Verb>)lhs.val).Ravel[0];
                         z.Ravel[0].conj = conj.word;
@@ -1081,7 +1093,7 @@ namespace MicroJ
             stack.Pop();
             var ret = stack.Pop();
             if (ret.val == null && ret.word != null) {
-                var retv = new A<JString>(1);
+                var retv = new A<JString>(0);
                 retv.Ravel[0] = new JString { str = ret.word };
                 return retv;
             }
@@ -1260,6 +1272,8 @@ namespace MicroJ
             eqTests["rank shape - 1"] = () => pair(parse("$ $\"2 i. 3 2 1"), "3 2");
             eqTests["rank shape - 2"] = () => pair(parse("$ $\"1 i. 3 2 1"), "3 2 1");
             eqTests["rank shape tally"] = () => pair(parse("$ #\"1 i. 3 2 1"), "3 2");
+
+            eqTests["conjunction with adverb +/"] = () => pair(parse("+/\"1 i. 3 3"), "3 12 21");
             
             
             foreach (var key in eqTests.Keys) {
