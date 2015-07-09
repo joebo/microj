@@ -37,7 +37,7 @@ namespace App {
     {
         public static void Main(string[] args)
         {
-            if (args.Length == 2 && args[1] == "-d") {
+            if (args.Length >= 2 && args[0] == "-d") {
                 System.Diagnostics.Debugger.Launch();                
             }
             var argList = args.ToList();
@@ -422,7 +422,7 @@ namespace MicroJ
                 //todo: evaluate performance of dynamic dispatch of rank -- probably ok
                 else return Verbs.InvokeExpression("rank1ex", method, y,1, this);
             }
-            throw new NotImplementedException();
+            throw new NotImplementedException(verb.conj + " on y:" + y.ToString() + " type: " + y.GetType().ToString());
         }
     }
     public class Adverbs {
@@ -544,7 +544,7 @@ namespace MicroJ
                     return reduce<double>(newVerb, (A<double>)y);
                 }
             }
-            throw new NotImplementedException();
+            throw new NotImplementedException(adverb + " on y:" + y.ToString() + " type: " + y.GetType().ToString());
         }
 
         public AType Call2(AType verb, AType x, AType y)  {
@@ -559,7 +559,7 @@ namespace MicroJ
                 return table(newVerb, (A<long>)x, (A<long>)y);
             }
 
-            throw new NotImplementedException();
+            throw new NotImplementedException(adverb + " on x:" + x.ToString()  + " y:" + y.ToString() + " type: " + y.GetType().ToString());
         }
 
     }
@@ -968,7 +968,7 @@ namespace MicroJ
                 return z;
             }
 
-            throw new NotImplementedException(op + " on x:" + x.ToString()  + " y:" + y.ToString());
+            throw new NotImplementedException(op + " on x:" + x.ToString()  + " y:" + y.ToString() + " type: " + y.GetType().ToString());
         }
 
         //candidate for code generation
@@ -1013,9 +1013,7 @@ namespace MicroJ
                 }
                 return InvokeExpression("reverse", y);
             }
-
-
-            throw new ArgumentException();
+            throw new NotImplementedException(op + " on y: " + y.ToString() + " type: " + y.GetType().ToString());
         }
     }
 
@@ -1081,7 +1079,7 @@ namespace MicroJ
                     else if ((c == '.' && p == 'i')) { currentWord.Append(c); emit(); } //special case for letter symbols
                     else if (isSymbol(p) && Char.IsLetter(c)) { emit(); currentWord.Append(c); }
                     else if (isSymbol(p) && isSymbol(c)) { emit(); currentWord.Append(c); emit(); }
-                    else if (isSymbol(p) && isDigit(c)) { emit(); currentWord.Append(c); } //1+2
+                    else if ((isSymbol(p) || isSymbolPrefix(p))  && isDigit(c)) { emit(); currentWord.Append(c); } //1+2
                     else if (isSymbol(c) && !isSymbol(p)) { emit(); currentWord.Append(c); } 
                     else currentWord.Append(c);
                 }
@@ -1288,6 +1286,7 @@ namespace MicroJ
 
             tests["names with number"] = () => equals(toWords("a1b =: 1"), new string[] { "a1b", "=:", "1" });
             tests["names with underscore"] = () => equals(toWords("a_b =: 1"), new string[] { "a_b", "=:", "1" });
+            tests["is with no parens"] = () => equals(toWords("i.3-:3"), new string[] { "i.", "3", "-:", "3" });
 
             tests["verb assignment"] =() => {
                 var parser = new Parser();
