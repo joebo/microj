@@ -24,7 +24,7 @@ lineSeries1.Title = "LineSeries 1";
 
 for(var i = 0; i < v.GetCount(); i++ ) {
 lineSeries1.Points.Add(new DataPoint(v.GetLong(i),v.GetLong(i+1)));
-i+=2;
+i+=1;
 }
 model.Series.Add(lineSeries1);
 
