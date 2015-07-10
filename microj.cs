@@ -471,41 +471,26 @@ namespace MicroJ
         //(3 2 $ 1)  (150!:0) 'return v.ToString();'
         //'' (150!:0) 'System.Diagnostics.Debugger.Break();'
         //should the code be x or y?
-        Dictionary<string, object> dotnetMethodCache = null;
+        Dictionary<string, Func<AType, string>> dotnetMethodCache = null;
         public A<JString> calldotnet<T>(A<T> x, A<JString> y) where T : struct {
 
-            if (dotnetMethodCache == null ) { dotnetMethodCache = new Dictionary<string, object>(); }
-            object func = null;
-            if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
-
-                //built with compiled csscript support
 #if CSSCRIPT
+            if (dotnetMethodCache == null ) { dotnetMethodCache = new Dictionary<string, Func<AType, string>>(); }
+            Func<AType, string> func = null;
+            if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
                 func  = CSScript.LoadDelegate<Func<AType, string>>("string func (MicroJ.AType v) { " + y.Ravel[0] + " }");
-#else
-
-                var  path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                var binPath = Path.Combine(path, "bin");
-
-                var assembly = Assembly.LoadFile(Path.Combine(binPath,"CSScriptLibrary.dll"));
-
-                Type type = assembly.GetType("CSScriptLibrary.CSScript");
-                if (type != null)
-                {
-                    MethodInfo methodInfo = type.GetMethod("BuildEval");
-                    if (methodInfo != null)
-                    {
-                        object classInstance = Activator.CreateInstance(type, null);
-                        object[] parametersArray = new object[] { "func(dynamic v) { " + y.Ravel[0] + " }"};
-                        func = methodInfo.Invoke(classInstance, parametersArray);
-                    }
-                }
-#endif
-
+                dotnetMethodCache[y.Ravel[0].str] = func;
             }
-            var ret = ((dynamic)func)(x);
+            var ret = func(x);
             var v = new A<JString>(0);
             v.Ravel[0] = new JString { str = ret };
             return v;
+#else
+            var v = new A<JString>(0);
+            v.Ravel[0] = new JString { str = "microj must be compiled with csscript support" };
+            return v;
+#endif
+            
         }
         
         public AType Call1(AType method, AType y) {
