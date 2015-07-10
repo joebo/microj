@@ -682,7 +682,7 @@ namespace MicroJ
 
     public class Verbs {
 
-        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "["};
+		public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:"};
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
 
@@ -964,6 +964,147 @@ namespace MicroJ
             return v;
         }
 
+        public bool IsPrime (long n){
+            if (n <= 1)
+                return false; //should fail?
+
+            if (n == 2)
+                return true;
+
+            if (n % 2 == 0)
+                return false;
+
+            for (int i = 3; i < Math.Sqrt (n) + 1; i += 2) {
+                if (n % i == 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public long GetNthPrime (long n){
+
+            if (n <= 0)
+                return 0;// throw an exception ??
+            if (n == 1)
+                return 2;
+            long prime = 2;
+            long i = 1;
+
+            long count = 3; // start at 3
+            while (i < n) {
+                if (IsPrime (count) == true) {
+                    prime = count;
+                    i++;
+                }
+                count+=2;
+            }
+            return prime;
+        }
+
+        public long Pi (float n){
+            if (n <= 1)
+                return 0;
+            if (n < 3)
+                return 1;
+            long c = Pi ((float)Math.Pow (n, 1.0f / 3));
+
+            long mu = Pi ((float)Math.Sqrt (n)) - c;
+            return (long)(phi (n, c) + c * (mu + 1) + (mu * mu - mu) * 0.5f - 1 - SumPi (n, c, mu));
+        }
+
+        private long SumPi (float m, long n, long mu){
+            long i = 1;
+            long total = 0;
+            while (i <= mu) {
+                total += Pi (m / GetNthPrime (n + i));
+                i++;
+            }
+            return total;
+        }
+
+        private long phi (float m, long n) {
+            if (m < 0 || n < 0)
+                throw new System.Exception ("Arguments must be non-negative");
+            if (n == 0) {
+                return (long)m;
+            } else {
+                 return phi (m, n - 1) - phi ((long)(m / (float)(GetNthPrime (n))), n - 1);
+            }
+        }
+
+        private List<long> Factor (long n){
+            List<long> lst = new List<long> ();
+            if (n <= 1)
+                return lst; //throw exception?
+
+            long divisor = PollardRho (n, new Random ());
+            lst.Add (divisor);
+            lst.AddRange (Factor (n / divisor));
+            return lst;
+        }
+
+        //can be used for 2 p: y, possibly.
+        private Dictionary<long, int> GetFactorPowers (List<long> factorList){
+            Dictionary<long, int> d = new Dictionary<long, int> ();
+            foreach (long l in factorList) {
+                if (d.ContainsKey (l))
+                    d [l]++;
+                else
+                    d [l] = 0;
+            }
+            return d;
+        }
+
+        //unused.
+        private long FactorizeSimple (long n, long previous){
+            if (n % 2 == 0)
+                return 2;
+            if (n % 3 == 0)
+                return 3;
+            if (n % 5 == 0)
+                return 5;
+
+            long i;
+            for (i = previous; i < Math.Sqrt (n) + 1; i += 2) {
+                if (n % i == 0)
+                    return i;
+            }
+            return n;
+        }
+
+        private long PollardRho (long n, Random rand){
+
+            if (n % 2 == 0)
+                return 2;
+            if (n % 3 == 0)
+                return 3;
+            if (n % 5 == 0)
+                return 5;
+            byte[] buffer = BitConverter.GetBytes (n);
+            rand.NextBytes (buffer);
+            long summand = BitConverter.ToInt64 (buffer, 0);
+            rand.NextBytes (buffer);
+            long a = BitConverter.ToInt64 (buffer, 0);
+            long b = a;
+            long divisor;
+            //
+            a = (n + a * a + summand) % n;
+            b = (((n + b * b + summand) % n) * (n + (n + b * b + summand) % n) + summand) % n;
+            divisor = GCD (a - b, n);
+
+            while (divisor == 1) {
+                a = (a * a + summand) % n;
+                b = (((n + b * b + summand) % n) * (n + (n + b * b + summand) % n) + summand) % n;
+                divisor = GCD (a - b, n);
+            }
+            return divisor;
+        }
+
+        private long GCD (long a, long b){
+            return b == 0 ? a : GCD (b, (b + a) % b);
+        }
+
         public A<bool> equals<T, T2>(A<T> x, A<T2> y) where T : struct where T2 : struct {
             //todo handle application errors without exceptions
             if (x.Count != y.Count) { throw new ArgumentException("Length Error"); }
@@ -1071,6 +1212,31 @@ namespace MicroJ
                 var z = new A<bool>(0);
                 z.Ravel[0] = x.ToString() == y.ToString();
                 return z;
+            }else if (op == "p:") {
+                if (x.ToString () == "_1") { // Pi(y)
+                    long prime = Pi ((long)((A<long>)y).Ravel [0]);
+                    A<long> a = new A<long> ((long)prime);
+                    a.Ravel = new long[]{ prime };
+                    return a;
+                }else if (x.ToString () == "0") { //anti-is prime check
+                    bool prime = IsPrime ((long)((A<long>)y).Ravel [0]);
+                    prime = !prime;
+                    A<bool> a = new A<bool> (1);
+                    a.Ravel = new bool[]{ prime };
+                    return a;
+                }else if (x.ToString () == "1") { //is prime check
+                    bool prime = IsPrime ((long)((A<long>)y).Ravel [0]);
+                    A<bool> a = new A<bool> (1);
+                    a.Ravel = new bool[]{ prime };
+                    return a;
+                }else if (x.ToString () == "2") { //factors with exponents
+                    //TODO
+                }else if (x.ToString () == "3") { //factor list
+                    List<long> fl = Factor((long)((A<long>)y).Ravel[0]);
+                    A<long> a = new A<long>((long)fl.Count);
+                    a.Ravel = fl.ToArray();
+                    return a;
+                }
             }
 
             throw new NotImplementedException(op + " on x:" + x + " y:" + y + " type: " + y.GetType());
@@ -1108,8 +1274,13 @@ namespace MicroJ
                 else if (y.GetType() == typeof(A<long>)) {
                     return transpose((A<long>)y);
                 }
-            }
-            else if (op == "|.") {
+            }else if (op == "p:") {
+                // equivalent to J's p: y
+                long prime = GetNthPrime ((long)((A<long>)y).Ravel [0]);
+                A<long> a = new A<long> ((long)prime);
+                a.Ravel = new long[]{ prime };
+                return a;
+            }else if (op == "|.") {
                 if (y.GetType() == typeof(A<long>)) {
                     return reverse((A<long>)y);
                 }
