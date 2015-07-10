@@ -37,11 +37,14 @@ namespace App {
     public static class Program
     {
         public static void Main(string[] args) {
-            if (args.Length >= 2 && args[0] == "-d") {
-                Debugger.Launch();
-            }
             var argList = args.ToList();
             var jsIdx = argList.FindIndex(c => c.Contains("-js"));
+            var debug = argList.FindIndex(c => c.Contains("-d")) > -1;
+            var runRepl = argList.FindIndex(c => c.Contains("-i")) > -1;
+            if (debug) {
+                Debugger.Launch();
+            }
+
             if (args.Length > 0 && jsIdx > -1) {
                 int times = 1;
 
@@ -58,11 +61,15 @@ namespace App {
                 AType ret = null;
                 var cmd = String.Join(" ", args.Skip(jsIdx + 1).ToArray());
                 Console.WriteLine(cmd);
-                for (var i = 0; i < times; i++) {
-                    ret = parser.parse(cmd);
+                try {
+                    for (var i = 0; i < times; i++) {
+                        ret = parser.parse(cmd);
+                    }
+                } catch (Exception e) {
+                    Console.WriteLine(e);
                 }
                 watch.Stop();
-                Console.WriteLine(ret.ToString());
+                if (ret != null) Console.WriteLine(ret.ToString());
                 Console.WriteLine("Took: {0} ms", (watch.ElapsedMilliseconds) / (double)times);
                 Console.WriteLine("Total: {0} ms", (watch.ElapsedMilliseconds));
                 long kbAfter1 = GC.GetTotalMemory(false) / 1024;
@@ -75,7 +82,7 @@ namespace App {
                 Console.WriteLine(kbAfter2 - kbAfter1 + " Amt. Collected by GC.");
             } else if (args.Length > 0 && args[0] == "-tp") {
                 new Tests().TestAll();
-            } else if (args.Length > 0) {
+            } else if (!runRepl && args.Length > 0) {
                 if (!File.Exists(args[0])) {
                     Console.WriteLine("file: " + args[0] + " does not exist");
                     return;
@@ -410,9 +417,59 @@ namespace MicroJ
             return v;
         }
 
+        //future: add a boxed method that can take parameters
+        //(3 2 $ 'abc')  (150!:0) 'return v.ToString();'
+        //(3 2 $ 'abc')  (150!:0) 'return v.Ravel[0].str;'
+        //(3 2 $ 'abc')  (150!:0) 'return v.Rank.ToString();'
+        //should the code be x or y?
+        Dictionary<string, object> dotnetMethodCache = null;
+        public A<JString> calldotnet(A<JString> x, A<JString> y) {
+
+            if (dotnetMethodCache == null ) { dotnetMethodCache = new Dictionary<string, object>(); }
+            object func = null;
+            if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
+
+                var  path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+                AppDomain currentDomain = AppDomain.CurrentDomain;
+
+                currentDomain.AssemblyResolve +=  new ResolveEventHandler((sender,args) => {
+                    string folderPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                    string assemblyPath = Path.Combine(folderPath + "\\bin\\", new AssemblyName(args.Name).Name + ".dll");
+                    if (File.Exists(assemblyPath) == false) return null;
+                    Assembly dependency = Assembly.LoadFrom(assemblyPath);
+                    return dependency;
+                });
+
+                foreach (var dll  in Directory.GetFiles(path + "\\bin\\", "*.dll")) {
+                    if (!dll.Contains("CSScriptLibrary")) 
+                        Assembly.LoadFile(dll);
+                }
+                Assembly assembly = Assembly.LoadFile(path + "\\bin\\CSScriptLibrary.dll");
+                
+                Type type = assembly.GetType("CSScriptLibrary.CSScript");
+                if (type != null)
+                {
+                    MethodInfo methodInfo = type.GetMethod("BuildEval");
+                    if (methodInfo != null)
+                    {
+                        object classInstance = Activator.CreateInstance(type, null);
+                        object[] parametersArray = new object[] { "func(dynamic v) { " + y.Ravel[0] + " }"};
+                        func = methodInfo.Invoke(classInstance, parametersArray);
+             
+                    } 
+                }
+            }
+            var ret = ((dynamic)func)(x);
+            var v = new A<JString>(0);
+            v.Ravel[0] = new JString { str = ret };
+            return v;
+        }
+        
         public AType Call1(AType method, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
 
+            //rank
             if (verb.conj == "\"") {
                 //future: add special code for +/"n or use some type of integrated rank support
                 if (y.GetType() == typeof(A<long>)) { return rank1ex(method, (A<long>)y); }
@@ -421,6 +478,15 @@ namespace MicroJ
             }
             throw new NotImplementedException(verb.conj + " on y:" + y + " type: " + y.GetType());
         }
+
+        public AType Call2(AType method, AType x, AType y) {
+            var verb = ((A<Verb>)method).Ravel[0];
+            if (verb.conj == "!:" && verb.op == "150") {
+                return (A<JString>)calldotnet((A<JString>) x, (A<JString>)y);
+            }
+            throw new NotImplementedException(verb.conj + " on y:" + y + " type: " + y.GetType());
+        }
+
     }
     public class Adverbs {
         public static readonly string[] Words = new[] { "/" };
@@ -555,7 +621,7 @@ namespace MicroJ
                 return table(newVerb, (A<long>)x, (A<long>)y);
             }
 
-            throw new NotImplementedException(adverb + " on x:" + x + " y:" + y + " type: " + y.GetType());
+            throw new NotImplementedException("ADV: " + adverb + " on x:" + x + " y:" + y + " type: " + y.GetType());
         }
 
     }
@@ -863,6 +929,12 @@ namespace MicroJ
             if (verb.adverb != null) {
                 return Adverbs.Call2(method, x, y);
             }
+
+            //future: add check for integrated rank support
+            if (verb.conj != null) {
+                return Conjunctions.Call2(method, x, y);
+            }
+
             var op = verb.op;
 
 
