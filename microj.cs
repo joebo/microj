@@ -458,19 +458,20 @@ namespace MicroJ
 
                 AppDomain currentDomain = AppDomain.CurrentDomain;
 
+                var binPath = Path.Combine(path, "bin");
                 currentDomain.AssemblyResolve +=  new ResolveEventHandler((sender,args) => {
-                    string folderPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                    string assemblyPath = Path.Combine(folderPath + "\\bin\\", new AssemblyName(args.Name).Name + ".dll");
+                    var assemblyPath = Path.Combine(binPath, new AssemblyName(args.Name).Name + ".dll");
                     if (File.Exists(assemblyPath) == false) return null;
                     Assembly dependency = Assembly.LoadFrom(assemblyPath);
                     return dependency;
                 });
 
-                foreach (var dll  in Directory.GetFiles(path + "\\bin\\", "*.dll")) {
-                    if (!dll.Contains("CSScriptLibrary")) 
+                foreach (var dll  in Directory.GetFiles(binPath, "*.dll")) {
+                    if (!dll.Contains("CSScriptLibrary"))
                         Assembly.LoadFile(dll);
                 }
-                Assembly assembly = Assembly.LoadFile(path + "\\bin\\CSScriptLibrary.dll");
+
+                var assembly = Assembly.LoadFile(Path.Combine(binPath,"CSScriptLibrary.dll"));
                 
                 Type type = assembly.GetType("CSScriptLibrary.CSScript");
                 if (type != null)
