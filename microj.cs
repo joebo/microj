@@ -371,7 +371,7 @@ namespace MicroJ
     }
 
     public class Conjunctions {
-        public static readonly string[] Words = new[] { "\"", "!:" };
+        public static readonly string[] Words = new[] { "\"", "!:", "&" };
         public Verbs Verbs;
 
         public Conjunctions(Verbs verbs) {
@@ -423,9 +423,10 @@ namespace MicroJ
         //(3 2 $ 'abc')  (150!:0) 'return v.ToString();'
         //(3 2 $ 'abc')  (150!:0) 'return v.Ravel[0].str;'
         //(3 2 $ 'abc')  (150!:0) 'return v.Rank.ToString();'
+        //(3 2 $ 1)  (150!:0) 'return v.ToString();'
         //should the code be x or y?
         Dictionary<string, object> dotnetMethodCache = null;
-        public A<JString> calldotnet(A<JString> x, A<JString> y) {
+        public A<JString> calldotnet<T>(A<T> x, A<JString> y) where T : struct {
 
             if (dotnetMethodCache == null ) { dotnetMethodCache = new Dictionary<string, object>(); }
             object func = null;
@@ -458,7 +459,6 @@ namespace MicroJ
                         object classInstance = Activator.CreateInstance(type, null);
                         object[] parametersArray = new object[] { "func(dynamic v) { " + y.Ravel[0] + " }"};
                         func = methodInfo.Invoke(classInstance, parametersArray);
-             
                     } 
                 }
             }
@@ -484,7 +484,12 @@ namespace MicroJ
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
             if (verb.conj == "!:" && verb.op == "150") {
-                return (A<JString>)calldotnet((A<JString>) x, (A<JString>)y);
+                if (x.GetType() == typeof(A<JString>)) {
+                    return (A<JString>)calldotnet((A<JString>) x, (A<JString>)y);
+                }
+                else if (x.GetType() == typeof(A<long>)) {
+                    return (A<JString>)calldotnet((A<long>) x, (A<JString>)y);
+                }
             }
             throw new NotImplementedException(verb.conj + " on y:" + y + " type: " + y.GetType());
         }
@@ -630,7 +635,7 @@ namespace MicroJ
 
     public class Verbs {
 
-        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:" };
+        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "["};
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
 
