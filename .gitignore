@@ -1,2 +1,6 @@
 *.exe
 *.mdb
+*.pdb
+*.suo
+scriptcs_bin/*
+bin/*
