@@ -393,7 +393,7 @@ namespace MicroJ
     }
 
     public class Conjunctions {
-        public static readonly string[] Words = new[] { "\"", "!:", "&" };
+        public static readonly string[] Words = new[] { "\"", "!:", "&", ":" };
         public Verbs Verbs;
         
         public Conjunctions(Verbs verbs) {
@@ -512,7 +512,7 @@ namespace MicroJ
                 return Call2(newVerb,y,x);
                 
             }
-            throw new NotImplementedException(verb.conj + " on y:" + y + " type: " + y.GetType());
+            throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
         public AType Call2(AType method, AType x, AType y) {
@@ -525,7 +525,7 @@ namespace MicroJ
                     return (A<JString>)calldotnet((A<long>) x, (A<JString>)y);
                 }
             }
-            throw new NotImplementedException(verb.conj + " on y:" + y + " type: " + y.GetType());
+            throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
     }
@@ -1116,6 +1116,8 @@ namespace MicroJ
         public Adverbs Adverbs;
         public Conjunctions Conjunctions;
 
+        public Func<string> ReadLine = null;
+        
         public Dictionary<string, AType> Names;
 
         char[] symbols = null;
