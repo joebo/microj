@@ -184,6 +184,24 @@ namespace MicroJ
             Type = t;
         }
 
+        public AType Apply(Func<long, long> func) {
+            var y = (A<long>) this;
+            var z = new A<long>(y.Count, y.Shape);
+            for(var i = 0; i < y.Count; i++) {
+                z.Ravel[i] = func(y.Ravel[i]);
+            }
+            return z;
+        }
+        
+        public AType Apply(Func<long, bool> func) {
+            var y = (A<long>) this;
+            var z = new A<bool>(y.Count, y.Shape);
+            for(var i = 0; i < y.Count; i++) {
+                z.Ravel[i] = func(y.Ravel[i]);
+            }
+            return z;
+        }
+        
         public static long ShapeProduct(long[] ri) {
             return ri.Aggregate(1L, (prod, next) => prod * next);
         }
@@ -680,9 +698,23 @@ namespace MicroJ
 
     }
 
+    public class VerbWithRank {
+        public long Monadic;
+        public long DyadicX;
+        public long DyadicY;
+        public Func<AType, AType, AType> Func;
+        public static long Infinite = long.MaxValue;
+        public VerbWithRank(Func<AType, AType, AType> func, long monadic, long x, long y) {
+            Func = func;
+            Monadic = monadic;
+            DyadicX = x;
+            DyadicY = y;
+        }
+        
+    }
     public class Verbs {
 
-        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "["};
+	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:"};
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
 
@@ -690,8 +722,11 @@ namespace MicroJ
         //Delegate copyFunc;
 
         Dictionary<Tuple<string, Type, Type>, Delegate> expressionDict;
+        Dictionary<string, VerbWithRank> expressionMap;
         public Verbs() {
             expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
+            expressionMap = new Dictionary<string, VerbWithRank>();
+            expressionMap["p:"] = new VerbWithRank(primes, 0, VerbWithRank.Infinite, VerbWithRank.Infinite);
         }
 
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null) {
@@ -701,7 +736,9 @@ namespace MicroJ
                 var calleeType = callee == null ? typeof(Verbs) : callee.GetType();
 
                 MethodInfo meth;
-                if (generics == 1) {
+                if (generics == 0) {
+                    meth = calleeType.GetMethod(op);
+                } else if (generics == 1) {
                     meth = calleeType.GetMethod(op).MakeGenericMethod(y.GetType().GetGenericArguments().First());
                 } else {
                     meth = calleeType.GetMethod(op).MakeGenericMethod(x.GetType().GetGenericArguments().First(), y.GetType().GetGenericArguments().First());
@@ -976,8 +1013,22 @@ namespace MicroJ
             }
             return z;
         }
+        public AType primes(AType  a, AType w) {
+            var x = a != null ? (A<long>) a : new A<long>(0);
+            var y = (A<long>) w;
+            var xv = x.Ravel[0];
+            Func<long, long> fl = null;
+            Func<long, bool> fb = null;
+            if (a == null) fl = Primes.GetNthPrime;
+            else if (xv == -1)  fl = (l) => Primes.Pi((float)l);
+            else if (xv == 3) fl = (l) => Primes.Factor(l).Count;
+            else if (xv == 0) fb = (l) => !Primes.IsPrime(l);
+            else if (xv == 1) fb = Primes.IsPrime;
 
-
+            if (fl != null) return y.Apply(fl);
+            else if (fb != null) return y.Apply(fb);
+            else  throw new NotImplementedException();
+        }
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
             if (verb.adverb != null) {
@@ -991,7 +1042,8 @@ namespace MicroJ
 
             var op = verb.op;
 
-
+            VerbWithRank verbWithRank = null;
+            
             if (op == "+") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a + b);
@@ -1070,7 +1122,12 @@ namespace MicroJ
                 //temporary
                 var z = new A<bool>(0);
                 z.Ravel[0] = x.ToString() == y.ToString();
-                return z;
+               return z;
+            }
+            else if (expressionMap.TryGetValue(op, out verbWithRank)) {
+                if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
+                    return verbWithRank.Func(x,y);
+                }
             }
 
             throw new NotImplementedException(op + " on x:" + x + " y:" + y + " type: " + y.GetType());
@@ -1089,6 +1146,8 @@ namespace MicroJ
             }
 
             var op = verb.op;
+            VerbWithRank verbWithRank = null;
+
             if (op == "i.") {
                 if (y.GetType() == typeof(A<int>)) {
                     return iota((A<int>)y);
@@ -1108,8 +1167,7 @@ namespace MicroJ
                 else if (y.GetType() == typeof(A<long>)) {
                     return transpose((A<long>)y);
                 }
-            }
-            else if (op == "|.") {
+            }else if (op == "|.") {
                 if (y.GetType() == typeof(A<long>)) {
                     return reverse((A<long>)y);
                 }
@@ -1117,6 +1175,9 @@ namespace MicroJ
                     return reverse_str((A<JString>)y);
                 }
                 return InvokeExpression("reverse", y);
+            }
+            else if (expressionMap.TryGetValue(op, out verbWithRank)) {
+                return verbWithRank.Func(null,y);
             }
             throw new NotImplementedException(op + " on y: " + y + " type: " + y.GetType());
         }
@@ -1381,6 +1442,150 @@ namespace MicroJ
             }
             throw new ApplicationException("no value found on stack - after " + i.ToString() + " iterations");
         }
+    }
+
+    public static class Primes {
+        public static bool IsPrime (long n){
+            if (n <= 1)
+                return false; //should fail?
+
+            if (n == 2)
+                return true;
+
+            if (n % 2 == 0)
+                return false;
+
+            for (int i = 3; i < Math.Sqrt (n) + 1; i += 2) {
+                if (n % i == 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static long GetNthPrime (long n){
+
+            if (n <= 0)
+                return 0;// throw an exception ??
+            if (n == 1)
+                return 2;
+            long prime = 2;
+            long i = 1;
+
+            long count = 3; // start at 3
+            while (i < n) {
+                if (IsPrime (count) == true) {
+                    prime = count;
+                    i++;
+                }
+                count+=2;
+            }
+            return prime;
+        }
+
+        public static long Pi (float n){
+            if (n <= 1)
+                return 0;
+            if (n < 3)
+                return 1;
+            long c = Pi ((float)Math.Pow (n, 1.0f / 3));
+
+            long mu = Pi ((float)Math.Sqrt (n)) - c;
+            return (long)(phi (n, c) + c * (mu + 1) + (mu * mu - mu) * 0.5f - 1 - SumPi (n, c, mu));
+        }
+
+        private static long SumPi (float m, long n, long mu){
+            long i = 1;
+            long total = 0;
+            while (i <= mu) {
+                total += Pi (m / GetNthPrime (n + i));
+                i++;
+            }
+            return total;
+        }
+
+        private static long phi (float m, long n) {
+            if (m < 0 || n < 0)
+                throw new System.Exception ("Arguments must be non-negative");
+            if (n == 0) {
+                return (long)m;
+            } else {
+                return phi (m, n - 1) - phi ((long)(m / (float)(GetNthPrime (n))), n - 1);
+            }
+        }
+
+        public  static List<long> Factor (long n){
+            List<long> lst = new List<long> ();
+            if (n <= 1)
+                return lst; //throw exception?
+
+            long divisor = PollardRho (n, new Random ());
+            lst.Add (divisor);
+            lst.AddRange (Factor (n / divisor));
+            return lst;
+        }
+
+        //can be used for 2 p: y, possibly.
+        private static Dictionary<long, int> GetFactorPowers (List<long> factorList){
+            Dictionary<long, int> d = new Dictionary<long, int> ();
+            foreach (long l in factorList) {
+                if (d.ContainsKey (l))
+                    d [l]++;
+                else
+                    d [l] = 0;
+            }
+            return d;
+        }
+
+        //unused.
+        private static long FactorizeSimple (long n, long previous){
+            if (n % 2 == 0)
+                return 2;
+            if (n % 3 == 0)
+                return 3;
+            if (n % 5 == 0)
+                return 5;
+
+            long i;
+            for (i = previous; i < Math.Sqrt (n) + 1; i += 2) {
+                if (n % i == 0)
+                    return i;
+            }
+            return n;
+        }
+
+        private static long PollardRho (long n, Random rand){
+
+            if (n % 2 == 0)
+                return 2;
+            if (n % 3 == 0)
+                return 3;
+            if (n % 5 == 0)
+                return 5;
+            byte[] buffer = BitConverter.GetBytes (n);
+            rand.NextBytes (buffer);
+            long summand = BitConverter.ToInt64 (buffer, 0);
+            rand.NextBytes (buffer);
+            long a = BitConverter.ToInt64 (buffer, 0);
+            long b = a;
+            long divisor;
+            //
+            a = (n + a * a + summand) % n;
+            b = (((n + b * b + summand) % n) * (n + (n + b * b + summand) % n) + summand) % n;
+            divisor = GCD (a - b, n);
+
+            while (divisor == 1) {
+                a = (a * a + summand) % n;
+                b = (((n + b * b + summand) % n) * (n + (n + b * b + summand) % n) + summand) % n;
+                divisor = GCD (a - b, n);
+            }
+            return divisor;
+        }
+
+        private static long GCD (long a, long b){
+            return b == 0 ? a : GCD (b, (b + a) % b);
+        }
+
     }
     public class Tests {
         bool equals<T>(T[] a1, T[] a2) {

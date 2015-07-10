@@ -93,3 +93,5 @@ NB. 0 conjunction
 
 NB. explicit verb
 NB. 'abc' -: (3 : '1+1') ''
+
+(0 p: i. 5) -: 1 1 0 0 1
