@@ -951,22 +951,22 @@ namespace MicroJ
             return v;
         }
 
-        public int IsPrime (long n){
+        public bool IsPrime (long n){
             if (n <= 1)
-                return 0; //should fail?
+                return false; //should fail?
 
             if (n == 2)
-                return 1;
+                return true;
 
             if (n % 2 == 0)
-                return 0;
+                return false;
 
             for (int i = 3; i < Math.Sqrt (n) + 1; i += 2) {
                 if (n % i == 0) {
-                    return 0;
+                    return false;
                 }
             }
-            return 1;
+            return true;
         }
 
         public long GetNthPrime (long n){
@@ -980,7 +980,7 @@ namespace MicroJ
 
             long count = 3; // start at 3
             while (i < n) {
-                if (IsPrime (count) == 1) {
+                if (IsPrime (count) == true) {
                     prime = count;
                     i++;
                 }
@@ -1206,15 +1206,15 @@ namespace MicroJ
                     a.Ravel = new long[]{ prime };
                     return a;
                 }else if (x.ToString () == "0") { //anti-is prime check
-                    int prime = IsPrime ((long)((A<long>)y).Ravel [0]);
-                    prime = (1 - prime) % 2;
-                    A<long> a = new A<long> ((long)prime);
-                    a.Ravel = new long[]{ prime };
+                    bool prime = IsPrime ((long)((A<long>)y).Ravel [0]);
+                    prime = !prime;
+                    A<bool> a = new A<bool> (1);
+                    a.Ravel = new bool[]{ prime };
                     return a;
                 }else if (x.ToString () == "1") { //is prime check
-                    int prime = IsPrime ((long)((A<long>)y).Ravel [0]);
-                    A<long> a = new A<long> ((long)prime);
-                    a.Ravel = new long[]{ prime };
+                    bool prime = IsPrime ((long)((A<long>)y).Ravel [0]);
+                    A<bool> a = new A<bool> (1);
+                    a.Ravel = new bool[]{ prime };
                     return a;
                 }else if (x.ToString () == "2") { //factors with exponents
                     //TODO
