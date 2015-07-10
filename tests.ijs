@@ -83,3 +83,13 @@ NB. not working (3 # 'ab') -: 'aaabbbccc'               NB. copy string
 (|. 2 3 $ 1 2 3) -: '1 2 3\n1 2 3'      NB. reverse array
 (|. i. 2 2 2) -: '4 5\n6 7\n\n0 1\n2 3' NB. reverse array
 
+NB. 0 : 0
+'abc\n123' -: 0 : 0
+abc
+123
+)
+NB. 0 conjunction 
+'abc' -: (0 : 'abc')
+
+NB. explicit verb
+NB. 'abc' -: (3 : '1+1') ''

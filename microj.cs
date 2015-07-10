@@ -104,16 +104,21 @@ namespace App {
                     bool quiet = argList.FindIndex(c => c.Contains("-q")) > -1;
                     if (file == "stdlib.ijs") { quiet = true; testMode = false;}
                     string[] lines = File.ReadAllLines(file);
-                    foreach (var tline in lines) {
-                        var line = tline;
+                    for (var i = 0; i < lines.Length; i++) {
+                        var line = lines[i];
                         try {
                             if (line.StartsWith("NB.") || line.Length == 0) continue;
                             if (line.StartsWith("exit")) break;
-                            if (line.StartsWith("B!")) {
+                            if (line.StartsWith("!B")) {
                                 Debugger.Launch();
                                 Debugger.Break();
                                 line = line.Substring(2, line.Length - 2);
                             }
+                            repl.ReadLine = () => {
+                                i++;
+                                return lines[i];
+                            };
+                            
                             var ret = repl.parse(line).ToString();
                             if (testMode && ret != "1") {
                                 var eqIdx = line.IndexOf("=");
@@ -140,6 +145,7 @@ namespace App {
                     while (true) {
                         Console.Write(prompt);
 
+                        repl.ReadLine = Console.ReadLine;
                         var line = Console.ReadLine();
                         if (line == null)
                             break;
@@ -511,6 +517,13 @@ namespace MicroJ
                 //todo this order may not be right
                 return Call2(newVerb,y,x);
                 
+            }
+            else if (verb.conj == ":" && verb.op == "0") {
+                if (verb.rhs == "0") {
+                    var v = new A<JString>(0);
+                    v.Ravel[0] = new JString { str = y.ToString() };
+                    return v;
+                }
             }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
@@ -1135,8 +1148,8 @@ namespace MicroJ
 
             Names = new Dictionary<string, AType>();
 
-            //symbols are the first letter of every verb or adverb, letter symbols cause problems currently
-            symbols = Verbs.Words.Select(x => x[0]).Union(Adverbs.Words.Select(x => x[0])).Union(Conjunctions.Words.Select(x => x[0])).Where(x => !char.IsLetter(x)).ToArray();
+            //symbols are the first letter of every verb or adverb, letter symbols and ':' cause problems currently
+            symbols = Verbs.Words.Select(x => x[0]).Union(Adverbs.Words.Select(x => x[0])).Union(Conjunctions.Words.Select(x => x[0])).Where(x => !char.IsLetter(x) && x!=':').ToArray();
             symbolPrefixes = Verbs.Words.Where(x => x.Length > 1).Select(x => x[1]).Union(Adverbs.Words.Where(x => x.Length > 1).Select(x => x[1])).ToArray();
         }
 
@@ -1153,6 +1166,18 @@ namespace MicroJ
                 w = w.Substring(0, commentIdx);
             }
 
+            if (w.EndsWith(": 0")) {
+                w+= "'";
+                while(true) {
+                    var nextLine = ReadLine();
+                    if (nextLine == ")") break;
+                    w+=nextLine+"\n";
+                }
+                w = w.Substring(0, w.Length-1);
+                w+="'";
+            }
+
+            
             Func<char, bool> isSymbol = c => symbols.Contains(c);
             Func<char, bool> isSymbolPrefix = c => c != '.' && symbolPrefixes.Contains(c);
             Func<char, bool> isDigit = c => char.IsDigit(c) || c == '_';
@@ -1284,17 +1309,25 @@ namespace MicroJ
                         var lhs = stack.Pop();
                         var conj = stack.Pop();
                         var rhs = stack.Pop();
-                        var z = new A<Verb>(0);
+
                         //todo handle conjunction returning noun
-                        if (isVerb(lhs)) {
-                            //z.Ravel[0] = ((A<Verb>)lhs.val).Ravel[0];
-                            z.Ravel[0].childVerb = ((A<Verb>)lhs.val).Ravel[0];
-                        } else {
-                            z.Ravel[0].op = lhs.word;
+
+                        //special case 0 : 'abc'
+                        if (conj.word == ":" && lhs.word == "0" && rhs.val is A<JString>) {
+                            stack.Push(new Token { val = rhs.val });
                         }
-                        z.Ravel[0].conj = conj.word;
-                        z.Ravel[0].rhs = rhs.word;
-                        stack.Push(new Token { val = z });
+                        else {
+                            var z = new A<Verb>(0);
+                            if (isVerb(lhs)) {
+                                //z.Ravel[0] = ((A<Verb>)lhs.val).Ravel[0];
+                                z.Ravel[0].childVerb = ((A<Verb>)lhs.val).Ravel[0];
+                            } else {
+                                z.Ravel[0].op = lhs.word;
+                            }
+                            z.Ravel[0].conj = conj.word;
+                            z.Ravel[0].rhs = rhs.word;
+                            stack.Push(new Token { val = z });
+                        }
                         stack.Push(p1);
                     }
 
