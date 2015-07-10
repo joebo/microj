@@ -42,6 +42,7 @@ namespace App {
     using MicroJ;
     public static class Program
     {
+        [STAThread]
         public static void Main(string[] args) {
             var argList = args.ToList();
             var jsIdx = argList.FindIndex(c => c.Contains("-js"));
@@ -201,6 +202,13 @@ namespace MicroJ
             }
             return z;
         }
+
+        public long GetCount() {
+            return AType.ShapeProduct(this.Shape);
+        }
+        public long GetLong(int n) {
+            return ((A<long>)this).Ravel[n];
+        }
         
         public static long ShapeProduct(long[] ri) {
             return ri.Aggregate(1L, (prod, next) => prod * next);
@@ -220,7 +228,7 @@ namespace MicroJ
         }
 
 
-        public static AType MakeA(string word, Parser environment) {
+        public static AType MakeA(string word, Dictionary<string, AType> names) {
             int val;
             double vald;
 
@@ -228,8 +236,8 @@ namespace MicroJ
                 word = word.Replace("_", "-");
             }
 
-            if (environment != null && environment.Names.ContainsKey(word)) {
-                return environment.Names[word];
+            if (names != null && names.ContainsKey(word)) {
+                return names[word];
             }
             else if (word.StartsWith("'")) {
                 var str = word.Substring(1, word.Length - 2);
@@ -419,6 +427,7 @@ namespace MicroJ
     public class Conjunctions {
         public static readonly string[] Words = new[] { "\"", "!:", "&", ":" };
         public Verbs Verbs;
+        public Dictionary<string, AType> Names;
         
         public Conjunctions(Verbs verbs) {
             Verbs = verbs;
@@ -502,7 +511,11 @@ namespace MicroJ
             if (dotnetMethodCache == null ) { dotnetMethodCache = new Dictionary<string, Func<AType, string>>(); }
             Func<AType, string> func = null;
             if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
-                func  = CSScript.LoadDelegate<Func<AType, string>>("string func (MicroJ.AType v) { " + y.Ravel[0] + " }");
+                var code = y.Ravel[0].str;
+                var lines = code.Split('\n');
+                var usings = String.Join("\n", lines.Where(t=>t.StartsWith("//css_using ")).Select(t=>"using " + t.Replace("//css_using ", "") +";").ToArray());
+                var refs = lines.Where(t=>t.StartsWith("//css_ref ")).SelectMany(t=>t.Replace("//css_ref ", "").Split(',')).Select(t=>t.Trim()).ToArray();
+                func  = CSScript.LoadDelegate<Func<AType, string>>(usings + "\n" + "string func (MicroJ.AType v) { " + code + " }", null, false, refs);
                 dotnetMethodCache[y.Ravel[0].str] = func;
             }
             var ret = func(x);
@@ -529,7 +542,7 @@ namespace MicroJ
             }
             //bond
             else if (verb.conj == "&") {
-                var x = AType.MakeA(verb.rhs, null);
+                var x = AType.MakeA(verb.rhs, Names);
                 var newVerb = new A<Verb>(0);
                 newVerb.Ravel[0] = (Verb)verb.childVerb;
                 //todo this order may not be right
@@ -867,6 +880,7 @@ namespace MicroJ
             return v;
         }
 
+        
         public A<T> copy<T>(A<long> x, A<T> y) where T : struct {
 
             var copies = x.Ravel[0];
@@ -1198,17 +1212,19 @@ namespace MicroJ
         char[] symbolPrefixes = null;
 
         public Parser() {
+            Names = new Dictionary<string, AType>();
+
             Verbs = new Verbs();
             Adverbs = new Adverbs(Verbs);
             Conjunctions = new Conjunctions(Verbs);
-
+            
             Adverbs.Conjunctions = Conjunctions;
 
             Verbs.Adverbs = Adverbs;
             Verbs.Conjunctions = Conjunctions;
 
-            Names = new Dictionary<string, AType>();
 
+            Conjunctions.Names = Names;
             //symbols are the first letter of every verb or adverb, letter symbols and ':' cause problems currently
             symbols = Verbs.Words.Select(x => x[0]).Union(Adverbs.Words.Select(x => x[0])).Union(Conjunctions.Words.Select(x => x[0])).Where(x => !char.IsLetter(x) && x!=':').ToArray();
             symbolPrefixes = Verbs.Words.Where(x => x.Length > 1).Select(x => x[1]).Union(Adverbs.Words.Where(x => x.Length > 1).Select(x => x[1])).ToArray();
@@ -1411,7 +1427,7 @@ namespace MicroJ
                         var newWord = queue.Dequeue();
 
                         //try to parse word before putting on stack
-                        var val = AType.MakeA(newWord.word, this);
+                        var val = AType.MakeA(newWord.word, Names);
                         var token = new Token();
                         if (val.GetType() == typeof(A<Undefined>)) {
                             token.word = newWord.word;
