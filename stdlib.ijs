@@ -1,0 +1,1 @@
+smoutput=: (150!:0)&'Console.WriteLine(v.ToString());return "";'
