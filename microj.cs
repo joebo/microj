@@ -417,6 +417,8 @@ namespace MicroJ
             return v;
         }
 
+        //to use interop, download https://csscriptsource.codeplex.com/releases/view/614904
+        //and put CSScriptLibrary.dll and Mono.CSharp.dll into the bin folder (relative to the exe)
         //future: add a boxed method that can take parameters
         //(3 2 $ 'abc')  (150!:0) 'return v.ToString();'
         //(3 2 $ 'abc')  (150!:0) 'return v.Ravel[0].str;'
