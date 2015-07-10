@@ -21,6 +21,8 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+
+//building on mono: mcs microj.cs /define:CSSCRIPT /r:bin/CSScriptLibrary
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,6 +33,10 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 using System.IO;
+
+#if CSSCRIPT
+using CSScriptLibrary;
+#endif
 
 namespace App {
     using MicroJ;
@@ -389,9 +395,27 @@ namespace MicroJ
     public class Conjunctions {
         public static readonly string[] Words = new[] { "\"", "!:", "&" };
         public Verbs Verbs;
-
+        
         public Conjunctions(Verbs verbs) {
             Verbs = verbs;
+
+            var  path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+            AppDomain currentDomain = AppDomain.CurrentDomain;
+
+            var binPath = Path.Combine(path, "bin");
+            currentDomain.AssemblyResolve +=  new ResolveEventHandler((sender,args) => {
+                var assemblyPath = Path.Combine(binPath, new AssemblyName(args.Name).Name + ".dll");
+                if (File.Exists(assemblyPath) == false) return null;
+                Assembly dependency = Assembly.LoadFrom(assemblyPath);
+                return dependency;
+            });
+
+            foreach (var dll  in Directory.GetFiles(binPath, "*.dll")) {
+                if (!dll.Contains("CSScriptLibrary"))
+                    Assembly.LoadFile(dll);
+            }
+
         }
 
         public A<T> rank1ex<T>(AType method, A<T> y) where T : struct {
@@ -454,25 +478,16 @@ namespace MicroJ
             object func = null;
             if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
 
+                //built with compiled csscript support
+#if CSSCRIPT
+                func  = CSScript.LoadDelegate<Func<AType, string>>("string func (MicroJ.AType v) { " + y.Ravel[0] + " }");
+#else
+
                 var  path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-                AppDomain currentDomain = AppDomain.CurrentDomain;
-
                 var binPath = Path.Combine(path, "bin");
-                currentDomain.AssemblyResolve +=  new ResolveEventHandler((sender,args) => {
-                    var assemblyPath = Path.Combine(binPath, new AssemblyName(args.Name).Name + ".dll");
-                    if (File.Exists(assemblyPath) == false) return null;
-                    Assembly dependency = Assembly.LoadFrom(assemblyPath);
-                    return dependency;
-                });
-
-                foreach (var dll  in Directory.GetFiles(binPath, "*.dll")) {
-                    if (!dll.Contains("CSScriptLibrary"))
-                        Assembly.LoadFile(dll);
-                }
 
                 var assembly = Assembly.LoadFile(Path.Combine(binPath,"CSScriptLibrary.dll"));
-                
+
                 Type type = assembly.GetType("CSScriptLibrary.CSScript");
                 if (type != null)
                 {
@@ -482,8 +497,10 @@ namespace MicroJ
                         object classInstance = Activator.CreateInstance(type, null);
                         object[] parametersArray = new object[] { "func(dynamic v) { " + y.Ravel[0] + " }"};
                         func = methodInfo.Invoke(classInstance, parametersArray);
-                    } 
+                    }
                 }
+#endif
+
             }
             var ret = ((dynamic)func)(x);
             var v = new A<JString>(0);
