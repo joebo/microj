@@ -102,7 +102,7 @@ namespace App {
                     }
                     bool testMode = argList.FindIndex(c => c.Contains("-t")) > -1;
                     bool quiet = argList.FindIndex(c => c.Contains("-q")) > -1;
-                    if (file == "stdlib.ijs") { quiet = true; }
+                    if (file == "stdlib.ijs") { quiet = true; testMode = false;}
                     string[] lines = File.ReadAllLines(file);
                     foreach (var tline in lines) {
                         var line = tline;
