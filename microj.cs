@@ -984,7 +984,7 @@ namespace MicroJ
                     prime = count;
                     i++;
                 }
-                count++;
+                count+=2;
             }
             return prime;
         }
