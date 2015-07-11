@@ -1481,12 +1481,12 @@ namespace MicroJ
 
         public static long GetNthPrime (long n){
 
-            if (n <= 0)
-                return 0;// throw an exception ??
-            if (n == 1)
+            if (n < 0)
+                return 0;// TODO throw an exception ??
+            if (n == 0)
                 return 2;
             long prime = 2;
-            long i = 1;
+            long i = 0;
 
             long count = 3; // start at 3
             while (i < n) {
@@ -1514,7 +1514,7 @@ namespace MicroJ
             long i = 1;
             long total = 0;
             while (i <= mu) {
-                total += Pi (m / GetNthPrime (n + i));
+                total += Pi (m / GetNthPrime (n + i - 1));
                 i++;
             }
             return total;
@@ -1526,7 +1526,7 @@ namespace MicroJ
             if (n == 0) {
                 return (long)m;
             } else {
-                return phi (m, n - 1) - phi ((long)(m / (float)(GetNthPrime (n))), n - 1);
+                return phi (m, n - 1) - phi ((long)(m / (float)(GetNthPrime (n - 1))), n - 1);
             }
         }
 
