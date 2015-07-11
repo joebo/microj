@@ -1643,7 +1643,7 @@ namespace MicroJ
             tests["names with number"] = () => equals(toWords("a1b =: 1"), new[] { "a1b", "=:", "1" });
             tests["names with underscore"] = () => equals(toWords("a_b =: 1"), new[] { "a_b", "=:", "1" });
             tests["is with no parens"] = () => equals(toWords("i.3-:3"), new[] { "i.", "3", "-:", "3" });
-            tests["foreign conjunction"] = () => equals(toWords("(15!:0) 'abc'"), new[] { "15", "!:", "0", "'abc'" });
+            tests["foreign conjunction"] = () => equals(toWords("(15!:0) 'abc'"), new[] {"(",  "15", "!:", ")", "0", "'abc'" });
 
             tests["verb assignment"] = () => {
                 var parser = new Parser();
