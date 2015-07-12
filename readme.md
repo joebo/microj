@@ -27,9 +27,9 @@ Starting with list from
 
 | Primitive | Status                                          | Monad  | Dyad            |
 |-----------|-------------------------------------------------|--------|-----------------|
-| "=."      | Not Implemented (HOLD) / waiting on local scope |        |                 |
-| "=:"      | Implemented                                     |        |                 |
-| "_"       | Implemented                                     |        |                 |
+| =.      | Not Implemented (HOLD) / waiting on local scope |        |                 |
+| =:      | Implemented                                     |        |                 |
+| _       | Implemented                                     |        |                 |
 | NB.       | Implemented                                     |        |                 |
 | $         | Implemented                                     | shape  | reshape         |
 | #         | Implemented                                     | tally  | copy            |
