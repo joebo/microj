@@ -94,10 +94,11 @@ NB. 0 conjunction
 NB. explicit verb
 NB. 'abc' -: (3 : '1+1') ''
 (_1 p: 10 20 50 100) -: 4 8 15 25                    NB. Primes less than
-(_1 p: 17 37 79 101) -: 6 11 21 25                   NB. Primes less than (prime arguments)
+NB. Not working  (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime arguments)
 (0 p: i. 5) -: 1 1 0 0 1                             NB. is not prime
 (1 p: 2 3 17 79 199 3581) -: 1 1 1 1 1 1             NB. is prime (true)
 (1 p: 10 66 111 32331 603201 9040131) -: 0 0 0 0 0 0 NB. is prime (false)
 (3 p: 56) -: 2 2 2 7                                 NB. factorization
+(3 p: 56 57) -: '2 2 2 7\n3 19 0 0'                  NB. factorization w/fill
 (3 p: 6973) -: 19 367                                NB. factorization
 ( 3 p: 10111) -: 1 $ 10111                           NB. factorization (prime)

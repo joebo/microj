@@ -203,6 +203,38 @@ namespace MicroJ
             return z;
         }
 
+        //fills a list of longs to a rectangular matrix based upon the shape
+        public AType Fill(long[][] zs, long[] shape) {
+            var maxCt = zs.Max(x=>x.Length);
+            var newShape = shape.ToList().Concat(new long[] { maxCt }).ToArray();
+            var z = new A<long>(maxCt*zs.Length, newShape);
+            var offset = 0;
+            for(var i = 0; i < zs.Length; i++) {
+                for(var k = 0; k < maxCt; k++) {
+                    z.Ravel[offset++] = k < zs[i].Length ? zs[i][k] : 0;
+                }
+            }
+            return z;
+
+        }
+        
+        //takes a long and returns a list of longs
+        public AType Apply(Func<long, long[]> func) {
+            var y = (A<long>) this;
+            var zs = new long[y.Count][];
+            for(var i = 0; i < y.Count; i++) {
+                zs[i] = func(y.Ravel[i]);
+            }
+            if (Rank == 0) {
+                var z = new A<long>(zs[0].Length);
+                z.Ravel = zs[0];
+                return z;
+            }
+            else
+                return Fill(zs, y.Shape);
+        }
+
+
         public long GetCount() {
             return AType.ShapeProduct(this.Shape);
         }
@@ -1027,14 +1059,17 @@ namespace MicroJ
             var xv = x.Ravel[0];
             Func<long, long> fl = null;
             Func<long, bool> fb = null;
+            Func<long, long[]> fls = null;
             if (a == null) fl = Primes.GetNthPrime;
             else if (xv == -1)  fl = (l) => Primes.Pi((float)l);
-            else if (xv == 3) fl = (l) => Primes.Factor(l).Count;
             else if (xv == 0) fb = (l) => !Primes.IsPrime(l);
             else if (xv == 1) fb = Primes.IsPrime;
+            else if (xv == 3) fls = (l) => Primes.Factor(l);
 
             if (fl != null) return y.Apply(fl);
             else if (fb != null) return y.Apply(fb);
+            else if (fls != null) return y.Apply(fls);
+            
             else  throw new NotImplementedException();
         }
         public AType Call2(AType method, AType x, AType y) {
@@ -1524,15 +1559,15 @@ namespace MicroJ
             }
         }
 
-        public  static List<long> Factor (long n){
+        public  static long[] Factor (long n){
             List<long> lst = new List<long> ();
             if (n <= 1)
-                return lst; //throw exception?
+                return lst.ToArray(); //throw exception?
 
             long divisor = PollardRho (n, new Random ());
             lst.Add (divisor);
             lst.AddRange (Factor (n / divisor));
-            return lst;
+            return lst.ToArray();
         }
 
         //can be used for 2 p: y, possibly.
