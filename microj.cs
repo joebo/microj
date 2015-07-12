@@ -443,12 +443,6 @@ namespace MicroJ
                 Assembly dependency = Assembly.LoadFrom(assemblyPath);
                 return dependency;
             });
-
-            foreach (var dll  in Directory.GetFiles(binPath, "*.dll")) {
-                if (!dll.Contains("CSScriptLibrary"))
-                    Assembly.LoadFile(dll);
-            }
-
         }
 
         public A<T> rank1ex<T>(AType method, A<T> y) where T : struct {
