@@ -1101,6 +1101,7 @@ namespace MicroJ
             else if (xv == -1)  fl = (l) => Primes.Pi((float)l);
             else if (xv == 0) fb = (l) => !Primes.IsPrime(l);
             else if (xv == 1) fb = Primes.IsPrime;
+            else if (xv == 2) fls = (l) => Primes.GetFactorsWithExponents(Primes.Factor(l).ToList()).ToArray();
             else if (xv == 3) fls = (l) => Primes.Factor(l);
 
             if (fl != null) return y.Apply(fl);
@@ -1617,16 +1618,29 @@ namespace MicroJ
         }
 
         //can be used for 2 p: y, possibly.
-        private static Dictionary<long, int> GetFactorPowers (List<long> factorList){
+        private static Dictionary<long, int> GetFactorExponents (List<long> factorList){
             Dictionary<long, int> d = new Dictionary<long, int> ();
             foreach (long l in factorList) {
                 if (d.ContainsKey (l))
                     d [l]++;
                 else
-                    d [l] = 0;
+                    d [l] = 1;
             }
             return d;
         }
+
+        public static List<long> GetFactorsWithExponents(List<long> factorList){
+            Dictionary<long,int> exponentDict = GetFactorExponents (factorList);
+            List<long> keys = new List<long> ();
+            List<long> vals = new List<long> ();
+            foreach(KeyValuePair<long, int> kvp in exponentDict){
+                keys.Add (kvp.Key);
+                vals.Add ((long)kvp.Value);
+            }
+            keys.AddRange (vals);
+            return keys;
+        }
+
 
         //unused.
         private static long FactorizeSimple (long n, long previous){
