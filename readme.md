@@ -13,18 +13,48 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 
 ### Command Line Options
 - filename 
+- i to run the repl (with other arguments specified)
 - -tp to run parser tests (see tests at bottom of file)
 - -t to run the supplied file in test mode
 - -q to suppress output on file run
 - -js "1+1" to run a string
 - -n 10 -js "+/ i. 5" to run an operations N times
 
-### Ready
-1. long/double data types
-1. primitive math operations
-1. reduce adverb
-1. special code for +/
-1. shape/reshape
+### Primitive status
+
+Starting with list from
+[http://www.jsoftware.com/jwiki/DevonMcCormick/MinimalBeginningJ](http://www.jsoftware.com/jwiki/DevonMcCormick/MinimalBeginningJ)
+
+| Primitive | Status                                          | Monad  | Dyad            |
+|-----------|-------------------------------------------------|--------|-----------------|
+| =.      | Not Implemented (HOLD) / waiting on local scope |        |                 |
+| =:      | Implemented                                     |        |                 |
+| _       | Implemented                                     |        |                 |
+| NB.       | Implemented                                     |        |                 |
+| $         | Implemented                                     | shape  | reshape         |
+| #         | Implemented                                     | tally  | copy            |
+| ,         | Not Implemented                                 |        |                 |
+| ;         | Not Implemented                                 |        |                 |
+| {.        | Not Implemented                                 |        |                 |
+| }.        | Not Implemented                                 |        |                 |
+| /         | Implemented                                     | insert | table           |
+| i.        | Not Implemented                                 |        |                 |
+| i.        | Not Implemented                                 |        |                 |
+| +         | Partially Implemented                           |        | plus (math)     |
+| *         | Partially Implemented                           |        | times (math)    |
+| -         | Partially Implemented                           |        | subtract (math) |
+| %         | Partially Implemented                           |        | divide (math)   |
+| ^         | Not Implemented                                 |        |                 |
+| ^.        | Not Implemented                                 |        |                 |
+| <.        | Not Implemented                                 |        |                 |
+| >.        | Not Implemented                                 |        |                 |
+
+Data Types:
+- integer (long) -- (consider int32 support)
+- float (double)
+- string
+- bool (partial)
+- boxed (not started)
 
 ## Todo:
 1. Boxed type
