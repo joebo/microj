@@ -1065,7 +1065,7 @@ namespace MicroJ
         }
 
         public A<T> append<T>(A<T> x, A<T> y) where T : struct {
-            if (x.Rank > 1 && x.Rank != y.Rank) throw new NotImplementedException("Rank >1 not implemented on , yet");
+            if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
 
             long[] newShape;
             if (y.Rank < 1) {
