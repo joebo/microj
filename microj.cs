@@ -203,15 +203,27 @@ namespace MicroJ
             return z;
         }
 
-        //fills a list of longs to a rectangular matrix based upon the shape
-        public AType Fill(long[][] zs, long[] shape) {
-            var maxCt = zs.Max(x=>x.Length);
-            var newShape = shape.ToList().Concat(new long[] { maxCt }).ToArray();
-            var z = new A<long>(maxCt*zs.Length, newShape);
+        //fills a list of longs to a rectangular matrix based upon the shape and frame
+        //frame is used to indicate shape of n-cells in zs
+        public AType Fill(long[][] zs, long[] shape, long[] frame) {
+            if (frame != null && frame.Length > 1) { throw new NotImplementedException("Rank > 1 frame not supported"); }
+            var ncells = frame == null ? 1 : frame[0];
+            var maxCt = zs.Max(x=>x.Length)/ncells;
+            long[] newShape;
+            if (ncells == 1) {
+                newShape = shape.ToList().Concat(new long[] { maxCt }).ToArray();
+            } else {
+                newShape = shape.ToList().Concat(new long[] { ncells, maxCt }).ToArray();
+            }
+            var z = new A<long>(maxCt*ncells*zs.Length, newShape);
             var offset = 0;
             for(var i = 0; i < zs.Length; i++) {
-                for(var k = 0; k < maxCt; k++) {
-                    z.Ravel[offset++] = k < zs[i].Length ? zs[i][k] : 0;
+                for(var q = 0; q < ncells; q++) {
+                    var have = zs[i].Length/ncells;
+                    for(var k = 0; k < maxCt; k++) {
+                        z.Ravel[offset++] = k >= have ? 0 : zs[i][q*have+k];
+                    }
+
                 }
             }
             return z;
@@ -219,7 +231,7 @@ namespace MicroJ
         }
         
         //takes a long and returns a list of longs
-        public AType Apply(Func<long, long[]> func) {
+        public AType Apply(Func<long, long[]> func, long[] frame) {
             var y = (A<long>) this;
             var zs = new long[y.Count][];
             for(var i = 0; i < y.Count; i++) {
@@ -227,11 +239,14 @@ namespace MicroJ
             }
             if (Rank == 0) {
                 var z = new A<long>(zs[0].Length);
+                if (frame != null) {
+                    z.Shape = new long[] { zs[0].Length / frame[0], frame[0] };
+                }
                 z.Ravel = zs[0];
                 return z;
             }
             else
-                return Fill(zs, y.Shape);
+                return Fill(zs, y.Shape, frame);
         }
 
 
@@ -1097,16 +1112,21 @@ namespace MicroJ
             Func<long, long> fl = null;
             Func<long, bool> fb = null;
             Func<long, long[]> fls = null;
+            long[] frame = null;
             if (a == null) fl = Primes.GetNthPrime;
             else if (xv == -1)  fl = (l) => Primes.Pi((float)l);
             else if (xv == 0) fb = (l) => !Primes.IsPrime(l);
             else if (xv == 1) fb = Primes.IsPrime;
-            else if (xv == 2) fls = (l) => Primes.GetFactorsWithExponents(Primes.Factor(l).ToList()).ToArray();
+            else if (xv == 2) {
+                frame = new long[] { 2 };
+                fls = (l) => Primes.GetFactorsWithExponents(Primes.Factor(l).ToList()).ToArray();
+            }
+
             else if (xv == 3) fls = (l) => Primes.Factor(l);
 
             if (fl != null) return y.Apply(fl);
             else if (fb != null) return y.Apply(fb);
-            else if (fls != null) return y.Apply(fls);
+            else if (fls != null) return y.Apply(fls, frame);
             
             else  throw new NotImplementedException();
         }

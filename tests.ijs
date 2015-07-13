@@ -98,7 +98,8 @@ NB. Not working  (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime
 (0 p: i. 5) -: 1 1 0 0 1                             NB. is not prime
 (1 p: 2 3 17 79 199 3581) -: 1 1 1 1 1 1             NB. is prime (true)
 (1 p: 10 66 111 32331 603201 9040131) -: 0 0 0 0 0 0 NB. is prime (false)
-(2 p: 20) -: '2 5\n 2 1'                             NB. factors with exponents
+(2 p: 20) -: '2 5\n2 1'                             NB. factors with exponents
+(2 p: 20 120) -: '2 5 0\n2 1 0\n\n2 3 5\n3 1 1'                             NB. factors with exponents
 (3 p: 56) -: 2 2 2 7                                 NB. factorization
 (3 p: 56 57) -: '2 2 2 7\n3 19 0 0'                  NB. factorization w/fill
 (3 p: 6973) -: 19 367                                NB. factorization
