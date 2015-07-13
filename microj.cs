@@ -741,10 +741,12 @@ namespace MicroJ
         public long Monadic;
         public long DyadicX;
         public long DyadicY;
-        public Func<AType, AType, AType> Func;
+        public Func<AType, AType, AType> DyadicFunc;
+        public Func<AType, AType> MonadicFunc;
         public static long Infinite = long.MaxValue;
-        public VerbWithRank(Func<AType, AType, AType> func, long monadic, long x, long y) {
-            Func = func;
+        public VerbWithRank(Func<AType, AType> monad, Func<AType, AType, AType> dyad, long monadic, long x, long y) {
+            MonadicFunc = monad;
+            DyadicFunc = dyad;
             Monadic = monadic;
             DyadicX = x;
             DyadicY = y;
@@ -753,7 +755,7 @@ namespace MicroJ
     }
     public class Verbs {
 
-	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:"};
+	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ","};
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
 
@@ -765,7 +767,7 @@ namespace MicroJ
         public Verbs() {
             expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
             expressionMap = new Dictionary<string, VerbWithRank>();
-            expressionMap["p:"] = new VerbWithRank(primes, 0, VerbWithRank.Infinite, VerbWithRank.Infinite);
+            expressionMap["p:"] = new VerbWithRank(primesm, primes, 0, VerbWithRank.Infinite, VerbWithRank.Infinite);
         }
 
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null) {
@@ -1053,6 +1055,41 @@ namespace MicroJ
             }
             return z;
         }
+
+        public A<T> ravel<T>(A<T> y) where T : struct {
+            var v = new A<T>(y.Count);
+            for (var n = 0; n < y.Count; n++) {
+                    v.Ravel[n] = y.Ravel[n];
+            }
+            return v;
+        }
+
+        public A<T> append<T>(A<T> x, A<T> y) where T : struct {
+            if (x.Rank > 1 && x.Rank != y.Rank) throw new NotImplementedException("Rank >1 not implemented on , yet");
+
+            long[] newShape;
+            if (y.Rank < 1) {
+                newShape = new long[] { x.Count + y.Count };
+            }
+            else {
+                var tail = y.Shape.Skip(1).ToArray();
+                newShape = new long[] { x.Count + y.Count }.Concat(tail).ToArray();
+            }
+            var v = new A<T>(x.Count + y.Count, newShape);
+            var offset=0;
+            for (var n = 0; n < x.Count; n++) {
+                v.Ravel[offset++] = x.Ravel[n];
+            }
+            for (var n = 0; n < y.Count; n++) {
+                v.Ravel[offset++] = y.Ravel[n];
+            }
+
+            return v;
+        }
+
+        public AType primesm(AType w) {
+            return primes(null, w);
+        }
         public AType primes(AType  a, AType w) {
             var x = a != null ? (A<long>) a : new A<long>(0);
             var y = (A<long>) w;
@@ -1072,6 +1109,8 @@ namespace MicroJ
             
             else  throw new NotImplementedException();
         }
+
+        
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
             if (verb.adverb != null) {
@@ -1161,6 +1200,10 @@ namespace MicroJ
             else if (op == "#") {
                 return InvokeExpression("copy", x, y, 1);
             }
+            else if (op == ",") {
+                return InvokeExpression("append", x, y, 1);
+            }
+
             else if (op == "-:") {
                 //temporary
                 var z = new A<bool>(0);
@@ -1169,7 +1212,7 @@ namespace MicroJ
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
-                    return verbWithRank.Func(x,y);
+                    return verbWithRank.DyadicFunc(x,y);
                 }
             }
 
@@ -1219,8 +1262,11 @@ namespace MicroJ
                 }
                 return InvokeExpression("reverse", y);
             }
+            else if (op == ",") {
+                return InvokeExpression("ravel", y);
+            }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
-                return verbWithRank.Func(null,y);
+                return verbWithRank.MonadicFunc(y);
             }
             throw new NotImplementedException(op + " on y: " + y + " type: " + y.GetType());
         }

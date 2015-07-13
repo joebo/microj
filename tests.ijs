@@ -102,3 +102,9 @@ NB. Not working  (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime
 (3 p: 56 57) -: '2 2 2 7\n3 19 0 0'                  NB. factorization w/fill
 (3 p: 6973) -: 19 367                                NB. factorization
 ( 3 p: 10111) -: 1 $ 10111                           NB. factorization (prime)
+
+
+(, i. 2 2) -: 0 1 2 3                        NB. ravel list
+$ ,1 -: 1                                    NB. ravel atom
+(2,3 4) -: (2 3 4)                           NB. ravel
+((i. 2 2) , (i.2 2)) -: '0 1\n2 3\n0 1\n2 3' NB. ravel rank > 1
