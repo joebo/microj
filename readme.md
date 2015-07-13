@@ -33,7 +33,7 @@ Starting with list from
 | NB.       | Implemented                                     |        |                 |
 | $         | Implemented                                     | shape  | reshape         |
 | #         | Implemented                                     | tally  | copy            |
-| ,         | Partially Implemented (missing boxed)           | ravel  | append          |
+| ,         | Partially Implemented (missing non-equal shapes)| ravel  | append          |
 | ;         | Not Implemented                                 |        |                 |
 | {.        | Not Implemented                                 |        |                 |
 | }.        | Not Implemented                                 |        |                 |
