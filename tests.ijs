@@ -150,6 +150,7 @@ NB. more box
 +-+
 )
 
+NB. box with table
 (<"0 i. 2 2 2) -: 0 : 0
 +-+-+
 |0|1|
@@ -162,4 +163,19 @@ NB. more box
 +-+-+
 |6|7|
 +-+-+
+)
+
+NB. box with string
+(< (2 3 $ 'abc')) -: 0 : 0
++---+
+|abc|
+|abc|
++---+
+)
+
+NB. box with string rank conjunction
+(<"1 (2 3 $ 'abc')) -: 0 : 0
++---+---+
+|abc|abc|
++---+---+
 )

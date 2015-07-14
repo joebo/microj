@@ -259,7 +259,14 @@ namespace MicroJ
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
         }
-        
+
+        public JString GetChar(long n) {
+            var cells = (long) Shape[Shape.Length-1];
+            long idx = (long)Math.Floor((double)(n / cells));
+            long remainder = (long) n % cells;
+            return new JString { str = ((A<JString>)this).Ravel[idx].str[(int)remainder].ToString() };
+        }
+
         public static long ShapeProduct(long[] ri) {
             return ri.Aggregate(1L, (prod, next) => prod * next);
         }
@@ -467,7 +474,6 @@ namespace MicroJ
                     
                 } else {
                     cells = Ravel.Select(x=>((Box)(object)x).val.ToString());
-                
                     var ct = ShapeProduct(shape);
                     var nCells = (int) shape[shape.Length-1];
                     var maxCell = cells.Max(x=>x.Length);
@@ -564,16 +570,30 @@ namespace MicroJ
 
             if (newRank == y.Rank) { return (A<T2>)Verbs.Call1(newVerb, y); }
 
-            var newShape = y.Shape.Take(y.Rank - newRank).ToArray();
+            var shape = y.Shape;
+            bool isString = y.GetType() == typeof(A<JString>);
+
+            if (isString) {
+                //drop the last part of the shape for strings, since it's an indirect reference
+                shape = y.Shape.Take(y.Shape.Length-1).ToArray();
+            }
+            var newShape = shape.Take(y.Rank - newRank).ToArray();
+            
+
             var newCt = AType.ShapeProduct(newShape);
             var vs = new A<T2>[newCt];
-            var subShape = y.Shape.Skip(y.Rank - newRank).ToArray();
+            var subShape = shape.Skip(y.Rank - newRank).ToArray();
             var subShapeCt = AType.ShapeProduct(subShape);
             var offset = 0;
+
             for (var i = 0; i < vs.Length; i++) {
                 var newY = new A<T>(subShapeCt, subShape);
                 for (var k = 0; k < newY.Count; k++) {
-                    newY.Ravel[k] = y.Ravel[offset];
+                    if (!isString || newRank > 0) {
+                        newY.Ravel[k] = y.Ravel[offset];
+                    } else {
+                        newY.Ravel[k] = (T) (object) y.GetChar(offset);
+                    }
                     offset++;
                 }
                 vs[i] = (A<T2>)Verbs.Call1(newVerb, newY);
@@ -637,7 +657,20 @@ namespace MicroJ
 
                 //not sure if this is the right way to deal with boxes yet
                 if (verb.childVerb != null && ((Verb)verb.childVerb).op == "<") {
-                    return rank1ex<long, Box>(method, (A<long>)y);
+                    if (y.GetType() == typeof(A<long>)) {
+                        return rank1ex<long, Box>(method, (A<long>)y);
+                    }
+                    else if (y.GetType() == typeof(A<JString>)) {
+                        return rank1ex<JString, Box>(method, (A<JString>)y);
+                    }
+                    else if (y.GetType() == typeof(A<double>)) {
+                        return rank1ex<double, Box>(method, (A<double>)y);
+                    }
+                    else if (y.GetType() == typeof(A<bool>)) {
+                        return rank1ex<bool, Box>(method, (A<bool>)y);
+                    }
+
+
                 }
                 if (y.GetType() == typeof(A<long>)) { return rank1ex<long, long>(method, (A<long>)y); }
                 //todo: evaluate performance of dynamic dispatch of rank -- probably ok
