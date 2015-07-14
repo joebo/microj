@@ -88,7 +88,7 @@ namespace App {
                 Console.WriteLine(kbAfter2 + " Amt. After Collection");
                 Console.WriteLine(kbAfter2 - kbAfter1 + " Amt. Collected by GC.");
             } else if (args.Length > 0 && args[0] == "-tp") {
-                new Tests().TestAll();
+                
             } else {
                 var repl = new Parser();
 
@@ -96,12 +96,15 @@ namespace App {
                 if (File.Exists("stdlib.ijs")) { files.Add("stdlib.ijs"); }
                 if (args.Length > 0) { files.Add(args[0]); }
 
+                bool testMode = argList.FindIndex(c => c.Contains("-t")) > -1;
+                if (testMode) new Tests().TestAll();
+                
                 foreach(var file in files.Where(x=>!x.StartsWith("-"))) {
                     if (!File.Exists(file)) {
                         Console.WriteLine("file: " + file + " does not exist");
                         return;
                     }
-                    bool testMode = argList.FindIndex(c => c.Contains("-t")) > -1;
+                    testMode = argList.FindIndex(c => c.Contains("-t")) > -1;
                     bool quiet = argList.FindIndex(c => c.Contains("-q")) > -1;
                     if (file == "stdlib.ijs") { quiet = true; testMode = false;}
                     string[] lines = File.ReadAllLines(file);
@@ -362,6 +365,16 @@ namespace MicroJ
             return str.Replace("\\n", "\n");
         }
     }
+
+    public struct Box {
+        public AType val;
+        public override string ToString() {
+            var vt = val.ToString();
+            var sep = "+" + new String('-', (int)val.Shape[val.Shape.Length-1]) + "+";
+            return sep + "\n|" + vt + "|\n" + sep;
+        }
+    }
+
     public class A<T> : AType where T : struct {
 
         public T[] Ravel;
@@ -437,9 +450,53 @@ namespace MicroJ
             return str;
         }
         public override string ToString() {
-            if (Rank == 0) {
-                return StringConverter(Ravel[0]);
+            if (typeof(T) == typeof(Box)) {
+                var nl = "\n";
+
+                var shape = Shape;
+                var ravel = Ravel;
+                IEnumerable<string> cells;
+                if (shape == null) {
+                    cells = Ravel.SelectMany(x=>((Box)(object)x).val.ToString().Split('\n'));
+                    var maxCell = cells.Max(x=>x.Length);
+                    var sep = "+" + String.Join("+", new String('-', maxCell)) + "+" + nl;
+                    var ret = sep + String.Join("", cells.Select(x=>"|"+x.PadRight(maxCell)+"|" + nl).ToArray()) + sep;
+                    //chop trailing \n
+                    return ret.Substring(0, ret.Length-1);
+
+                    
+                } else {
+                    cells = Ravel.Select(x=>((Box)(object)x).val.ToString());
+                
+                    var ct = ShapeProduct(shape);
+                    var nCells = (int) shape[shape.Length-1];
+                    var maxCell = cells.Max(x=>x.Length);
+                    var sep = "+" + String.Join("+", Enumerable.Range(0, nCells).Select(x=>new String('-', maxCell))) + "+" + nl;
+                    var sb = new StringBuilder();
+                    var frame = ShapeProduct(shape.Take(shape.Length-2).ToArray());
+                    int offset = 0;
+                    var rowCt = shape.Length > 1 ? shape[shape.Length-2] : 1;
+                    
+                    for(var i = 0; i < frame; i++ ){
+                        for(var k = 0; k  < rowCt; k++) {
+                            var row = cells.Skip(offset).Take(nCells);
+                            sb.Append(sep);             
+                            sb.Append("|" + String.Join("|", row.Select(x=>x.PadRight(maxCell)).ToArray()) + "|"  + nl);
+                            offset+=nCells;
+                        }
+                        sb.Append(sep);
+                        sb.Append(nl);
+                    }
+
+                    var ret = sb.ToString();
+                    //chop trailing \n
+                    return ret.Trim('\n');
+                }
             }
+            else if (Rank == 0) {
+                if (Ravel == null) { return ""; }
+                return StringConverter(Ravel[0]);
+            } 
             else {
                 var z = new StringBuilder();
                 long[] odometer = new long[Rank];
@@ -492,7 +549,7 @@ namespace MicroJ
             });
         }
 
-        public A<T> rank1ex<T>(AType method, A<T> y) where T : struct {
+        public A<T2> rank1ex<T, T2>(AType method, A<T> y) where T : struct  where T2 : struct {
             var verb = ((A<Verb>)method).Ravel[0];
             var newRank = Convert.ToInt32(verb.rhs);
 
@@ -505,11 +562,11 @@ namespace MicroJ
                 newVerb.Ravel[0] = new Verb { op = verb.op, adverb = verb.adverb };
             }
 
-            if (newRank == y.Rank) { return (A<T>)Verbs.Call1(newVerb, y); }
+            if (newRank == y.Rank) { return (A<T2>)Verbs.Call1(newVerb, y); }
 
             var newShape = y.Shape.Take(y.Rank - newRank).ToArray();
             var newCt = AType.ShapeProduct(newShape);
-            var vs = new A<T>[newCt];
+            var vs = new A<T2>[newCt];
             var subShape = y.Shape.Skip(y.Rank - newRank).ToArray();
             var subShapeCt = AType.ShapeProduct(subShape);
             var offset = 0;
@@ -519,14 +576,14 @@ namespace MicroJ
                     newY.Ravel[k] = y.Ravel[offset];
                     offset++;
                 }
-                vs[i] = (A<T>)Verbs.Call1(newVerb, newY);
+                vs[i] = (A<T2>)Verbs.Call1(newVerb, newY);
             }
             var ct = vs.Length * vs[0].Count;
 
             if (vs[0].Shape != null) {
                 newShape = newShape.Concat(vs[0].Shape).ToArray();
             }
-            var v = new A<T>(ct, newShape);
+            var v = new A<T2>(ct, newShape);
             offset = 0;
             for (var i = 0; i < vs.Length; i++) {
                 for (var k = 0; k < vs[0].Count; k++) {
@@ -577,7 +634,12 @@ namespace MicroJ
             //rank
             if (verb.conj == "\"") {
                 //future: add special code for +/"n or use some type of integrated rank support
-                if (y.GetType() == typeof(A<long>)) { return rank1ex(method, (A<long>)y); }
+
+                //not sure if this is the right way to deal with boxes yet
+                if (verb.childVerb != null && ((Verb)verb.childVerb).op == "<") {
+                    return rank1ex<long, Box>(method, (A<long>)y);
+                }
+                if (y.GetType() == typeof(A<long>)) { return rank1ex<long, long>(method, (A<long>)y); }
                 //todo: evaluate performance of dynamic dispatch of rank -- probably ok
                 else return Verbs.InvokeExpression("rank1ex", method, y, 1, this);
             }
@@ -770,7 +832,7 @@ namespace MicroJ
     }
     public class Verbs {
 
-	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ","};
+	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<"};
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
 
@@ -848,7 +910,7 @@ namespace MicroJ
                         var nr = z.Rank - i;
                         var conj = new A<Verb>(0);
                         conj.Ravel[0] = new Verb { op = "|.", conj = "\"", rhs = nr.ToString() };
-                        z = Conjunctions.rank1ex(conj, z);
+                        z = Conjunctions.rank1ex<long, long>(conj, z);
                     }
                 }
             }
@@ -911,7 +973,7 @@ namespace MicroJ
 
         public A<long> shape(AType y) {
             var v = new A<long>(y.Rank);
-            if (y.Rank == 0) { v.Ravel[0] = 0; }
+            if (y.Rank == 0) { v.Ravel = null; }
             else { v.Ravel = y.Shape; }
             return v;
         }
@@ -923,7 +985,13 @@ namespace MicroJ
             return v;
         }
 
-        
+
+        public A<Box> box(AType y) {
+            var v = new A<Box>(0);
+            v.Ravel[0] = new Box { val = y };
+            return v;
+        }
+
         public A<T> copy<T>(A<long> x, A<T> y) where T : struct {
 
             var copies = x.Ravel[0];
@@ -1267,6 +1335,10 @@ namespace MicroJ
             } else if (op == "#") {
                 return tally(y);
             }
+            else if (op == "<") {
+                return box(y);
+            }
+
             else if (op == "|:") {
                 if (y.GetType() == typeof(A<int>)) {
                     return transpose((A<int>)y);
@@ -1753,6 +1825,8 @@ namespace MicroJ
             tests["names with underscore"] = () => equals(toWords("a_b =: 1"), new[] { "a_b", "=:", "1" });
             tests["is with no parens"] = () => equals(toWords("i.3-:3"), new[] { "i.", "3", "-:", "3" });
             tests["foreign conjunction"] = () => equals(toWords("(15!:0) 'abc'"), new[] {"(",  "15", "!:", ")", "0", "'abc'" });
+
+            tests["boxing"] = () => equals(toWords("($ < i. 2 2)"), new[] {"(",  "$", "<", "i.", "2 2", ")" });
 
             tests["verb assignment"] = () => {
                 var parser = new Parser();
