@@ -213,7 +213,7 @@ namespace MicroJ
             if (ncells == 1) {
                 newShape = shape.ToList().Concat(new long[] { maxCt }).ToArray();
             } else {
-                newShape = shape.ToList().Concat(new long[] { ncells, maxCt }).ToArray();
+                newShape = shape.ToList().Concat(new long[] {ncells, maxCt}).ToArray();
             }
             var z = new A<long>(maxCt*ncells*zs.Length, newShape);
             var offset = 0;
@@ -240,7 +240,7 @@ namespace MicroJ
             if (Rank == 0) {
                 var z = new A<long>(zs[0].Length);
                 if (frame != null) {
-                    z.Shape = new long[] { zs[0].Length / frame[0], frame[0] };
+                    z.Shape = new long[] {frame[0], zs[0].Length / frame[0] };
                 }
                 z.Ravel = zs[0];
                 return z;
