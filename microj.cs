@@ -865,7 +865,7 @@ namespace MicroJ
     }
     public class Verbs {
 
-	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<"};
+	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!"};
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
 
@@ -1390,6 +1390,12 @@ namespace MicroJ
             }
             else if (op == ",") {
                 return InvokeExpression("ravel", y);
+            } else if (op == "!"){
+                A<double> a = new A<double>(1);
+                if(y is A<int> || y is A<long>)
+                    a.Ravel[0] = Gamma.GammaReal(1.0*(((A<long>)y).Ravel[0]));
+                else  a.Ravel[0] = Gamma.GammaReal(1.0*(((A<double>)y).Ravel[0]));
+                return a;
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 return verbWithRank.MonadicFunc(y);
@@ -1817,6 +1823,29 @@ namespace MicroJ
         }
 
     }
+    
+    public static class Gamma{
+        static int g = 7;
+        static double[] p = {0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+	     771.32342877765313, -176.61502916214059, 12.507343278686905,
+	     -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7};
+ 
+        public static double GammaReal(double y){
+            y += 1;
+            if (y < 0.5)
+                return Math.PI / (Math.Sin( Math.PI * y) * GammaReal(1 - y));
+            else{
+                y -= 1;
+                double x = p[0];
+                for (var i = 1; i < g + 2; i++){
+                    x += p[i]/(y+i);
+                }
+                double t = y + g + 0.5;
+                return Math.Sqrt(2 * Math.PI) * (Math.Pow(t, y + 0.5)) * Math.Exp(-t) * x;
+	         }
+        }
+    }
+    
     public class Tests {
         bool equals<T>(T[] a1, T[] a2) {
             return a1.OrderBy(a => a).SequenceEqual(a2.OrderBy(a => a));
