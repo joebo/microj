@@ -1801,6 +1801,7 @@ namespace MicroJ
         }
     }
 
+    //todo could use some cleanup... primarily interested in getting tests to pass for now
     class Formatter {
         public string[][][] Table;
         public long[] shape;
@@ -1850,7 +1851,6 @@ namespace MicroJ
         public Formatter AddRange(IEnumerable<string> vals) {
             foreach (var val in vals) {
                 if (cellCount >= totalSize) { return this; }
-                //Add(StringConverter(val));
                 Add(val);
             }
             return this;
