@@ -1902,7 +1902,13 @@ namespace MicroJ
                             var line = i < lines[c].Length ? lines[c][i] : spacer;
                             if (boxed) {
                                 line = line.Substring(1, line.Length - 1);
-                                line = line.Substring(0, line.Length - 1);
+                                if (line.Length > 0) {
+                                    line = line.Substring(0, line.Length - 1);
+                                }
+
+                                //footer row
+                                if (i == lines[c].Length - 1) { line = ""; }
+                                
                                 line = line.PadRight((int)columnPadding[c] - 2, i == 0 ? '-' : ' ');
                                 if (c == 0) {
                                     line = ((i == 0) ? "+" : "|") + line;
