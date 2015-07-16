@@ -1139,13 +1139,14 @@ namespace MicroJ
             if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
 
             long[] newShape;
-            if (y.Rank < 1) {
-                newShape = new long[] { x.Count + y.Count };
-            }
-            else {
+            newShape = new long[] { x.Count + y.Count };
+
+            if (y.Rank > 0) {
                 var tail = y.Shape.Skip(1).ToArray();
-                newShape = new long[] { x.Count + y.Count }.Concat(tail).ToArray();
+                var xframe = x.Rank > 1 ? x.Shape[0] : 1;
+                newShape = new long[] { xframe + y.Shape[0] }.Concat(tail).ToArray();
             }
+
             var v = new A<T>(x.Count + y.Count, newShape);
             var offset=0;
             for (var n = 0; n < x.Count; n++) {
