@@ -38,8 +38,7 @@ Starting with list from
 | {.        | Not Implemented                                 |        |                 |
 | }.        | Not Implemented                                 |        |                 |
 | /         | Implemented                                     | insert | table           |
-| i.        | Not Implemented                                 |        |                 |
-| i.        | Not Implemented                                 |        |                 |
+| i.        | Partially Implemented                                 | iota   |                 |
 | +         | Partially Implemented                           |        | plus (math)     |
 | *         | Partially Implemented                           |        | times (math)    |
 | -         | Partially Implemented                           |        | subtract (math) |
@@ -54,10 +53,9 @@ Data Types:
 - float (double)
 - string
 - bool (partial)
-- boxed (not started)
+- boxed
 
 ## Todo:
-1. Boxed type
 1. More J primitives
 
 ## Vision:
