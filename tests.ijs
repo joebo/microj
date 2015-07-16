@@ -107,6 +107,9 @@ NB. Not working  (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime
 (3 p: 6973) -: 19 367                                NB. factorization
 (3 p: 10111) -: 1 $ 10111                            NB. factorization (prime)
 
+NB. == gamma (!)
+(! 5) -: 120                                 NB. single arg factorial (integer)
+(! 4.5) -: 52.3427777845536                  NB. single arg factorial (floating pt)
 
 (, i. 2 2) -: 0 1 2 3                        NB. ravel list
 $ ,1 -: 1                                    NB. ravel atom
