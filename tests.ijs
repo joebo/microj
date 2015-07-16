@@ -34,7 +34,7 @@ _1 -: 5 - 6                             NB. subtract negative
 (i. 2 2 2) -: '0 1\n2 3\n\n4 5\n6 7'    NB. multi-dimensional 2
 (1 + i. 2 2) -: '1 2\n3 4'              NB. multi-dimensional add
 (+/ i. 2 3) -: (3 5 7)                  NB. multi-dimensional sum
-(+/ i. 2 2 2) -: '4 6\n8 10'            NB. multi-dimensional sum higher rank
+(+/ i. 2 2 2) -: '4  6\n8 10'            NB. multi-dimensional sum higher rank
 
 (+/ i. 4 3 2) -: '36 40\n44 48\n52 56'  NB. multi-dimensional sum higher rank 2
 (a + a=:5) -: 10                        NB. assignment
@@ -103,7 +103,7 @@ NB. Not working  (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime
 (2 p: 120) -: '2 3 5\n3 1 1'                           NB. factors with 3 exponents 
 (2 p: 20 120) -: '2 5 0\n2 1 0\n\n2 3 5\n3 1 1'      NB. factors with exponents
 (3 p: 56) -: 2 2 2 7                                 NB. factorization
-(3 p: 56 57) -: '2 2 2 7\n3 19 0 0'                  NB. factorization w/fill
+(3 p: 56 57) -: '2  2 2 7\n3 19 0 0'                  NB. factorization w/fill
 (3 p: 6973) -: 19 367                                NB. factorization
 (3 p: 10111) -: 1 $ 10111                            NB. factorization (prime)
 
@@ -114,7 +114,8 @@ NB. == gamma (!)
 (, i. 2 2) -: 0 1 2 3                        NB. ravel list
 $ ,1 -: 1                                    NB. ravel atom
 (2,3 4) -: (2 3 4)                           NB. ravel
-((i. 2 2) , (i.2 2)) -: '0 1\n2 3\n0 1\n2 3' NB. ravel rank > 1
+
+NB. not working ((i. 2 2) , (i.2 2)) -: '0 1\n2 3\n0 1\n2 3' NB. ravel rank > 1
 
 
 ($ 1) -: ''

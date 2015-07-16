@@ -260,11 +260,15 @@ namespace MicroJ
             return ((A<long>)this).Ravel[n];
         }
 
-        public JString GetChar(long n) {
+        public JString GetCharJString(long n) {
+            return new JString { str = GetChar(n) };
+        }
+
+        public string GetChar(long n) {
             var cells = (long) Shape[Shape.Length-1];
             long idx = (long)Math.Floor((double)(n / cells));
             long remainder = (long) n % cells;
-            return new JString { str = ((A<JString>)this).Ravel[idx].str[(int)remainder].ToString() };
+            return  ((A<JString>)this).Ravel[idx].str[(int)remainder].ToString();
         }
 
         public static long ShapeProduct(long[] ri) {
@@ -430,7 +434,17 @@ namespace MicroJ
 
         public string StringConverter(T val) {
             var str = "";
-            if (typeof(T) == typeof(bool)) {
+            if (typeof(T) == typeof(Box)) {
+                Box box = ((Box)(object)val);
+
+                var cells = box.val.ToString().Split('\n');
+                var maxCell = cells.Max(x => x.Length);
+                var sep = "+" + String.Join("+", new String('-', maxCell)) + "+" + "\n";
+                var ret = sep + String.Join("", cells.Select(x => "|" + x.PadRight(maxCell) + "|" + "\n").ToArray()) + sep;
+                //chop trailing \n
+                return ret.Substring(0, ret.Length - 1);
+            }
+            else if (typeof(T) == typeof(bool)) {
                 str = Convert.ToBoolean(val) ? "1" : "0";
             }
             else if (typeof(T) == typeof(int)) {
@@ -457,80 +471,21 @@ namespace MicroJ
             return str;
         }
         public override string ToString() {
-            if (typeof(T) == typeof(Box)) {
-                var nl = "\n";
-
-                var shape = Shape;
-                var ravel = Ravel;
-                IEnumerable<string> cells;
-                if (shape == null) {
-                    cells = Ravel.SelectMany(x=>((Box)(object)x).val.ToString().Split('\n'));
-                    var maxCell = cells.Max(x=>x.Length);
-                    var sep = "+" + String.Join("+", new String('-', maxCell)) + "+" + nl;
-                    var ret = sep + String.Join("", cells.Select(x=>"|"+x.PadRight(maxCell)+"|" + nl).ToArray()) + sep;
-                    //chop trailing \n
-                    return ret.Substring(0, ret.Length-1);
-
-                    
-                } else {
-                    cells = Ravel.Select(x=>((Box)(object)x).val.ToString());
-                    var ct = ShapeProduct(shape);
-                    var nCells = (int) shape[shape.Length-1];
-                    var maxCell = cells.Max(x=>x.Length);
-                    var sep = "+" + String.Join("+", Enumerable.Range(0, nCells).Select(x=>new String('-', maxCell))) + "+" + nl;
-                    var sb = new StringBuilder();
-                    var frame = ShapeProduct(shape.Take(shape.Length-2).ToArray());
-                    int offset = 0;
-                    var rowCt = shape.Length > 1 ? shape[shape.Length-2] : 1;
-                    
-                    for(var i = 0; i < frame; i++ ){
-                        for(var k = 0; k  < rowCt; k++) {
-                            var row = cells.Skip(offset).Take(nCells);
-                            sb.Append(sep);             
-                            sb.Append("|" + String.Join("|", row.Select(x=>x.PadRight(maxCell)).ToArray()) + "|"  + nl);
-                            offset+=nCells;
-                        }
-                        sb.Append(sep);
-                        sb.Append(nl);
-                    }
-
-                    var ret = sb.ToString();
-                    //chop trailing \n
-                    return ret.Trim('\n');
+            if (Ravel == null) { return ""; }
+            else if (typeof(T) == typeof(JString)) {
+                var ravel = ((JString[])(object)Ravel);
+                if (Shape == null) {
+                    //for 0 : 0 
+                    return ((JString[])(object)Ravel)[0].str;
+                } else if (ravel != null && ravel.Length == 1) {
+                    return ravel[0].ToString();
                 }
+                var shapeProduct = AType.ShapeProduct(Shape);
+                var chars = Enumerable.Range(0, (int)shapeProduct).Select(x=>GetChar(x));
+                return new Formatter(Shape,"").AddRange(chars).ToString();
             }
-            else if (Rank == 0) {
-                if (Ravel == null) { return ""; }
-                return StringConverter(Ravel[0]);
-            } 
-            else {
-                var z = new StringBuilder();
-                long[] odometer = new long[Rank];
-                for (var i = 0; i < Count; i++) {
-                    z.Append(StringConverter(Ravel[i]));
-                    if (typeof(T) != typeof(JString)) {
-                        odometer[Rank - 1]++;
-                    } else {
-                        //hack since Ravel[0] is a string instance, not an array
-                        odometer[Rank - 1] += ((JString)(object)Ravel[i]).str.Length;
-                    }
-
-                    if (odometer[Rank - 1] != Shape[Rank - 1]) {
-                        z.Append(" ");
-                    }
-
-                    for (var k = Shape.Length - 1; k > 0; k--) {
-                        if (odometer[k] == Shape[k]) {
-                            odometer[k] = 0;
-                            z.Append("\n");
-                            odometer[k - 1]++;
-                        }
-                    }
-                }
-                var ret = z.ToString();
-                ret = ret.Substring(0, ret.Length - (Shape.Length - 1));
-                return ret;
-            }
+            
+            return new Formatter(Shape).AddRange(Ravel.Select(x=>StringConverter(x))).ToString();
         }
     }
 
@@ -592,7 +547,7 @@ namespace MicroJ
                     if (!isString || newRank > 0) {
                         newY.Ravel[k] = y.Ravel[offset];
                     } else {
-                        newY.Ravel[k] = (T) (object) y.GetChar(offset);
+                        newY.Ravel[k] = (T) (object) y.GetCharJString(offset);
                     }
                     offset++;
                 }
@@ -1843,6 +1798,180 @@ namespace MicroJ
                 double t = y + g + 0.5;
                 return Math.Sqrt(2 * Math.PI) * (Math.Pow(t, y + 0.5)) * Math.Exp(-t) * x;
 	         }
+        }
+    }
+
+    class Formatter {
+        public string[][][] Table;
+        public long[] shape;
+        long tableIdx = 0;
+        long rowIdx = 0;
+        long columnIdx = 0;
+        long columnLength = 0;
+        long rowLength = 0;
+        long tableLength = 0;
+        long cellCount = 0;
+        long totalSize = 0;
+        string separator = " ";
+        public Formatter(long[] shape, string separator = " ") {
+            this.shape = shape;
+            this.separator = separator;
+            if (shape == null || shape.Length == 0) {
+                tableLength = 1;
+                rowLength = 1;
+                columnLength = 1;
+                this.shape = new long[] { 1 };
+            }
+            else if (shape.Length == 1) {
+                tableLength = 1;
+                rowLength = 1;
+                columnLength = shape[0];
+            }
+            else if (shape.Length == 2) {
+                tableLength = 1;
+                columnLength = shape[shape.Length - 1];
+                rowLength = shape[shape.Length - 2];
+            }
+            else if (shape.Length > 2) {
+                tableLength = shape.Take(shape.Length - 2).Aggregate(1L, (x, y) => x * y);
+                columnLength = shape[shape.Length - 1];
+                rowLength = shape[shape.Length - 2];
+            }
+            totalSize = tableLength * columnLength * rowLength;
+            Table = new string[tableLength][][];
+            for (var t = 0L; t < tableLength; t++) {
+                Table[t] = new string[rowLength][];
+                for (var k = 0L; k < rowLength; k++) {
+                    Table[t][k] = new string[columnLength];
+                }
+            }
+        }
+
+        public Formatter AddRange(IEnumerable<string> vals) {
+            foreach (var val in vals) {
+                if (cellCount >= totalSize) { return this; }
+                //Add(StringConverter(val));
+                Add(val);
+            }
+            return this;
+        }
+        public Formatter Add(object cell) {
+            if (columnIdx >= columnLength) {
+                rowIdx++;
+                columnIdx = 0;
+            }
+            if (rowIdx >= rowLength) {
+                rowIdx = 0;
+                columnIdx = 0;
+                tableIdx++;
+            }
+            Table[tableIdx][rowIdx][columnIdx++] = StringConverter(cell);
+            cellCount++;
+            return this;
+        }
+
+        public string StringConverter(object val) {
+            var nl = "\n";
+            if (val.GetType() == typeof(Box)) {
+                Box box = ((Box)val);
+
+                var cells = box.val.ToString().Split('\n');
+                var maxCell = cells.Max(x => x.Length);
+                var sep = "+" + String.Join("+", new String('-', maxCell)) + "+" + nl;
+                var ret = sep + String.Join("", cells.Select(x => "|" + x.PadRight(maxCell) + "|" + nl).ToArray()) + sep;
+                //chop trailing \n
+                return ret.Substring(0, ret.Length - 1);
+            }
+            else {
+                return val.ToString();
+            }
+        }
+
+        public override string ToString() {
+            var sb = new StringBuilder();
+            var rank = shape.Length;
+            long[] odometer = new long[rank];
+
+            var columnPadding = new long[columnLength];
+            for (var t = 0L; t < tableLength; t++) {
+                for (var r = 0L; r < rowLength; r++) {
+                    for (var c = 0L; c < columnLength; c++) {
+                        var len = Table[t][r][c].Split('\n').Max(x => x.Length);
+                        if (len > columnPadding[c]) {
+                            columnPadding[c] = len;
+                        }
+                    }
+                }
+            }
+            var spacer = separator;
+            bool boxed = Table[0][0][0].StartsWith("+");
+            for (var t = 0L; t < tableLength; t++) {
+                string headerLine = "";
+                for (var r = 0L; r < rowLength; r++) {
+                    var lines = Table[t][r].Select(x => x.Split('\n')).ToList();
+                    var maxLines = lines.Max(x => x.Length);
+
+                    //skip the footer line
+                    if (boxed) { maxLines = maxLines - 1; }
+                    for (var i = 0; i < maxLines; i++) {
+                        for (var c = 0; c < columnLength; c++) {
+
+                            var line = i < lines[c].Length ? lines[c][i] : spacer;
+                            if (boxed) {
+                                line = line.Substring(1, line.Length - 1);
+                                line = line.PadLeft((int)columnPadding[c] - 1, i == 0 ? '-' : ' ');
+                                if (c == 0) {
+                                    line = ((i == 0) ? "+" : "|") + line;
+                                }
+                            }
+                            else {
+                                line = line.PadLeft((int)columnPadding[c]);
+                            }
+                            sb.Append(line);
+                            if (i == 0 && r == 0) { headerLine += line; }
+                            if (!boxed) {
+                                odometer[rank - 1]++;
+                            }
+
+                            if (c < columnLength - 1 && !boxed) {
+                                sb.Append(spacer);
+                            }
+                            if (!boxed) {
+                                for (var k = shape.Length - 1; k > 0; k--) {
+                                    if (odometer[k] == shape[k]) {
+                                        odometer[k] = 0;
+                                        odometer[k - 1]++;
+                                        sb.Append("\n");
+                                    }
+                                }
+                            }
+
+                        }
+                        if (boxed) {
+                            sb.Append("\n");
+                        }
+                    }
+                }
+                if (boxed) {
+                    sb.Append(headerLine + "\n\n");
+                    if (rank > 2) {
+                        odometer[rank - 1] += columnLength;
+                        odometer[rank - 2]++;
+                        for (var k = shape.Length - 2; k > 0; k--) {
+                            if (odometer[k] == shape[k]) {
+                                odometer[k] = 0;
+                                odometer[k - 1] = 0;
+                                sb.Append("\n");
+                            }
+                        }
+                    }
+                }
+            }
+            var ret = sb.ToString();
+            //ret = ret.Substring(0, ret.Length - (shape.Length - 1));
+            ret = ret.TrimEnd('\n');
+            return ret;
+
         }
     }
     
