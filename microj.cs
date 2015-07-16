@@ -178,6 +178,9 @@ namespace App {
 
 namespace MicroJ
 {
+    public class DomainException : Exception {
+
+    }
     public abstract class AType
     {
         public long[] Shape;
@@ -700,6 +703,18 @@ namespace MicroJ
             return v;
         }
 
+        public A<T> reduceboxed<T>(AType op, A<Box> y) where T : struct {
+            if (y.Rank == 1) {
+                var v = new A<T>(0);
+                v = (A<T>)Verbs.Call2(op, y.ToAtom(y.Count - 2).Ravel[0].val, y.ToAtom(y.Count - 1).Ravel[0].val);
+                for (var i = y.Count - 3; i >= 0; i--) {
+                    v = (A<T>)Verbs.Call2(op, y.ToAtom(i).Ravel[0].val, v);
+                }
+                return v;
+            } 
+            throw new NotImplementedException();
+        }
+
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
             if (y.Rank == 1) {
                 var v = new A<T>(0);
@@ -809,6 +824,7 @@ namespace MicroJ
         public Func<AType, AType, AType> DyadicFunc;
         public Func<AType, AType> MonadicFunc;
         public static long Infinite = long.MaxValue;
+        
         public VerbWithRank(Func<AType, AType> monad, Func<AType, AType, AType> dyad, long monadic, long x, long y) {
             MonadicFunc = monad;
             DyadicFunc = dyad;
@@ -820,7 +836,8 @@ namespace MicroJ
     }
     public class Verbs {
 
-	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!"};
+	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!", ";"};
+        
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
 
@@ -1135,6 +1152,40 @@ namespace MicroJ
             return v;
         }
 
+        public AType raze<T>(A<Box> y) where T : struct {
+            Type type = null;
+            long totalCount = 0;
+            for(var i = 0; i < y.Count; i++) {
+                var thisType = y.Ravel[i].val.GetType();
+                if (type != null && type != thisType) {
+                    throw new DomainException();
+                }
+                if (y.Ravel[i].val.Shape != null) {
+                    totalCount+= AType.ShapeProduct(y.Ravel[i].val.Shape);
+                } else {
+                    totalCount+=1;
+                }
+                type = thisType;
+            }
+            if (type == typeof(A<long>)) {
+                if (y.Count == 1) {
+                    var z = new A<long>(totalCount, y.Ravel[0].val.Shape);
+                    long offset=0;
+                    for(var i = 0; i < y.Count; i++) {
+                        for(var k = 0; k < y.Ravel[i].val.GetCount(); k++) {
+                            z.Ravel[offset++] = ((A<long>)y.Ravel[i].val).Ravel[k];
+                        }
+                    }
+                    return z;
+                } else {
+                    var op = new A<Verb>(0);
+                    op.Ravel[0] = new Verb { op = "," };
+                    return Adverbs.reduceboxed<long>(op, y);
+                }
+            }
+            return null;
+        }
+
         public A<T> append<T>(A<T> x, A<T> y) where T : struct {
             if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
 
@@ -1346,7 +1397,16 @@ namespace MicroJ
             }
             else if (op == ",") {
                 return InvokeExpression("ravel", y);
-            } else if (op == "!"){
+            }
+            else if (op == ";") {
+                if (y.GetType() == typeof(A<Box>)) {
+                    return raze<Box>((A<Box>)y);
+                } else {
+                    //raze seems to be like ravel for non-boxed
+                    return InvokeExpression("ravel", y);
+                }
+            }
+            else if (op == "!"){
                 A<double> a = new A<double>(1);
                 if(y is A<int> || y is A<long>)
                     a.Ravel[0] = Gamma.GammaReal(1.0*(((A<long>)y).Ravel[0]));
