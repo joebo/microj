@@ -1855,7 +1855,7 @@ namespace MicroJ
             }
             return this;
         }
-        public Formatter Add(object cell) {
+        public Formatter Add(string cell) {
             if (columnIdx >= columnLength) {
                 rowIdx++;
                 columnIdx = 0;
@@ -1865,26 +1865,9 @@ namespace MicroJ
                 columnIdx = 0;
                 tableIdx++;
             }
-            Table[tableIdx][rowIdx][columnIdx++] = StringConverter(cell);
+            Table[tableIdx][rowIdx][columnIdx++] = cell;
             cellCount++;
             return this;
-        }
-
-        public string StringConverter(object val) {
-            var nl = "\n";
-            if (val.GetType() == typeof(Box)) {
-                Box box = ((Box)val);
-
-                var cells = box.val.ToString().Split('\n');
-                var maxCell = cells.Max(x => x.Length);
-                var sep = "+" + String.Join("+", new String('-', maxCell)) + "+" + nl;
-                var ret = sep + String.Join("", cells.Select(x => "|" + x.PadRight(maxCell) + "|" + nl).ToArray()) + sep;
-                //chop trailing \n
-                return ret.Substring(0, ret.Length - 1);
-            }
-            else {
-                return val.ToString();
-            }
         }
 
         public override string ToString() {
@@ -1919,10 +1902,12 @@ namespace MicroJ
                             var line = i < lines[c].Length ? lines[c][i] : spacer;
                             if (boxed) {
                                 line = line.Substring(1, line.Length - 1);
-                                line = line.PadLeft((int)columnPadding[c] - 1, i == 0 ? '-' : ' ');
+                                line = line.Substring(0, line.Length - 1);
+                                line = line.PadRight((int)columnPadding[c] - 2, i == 0 ? '-' : ' ');
                                 if (c == 0) {
                                     line = ((i == 0) ? "+" : "|") + line;
                                 }
+                                line = line + ((i == 0) ? "+" : "|");
                             }
                             else {
                                 line = line.PadLeft((int)columnPadding[c]);
@@ -1968,7 +1953,6 @@ namespace MicroJ
                 }
             }
             var ret = sb.ToString();
-            //ret = ret.Substring(0, ret.Length - (shape.Length - 1));
             ret = ret.TrimEnd('\n');
             return ret;
 
