@@ -1252,9 +1252,10 @@ namespace MicroJ
             long[] frame = null;
             if (a == null) fls = (l) => Primes.Factor(l);
             else if ((long)xv <= Int32.MaxValue && xv > 0){
+              //  frame = new long[] { 2 };
                  fls = (l) => {
                     Dictionary<long, int> facs = Primes.GetFactorExponents(Primes.Factor(l).ToList());
-                    List<long> ps = Primes.atkinSieve((int)l); // first xv primes
+                    List<long> ps = Primes.atkinSieve(1+(int)l); // first xv primes
                     List<long> pps = new List<long>(); //prime powers
                     int i = 0;
                     foreach(long p in ps){
@@ -1265,6 +1266,8 @@ namespace MicroJ
                         i++;
                         if(i >= (int)xv) break;
                     }
+                    while (pps.Count < (int)xv)
+                        pps.Add(0);
                     return pps.ToArray();
                 };
             }
@@ -1378,6 +1381,9 @@ namespace MicroJ
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
+                    return verbWithRank.DyadicFunc(x,y);
+                }
+                else if(verbWithRank.DyadicX == 0 && verbWithRank.DyadicY == 0) {
                     return verbWithRank.DyadicFunc(x,y);
                 }
             }
