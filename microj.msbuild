@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="Build">
+    <Message Text="Building microj" />
+    <MSBuild Projects="microj.csproj" Targets="Build" />
+    <Exec Command="bin\microj.exe tests.ijs -t -q" />
+  </Target>
+  <Target Name="RunTests" DependsOnTargets="Build">
+    <Exec Command="bin\microj.exe tests.ijs -t -q" />
+</Target>
+</Project>

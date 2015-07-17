@@ -4,3 +4,4 @@
 *.suo
 scriptcs_bin/*
 bin/*
+obj/*

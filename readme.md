@@ -7,9 +7,13 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 
 ## Status: Proof of concept
 
-### Building / Running (tested on windows/linux)
-1. run build.bat (windows) or mcs microj.cs (mono)
-2. run microj.exe to get a repl, hit ctrl+c to exit or type exit
+### Repl - Building / Running (tested on windows/linux)
+1. run build.bat (windows) or mcs microj.cs primitives.cs repl.cs (mono)
+2. run bin\microj.exe or microj.exe to get a repl, hit ctrl+c to exit or type exit
+
+### Shared Library - Building (tested on windows)
+1. c:\windows\Microsoft.NET\Framework\v4.0.30319\MSBuild microj.msbuild /p:Configuration=Library
+2. new Parser().exec("1+1") //tested in linqpad
 
 ### Command Line Options
 - filename 
