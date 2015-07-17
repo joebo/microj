@@ -378,17 +378,31 @@ namespace MicroJ {
 
         public A<long> indexof<T>(A<T> x, A<T> y) where T : struct {            
             var z = new A<long>(y.Count);
-            for (var i = 0; i < y.Count; i++) {
-                z.Ravel[i] = x.Count;
-                string yval = y.StringConverter(y.Ravel[i]);
-                for (var xi = 0; xi < x.Count; xi++) {
-                    //todo: need a faster way to compare equality
-                    if (x.StringConverter(x.Ravel[xi]) == yval) {
-                        z.Ravel[i] = xi;
-                        break;
+            if (y.Rank <= 1 && x.Rank <= 1) {
+                for (var i = 0; i < y.Count; i++) {
+                    z.Ravel[i] = x.Count;
+                    for (var xi = 0; xi < x.Count; xi++) {
+                        if (x.Ravel[xi].Equals(y.Ravel[i])) {
+                            z.Ravel[i] = xi;
+                            break;
+                        }
                     }
                 }
             }
+            else {
+                for (var i = 0; i < y.Count; i++) {
+                    z.Ravel[i] = x.Count;
+                    string yval = y.StringConverter(y.Ravel[i]);
+                    for (var xi = 0; xi < x.Count; xi++) {
+                        //todo: need a faster way to compare equality
+                        if (x.StringConverter(x.Ravel[xi]) == yval) {
+                            z.Ravel[i] = xi;
+                            break;
+                        }
+                    }
+                }
+            }
+            
             return z;
         }
 
