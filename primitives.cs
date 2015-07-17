@@ -35,7 +35,9 @@ namespace MicroJ {
    
     public class Verbs {
 
-        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}."};
+        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
+            "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
+            "<.", ">."};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -79,7 +81,7 @@ namespace MicroJ {
                 expressionDict[key] = d;
             }
             return (AType)d.DynamicInvoke(x, y);
-        }
+        }   
 
         public AType InvokeExpression(string op, AType y, object callee = null) {
             var key = new Tuple<string, Type, Type>(op, null, y.GetType());
@@ -414,6 +416,50 @@ namespace MicroJ {
             return v;
         }
 
+        public A<long> floor<T>(AType y) where T : struct {            
+            if (y.GetType() == typeof(A<long>)) {
+                A<long> ay = (A<long>)y;
+                var v = new A<long>(ay.Count, ay.Shape);                
+                for (var n = 0; n < v.Count; n++) {
+                    v.Ravel[n] = ay.Ravel[n];
+                }
+                return v;
+            }
+            else if (y.GetType() == typeof(A<double>)) {
+                A<double> ay = (A<double>)y;
+                var v = new A<long>(ay.Count, ay.Shape);                
+                for (var n = 0; n < v.Count; n++) {
+                    v.Ravel[n] = (long)Math.Floor(ay.Ravel[n]);
+                }
+                return v;
+            }
+            else {
+                throw new DomainException();
+            }
+        }
+
+        public A<long> ceiling<T>(AType y) where T : struct {                        
+            if (y.GetType() == typeof(A<long>)) {
+                A<long> ay = (A<long>)y;
+                var v = new A<long>(ay.Count, ay.Shape);
+                for (var n = 0; n < v.Count; n++) {
+                    v.Ravel[n] = ay.Ravel[n];
+                }
+                return v;
+            }
+            else if (y.GetType() == typeof(A<double>)) {
+                A<double> ay = (A<double>)y;
+                var v = new A<long>(ay.Count, ay.Shape);
+                for (var n = 0; n < v.Count; n++) {
+                    v.Ravel[n] = (long)Math.Ceiling(ay.Ravel[n]);
+                }
+                return v;
+            }
+            else {
+                throw new DomainException();
+            }
+        }
+
         public A<T> head<T>(A<T> y) where T : struct {
             long[] newShape = null;
             if (y.Shape != null) { newShape = y.Shape.Skip(1).ToArray(); }
@@ -440,6 +486,7 @@ namespace MicroJ {
             v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
             return v;
         }
+
 
         public A<T> drop<T>(A<long> x, A<T> y) where T : struct {
             long[] newShape = null;
@@ -643,6 +690,34 @@ namespace MicroJ {
                     return mathmixed(x, y, (a, b) => a * b);
                 }
             }
+            else if (op == "<.") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)x, (A<long>)y, (a, b) => a < b ? a : b);
+                }
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)x, (A<double>)y, (a, b) => a < b ? a : b);
+                }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a < b ? a : b);
+                }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixed(x, y, (a, b) => a < b ? a : b);
+                }
+            }
+            else if (op == ">.") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)x, (A<long>)y, (a, b) => a > b ? a : b);
+                }
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)x, (A<double>)y, (a, b) => a > b ? a : b);
+                }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a > b ? a : b);
+                }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixed(x, y, (a, b) => a > b ? a : b);
+                }
+            }
             else if (op == "%") {
                 var a2 = x.ConvertDouble();
                 var b2 = y.ConvertDouble();
@@ -764,6 +839,13 @@ namespace MicroJ {
             else if (op == ",") {
                 return InvokeExpression("ravel", y);
             }
+            else if (op == "<.") {
+                return InvokeExpression("floor", y);
+            }
+            else if (op == ">.") {
+                return InvokeExpression("ceiling", y);
+            }
+
             else if (op == ";") {
                 if (y.GetType() == typeof(A<Box>)) {
                     return raze<Box>((A<Box>)y);

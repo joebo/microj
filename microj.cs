@@ -118,9 +118,8 @@ namespace MicroJ
         }
 
 
-        public long GetCount() {
-            return AType.ShapeProduct(this.Shape);
-        }
+        public abstract long GetCount();
+
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
         }
@@ -353,6 +352,9 @@ namespace MicroJ
             return Ravel[n].ToString();
         }
 
+        public override long GetCount() {
+            return Count;   
+        }
         public override string ToString() {
             if (Ravel == null) { return ""; }
             else if (typeof(T) == typeof(JString)) {

@@ -31,26 +31,26 @@ Starting with list from
 
 | Primitive | Status                                          | Monad  | Dyad            |
 |-----------|-------------------------------------------------|--------|-----------------|
-| =.      | Not Implemented (HOLD) / waiting on local scope |        |                 |
-| =:      | Implemented                                     |        |                 |
-| _       | Implemented                                     |        |                 |
+| =.        | Not Implemented (HOLD) / waiting on local scope |        |                 |
+| =:        | Implemented                                     |        |                 |
+| _         | Implemented                                     |        |                 |
 | NB.       | Implemented                                     |        |                 |
 | $         | Implemented                                     | shape  | reshape         |
 | #         | Implemented                                     | tally  | copy            |
 | ,         | Partially Implemented (missing non-equal shapes)| ravel  | append          |
 | ;         | Not Implemented                                 |        |                 |
-| {.        | Not Implemented                                 |        |                 |
-| }.        | Not Implemented                                 |        |                 |
+| {.        | Partially Implemented                           | head   | take            |
+| }.        | Partially Implemented                           | behead | drop            |
 | /         | Implemented                                     | insert | table           |
-| i.        | Partially Implemented                                 | iota   |                 |
+| i.        | Partially Implemented                           | iota   | indexof         |
 | +         | Partially Implemented                           |        | plus (math)     |
 | *         | Partially Implemented                           |        | times (math)    |
 | -         | Partially Implemented                           |        | subtract (math) |
 | %         | Partially Implemented                           |        | divide (math)   |
 | ^         | Not Implemented                                 |        |                 |
 | ^.        | Not Implemented                                 |        |                 |
-| <.        | Not Implemented                                 |        |                 |
-| >.        | Not Implemented                                 |        |                 |
+| <.        | Implemented                                     | floor  | min             |
+| >.        | Implemented                                     | ceiling| max             |
 
 Data Types:
 - integer (long) -- (consider int32 support)
