@@ -106,6 +106,11 @@ NB. Not working  (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime
 (3 p: 56 57) -: '2  2 2 7\n3 19 0 0'                  NB. factorization w/fill
 (3 p: 6973) -: 19 367                                NB. factorization
 (3 p: 10111) -: 1 $ 10111                            NB. factorization (prime)
+NB. == q:
+(q: 567) -: 3 3 3 3 7                                NB. monadic, same as 3 p: y
+(2 q: 100) -: 2 0
+(10 q: 50302) -: 1 0 0 1 0 0 0 0 0 0
+(30 q: 176346) -: 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0
 
 NB. == gamma (!)
 (! 5) -: 120                                 NB. single arg factorial (integer)
