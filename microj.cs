@@ -1887,7 +1887,7 @@ namespace MicroJ
 			return l;
 		}
 		int sqrt = (int)( Math.Sqrt((double) n) + 1);
-		List<bool> primes = new bool[n].ToList(); //initialize list all false
+		bool[] primes = new bool[n]; //initialize list all false
 
 		for (int i = 0; i < sqrt; i++) {
 			for (int j = 0; j < sqrt; j++) {
