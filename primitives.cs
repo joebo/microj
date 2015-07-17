@@ -35,7 +35,7 @@ namespace MicroJ {
    
     public class Verbs {
 
-        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:" };
+        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." };
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -356,6 +356,25 @@ namespace MicroJ {
             return v;
         }
 
+        public A<T> head<T>(A<T> y) where T : struct {
+            long[] newShape = null;
+            if (y.Shape != null) { newShape = y.Shape.Skip(1).ToArray(); }
+            var v = new A<T>(y.ShapeProduct(skip: 1), newShape);
+            v.Ravel = y.Copy(v.Count > 0 ? v.Count : 1);
+            return v;
+        }
+
+        public A<T> take<T>(A<long> x, A<T> y) where T : struct {
+            long[] newShape = null;
+            
+            if (x.Rank > 0) { throw new NotImplementedException("Rank > 0 not implemented on take"); }
+            var xct = Math.Abs(x.Ravel[0]);
+            if (y.Shape != null) { newShape = new long[] { xct }.Concat(y.Shape.Skip(1)).ToArray(); }
+            var v = new A<T>(newShape);
+            v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
+            return v;
+        }
+
         public AType raze<T>(A<Box> y) where T : struct {
             Type type = null;
             long totalCount = 0;
@@ -578,7 +597,9 @@ namespace MicroJ {
             else if (op == ",") {
                 return InvokeExpression("append", x, y, 1);
             }
-
+            else if (op == "{.") {
+                return InvokeExpression("take", x, y, 1);
+            }
             else if (op == "-:") {
                 //temporary
                 var z = new A<bool>(0);
@@ -625,6 +646,9 @@ namespace MicroJ {
             }
             else if (op == "#") {
                 return tally(y);
+            }
+            else if (op == "{.") {
+                return InvokeExpression("head", y);
             }
             else if (op == "<") {
                 return box(y);

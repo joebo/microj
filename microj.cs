@@ -136,8 +136,13 @@ namespace MicroJ
             return  ((A<JString>)this).Ravel[idx].str[(int)remainder].ToString();
         }
 
-        public static long ShapeProduct(long[] ri) {
-            return ri.Aggregate(1L, (prod, next) => prod * next);
+        public long ShapeProduct(int skip=0, int drop=0) {
+            if (Shape == null) { return 0;  }
+            return ShapeProduct(Shape, skip, drop);
+        }
+
+        public static long ShapeProduct(long[] ri, int skip=0, int drop=0) {
+            return ri.Skip(skip).Take(ri.Length-skip-drop).Aggregate(1L, (prod, next) => prod * next);
         }
 
         public A<double> ConvertDouble() {
@@ -297,6 +302,12 @@ namespace MicroJ
             Shape = shape;
         }
 
+        public A(long[] shape) : base(typeof(T)) {
+            var n = ShapeProduct(shape);
+            Ravel = new T[n];
+            Shape = shape;
+        }
+
         public string StringConverter(T val) {
             var str = "";
             if (typeof(T) == typeof(Box)) {
@@ -351,6 +362,15 @@ namespace MicroJ
             }
             
             return new Formatter(Shape).AddRange(Ravel.Select(x=>StringConverter(x))).ToString();
+        }
+
+        public T[] Copy(long count = 0, long skip = 0, bool ascending=true) {
+            T[] z = new T[count];
+            long yoffset = ascending ? 0L : (Count - count);
+            for (long i = 0; i < count; i++) {
+                z[i] = Ravel[yoffset+i];
+            }          
+            return z;
         }
     }
 
