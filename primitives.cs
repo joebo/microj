@@ -363,9 +363,7 @@ namespace MicroJ {
             return v;
         }
 
-        public A<bool> equals<T, T2>(A<T> x, A<T2> y)
-            where T : struct
-            where T2 : struct {
+        public A<bool> equals<T, T2>(A<T> x, A<T2> y) where T : struct where T2 : struct {
             //todo handle application errors without exceptions
             if (x.Count != y.Count) { throw new ArgumentException("Length Error"); }
 
@@ -374,6 +372,22 @@ namespace MicroJ {
                 //todo: need a faster way to compare equality, this was failing on double to long comparisons
                 //x.Ravel[i].Equals(y.Ravel[i]);
                 z.Ravel[i] = x.StringConverter(x.Ravel[i]) == y.StringConverter(y.Ravel[i]);
+            }
+            return z;
+        }
+
+        public A<long> indexof<T>(A<T> x, A<T> y) where T : struct {            
+            var z = new A<long>(y.Count);
+            for (var i = 0; i < y.Count; i++) {
+                z.Ravel[i] = x.Count;
+                string yval = y.StringConverter(y.Ravel[i]);
+                for (var xi = 0; xi < x.Count; xi++) {
+                    //todo: need a faster way to compare equality
+                    if (x.StringConverter(x.Ravel[xi]) == yval) {
+                        z.Ravel[i] = xi;
+                        break;
+                    }
+                }
             }
             return z;
         }
@@ -646,6 +660,9 @@ namespace MicroJ {
             }
             else if (op == "#") {
                 return InvokeExpression("copy", x, y, 1);
+            }
+            else if (op == "i.") {
+                return InvokeExpression("indexof", x, y, 1);
             }
             else if (op == ",") {
                 return InvokeExpression("append", x, y, 1);

@@ -165,7 +165,12 @@ namespace App {
 
                         try {
                             var ret = repl.parse(line);
-                            Console.WriteLine(ret.ToString());
+                            var formatter = new Formatter(ret.Shape);
+                            for(var i = 0; i < ret.GetCount() && i < 1000;i++) {
+                                formatter.Add(ret.GetString(i));
+                            }
+                            Console.WriteLine(formatter.ToString());
+                            
                         } catch (Exception e) {
                             Console.WriteLine(e.ToString());
                         }

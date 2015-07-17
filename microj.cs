@@ -129,6 +129,8 @@ namespace MicroJ
             return new JString { str = GetChar(n) };
         }
 
+        public abstract string GetString(long n);
+        
         public string GetChar(long n) {
             var cells = (long) Shape[Shape.Length-1];
             long idx = (long)Math.Floor((double)(n / cells));
@@ -346,6 +348,11 @@ namespace MicroJ
             }
             return str;
         }
+        
+        public override string GetString(long n) {
+            return Ravel[n].ToString();
+        }
+
         public override string ToString() {
             if (Ravel == null) { return ""; }
             else if (typeof(T) == typeof(JString)) {
@@ -419,7 +426,7 @@ namespace MicroJ
                 w = w.Substring(0, commentIdx);
             }
 
-            if (w.EndsWith(": 0")) {
+            if (w.EndsWith(" : 0")) {
                 w+= "'";
                 while(true) {
                     var nextLine = ReadLine();
@@ -714,10 +721,12 @@ namespace MicroJ
             var rank = shape.Length;
             long[] odometer = new long[rank];
 
+            
             var columnPadding = new long[columnLength];
             for (var t = 0L; t < tableLength; t++) {
                 for (var r = 0L; r < rowLength; r++) {
                     for (var c = 0L; c < columnLength; c++) {
+                        if (Table[t][r][c] == null) continue;
                         var len = Table[t][r][c].Split('\n').Max(x => x.Length);
                         if (len > columnPadding[c]) {
                             columnPadding[c] = len;
@@ -730,13 +739,14 @@ namespace MicroJ
             for (var t = 0L; t < tableLength; t++) {
                 string headerLine = "";
                 for (var r = 0L; r < rowLength; r++) {
-                    var lines = Table[t][r].Select(x => x.Split('\n')).ToList();
+                    var lines = Table[t][r].Where(x=>x!=null).Select(x => x.Split('\n')).ToList();
                     var maxLines = lines.Max(x => x.Length);
 
                     //skip the footer line
                     if (boxed) { maxLines = maxLines - 1; }
                     for (var i = 0; i < maxLines; i++) {
                         for (var c = 0; c < columnLength; c++) {
+                            if (c >= lines.Count) continue;
 
                             var line = i < lines[c].Length ? lines[c][i] : spacer;
                             if (boxed) {
@@ -758,7 +768,7 @@ namespace MicroJ
                                 line = line.PadLeft((int)columnPadding[c]);
                             }
                             sb.Append(line);
-                            if (i == 0 && r == 0) { headerLine += line; }
+                            if (i == 0 && r == 0 && boxed) { headerLine += line; }
                             if (!boxed) {
                                 odometer[rank - 1]++;
                             }
