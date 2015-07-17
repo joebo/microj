@@ -200,21 +200,51 @@ namespace MicroJ {
         }
 
         public A<T> copy<T>(A<long> x, A<T> y) where T : struct {
+            if (x.Rank == 0) {
+                var copies = x.Ravel[0];
+                var ct = copies * y.Count;
+                var shape = y.Shape != null ? y.Shape : new long[] { 1 };
+                shape[0] = shape[0] * copies;
 
-            var copies = x.Ravel[0];
-            var ct = copies * y.Count;
-            var shape = y.Shape != null ? y.Shape : new long[] { 1 };
-            shape[0] = shape[0] * copies;
+                var v = new A<T>(ct, shape);
+                long offset = 0;
 
-            var v = new A<T>(ct, shape);
-            long offset = 0;
-
-            for (var n = 0; n < y.Count; n++) {
-                for (var i = 0; i < copies; i++) {
-                    v.Ravel[offset++] = y.Ravel[n];
+                for (var n = 0; n < y.Count; n++) {
+                    for (var i = 0; i < copies; i++) {
+                        v.Ravel[offset++] = y.Ravel[n];
+                    }
                 }
+                return v;
             }
-            return v;
+            else if (x.Rank == 1 && x.Shape[0] == y.Shape[0]) {
+                var ct = x.Ravel.Where(xx => xx > 0).Sum();
+                var subshape = y.Shape.Skip(1).ToArray();
+                var subshapect = AType.ShapeProduct(subshape);
+                var shape = new long[] { ct }.Concat(subshape).ToArray();
+
+                var v = new A<T>(shape);
+                long offset = 0;
+                if (y.GetType() != typeof(A<JString>)) {
+                    for(var xi = 0; xi < x.Count; xi++) {                    
+                        for (var i = 0; i < x.Ravel[xi]; i++) {
+                            for (var k = 0; k < subshapect; k++) {
+                                v.Ravel[offset++] = y.Ravel[(xi*subshapect)+k];
+                            }
+                        }
+                    }
+                    
+                } else {
+                    for(var xi = 0; xi < x.Count; xi++) {                    
+                        for (var i = 0; i < x.Ravel[xi]; i++) {
+                            v.Ravel[offset++] = y.Ravel[xi];
+                        }
+                    }
+                }
+                return v;
+            }
+            else {
+                throw new NotImplementedException();
+            }
         }
 
         public A<T> transpose<T>(A<T> y) where T : struct {

@@ -70,6 +70,10 @@ _1 -: 5 - 6                             NB. subtract negative
 (a+a=:i. 2 2) -: '0 2\n4 6'             NB. array + array
 (2 4 +/ 1 3) -: '3 5\n5 7'              NB. dyadic adverb call
 (5 # 3) -: 3 3 3 3 3                    NB. copy 5 # 3
+
+(1 0 1 # i. 3) -: 0 2					NB. copy with boolean
+(1 0 1 # (3 3 $ 'abc')) -: 'abc\nabc'	NB. copy with strings
+
 NB. not working (3 # i. 1 2) -: '0 1\n0 1\n0 1'         NB. copy 3 # i. 1 2
 NB. not working (3 # 'ab') -: 'aaabbbccc'               NB. copy string
 ($"3 i. 3 2 1 ) -:  3 2 1               NB. rank shape full
@@ -232,6 +236,8 @@ NB. raze
 (; (i.2 2)) -: '0 1 2 3'
 (; (< i. 2 2)) -: '0 1\n2 3'
 (; (< i. 2 2),(< i. 2 2)) -: '0 1\n2 3\n0 1\n2 3'
+
+NB. head, take
 ({. i. 3 4) -: 0 1 2 3
 ({. 3) -: 3
 ({. 3,4) -: 3
