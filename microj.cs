@@ -836,7 +836,7 @@ namespace MicroJ
     }
     public class Verbs {
 
-	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!", ";"};
+	public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:"};
         
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -850,6 +850,7 @@ namespace MicroJ
             expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
             expressionMap = new Dictionary<string, VerbWithRank>();
             expressionMap["p:"] = new VerbWithRank(primesm, primes, 0, VerbWithRank.Infinite, VerbWithRank.Infinite);
+            expressionMap["q:"] = new VerbWithRank(primesqm, primesq, 0, 0, 0);
         }
 
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null) {
@@ -1238,6 +1239,45 @@ namespace MicroJ
             
             else  throw new NotImplementedException();
         }
+        public AType primesqm(AType w){
+            return primesq(null,w);
+        }
+        public AType primesq(AType a, AType w){
+            var x = a != null ? (A<long>) a : new A<long>(0);
+            var y = (A<long>) w;
+            var xv = x.Ravel[0];
+            Func<long, long> fl = null;
+            Func<long, bool> fb = null;
+            Func<long, long[]> fls = null;
+            long[] frame = null;
+            if (a == null) fls = (l) => Primes.Factor(l);
+            else if ((long)xv <= Int32.MaxValue && xv > 0){
+              //  frame = new long[] { 2 };
+                 fls = (l) => {
+                    Dictionary<long, int> facs = Primes.GetFactorExponents(Primes.Factor(l).ToList());
+                    List<long> ps = Primes.atkinSieve(1+(int)l); // first xv primes
+                    List<long> pps = new List<long>(); //prime powers
+                    int i = 0;
+                    foreach(long p in ps){
+                        if(facs.ContainsKey(p)){
+                            pps.Add(facs[p]);
+                        }
+                        else pps.Add(0);
+                        i++;
+                        if(i >= (int)xv) break;
+                    }
+                    while (pps.Count < (int)xv)
+                        pps.Add(0);
+                    return pps.ToArray();
+                };
+            }
+           
+            if (fl != null) return y.Apply(fl);
+            else if (fb != null) return y.Apply(fb);
+            else if (fls != null) return y.Apply(fls, frame);
+            
+            else  throw new NotImplementedException();
+        }
 
         
         public AType Call2(AType method, AType x, AType y) {
@@ -1341,6 +1381,9 @@ namespace MicroJ
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
+                    return verbWithRank.DyadicFunc(x,y);
+                }
+                else if(verbWithRank.DyadicX == 0 && verbWithRank.DyadicY == 0) {
                     return verbWithRank.DyadicFunc(x,y);
                 }
             }
@@ -1765,7 +1808,7 @@ namespace MicroJ
         }
 
         //can be used for 2 p: y, possibly.
-        private static Dictionary<long, int> GetFactorExponents (List<long> factorList){
+        public static Dictionary<long, int> GetFactorExponents (List<long> factorList){
             Dictionary<long, int> d = new Dictionary<long, int> ();
             foreach (long l in factorList) {
                 if (d.ContainsKey (l))
@@ -1837,6 +1880,53 @@ namespace MicroJ
         private static long GCD (long a, long b){
             return b == 0 ? a : GCD (b, (b + a) % b);
         }
+        
+        public static List<long> atkinSieve(int n) {
+		if(n <= 1){ 
+			List<long> l = new List<long>();
+			return l;
+		}
+		int sqrt = (int)( Math.Sqrt((double) n) + 1);
+		bool[] primes = new bool[n]; //initialize list all false
+
+		for (int i = 0; i < sqrt; i++) {
+			for (int j = 0; j < sqrt; j++) {
+				int s = 4 * i * i + j * j;// 4i^2 +j^2
+				if (s < n && (s % 12 == 1 || s % 12 == 5)) {
+					primes[s] = !primes[s];
+				}
+				s = 3 * i * i + j * j;// 3i^2 +j^2
+				if (s < n && s % 12 == 7) {
+					primes[s] = !primes[s];
+				}
+				s = 3 * i * i - j * j; // 3i^2 - j^2
+				if (s < n && i > j && s % 12 == 11) {
+					primes[s] = !primes[s];
+				}
+			}
+		}
+
+		List<long> result = new List<long>();
+		result.Add(2L);
+		result.Add(3L);
+        long N = (long)n; //to prevent int overflow
+		for (int i = 2; i < n; i++) {
+			int j = 0;
+            long I = (long)i;
+            long J = (long)j;
+			if (primes[i] == true) {
+                long K = I*I + I*J;
+				while (K < N && K <= Int32.MaxValue  ){
+					primes[(int)K] = false;
+					j++;
+                    J = (long)j;
+                    K = I*I + I*J;
+				}
+				result.Add(I);
+			}
+		}
+		return result;
+	}
 
     }
     
