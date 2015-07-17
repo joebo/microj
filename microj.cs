@@ -366,7 +366,7 @@ namespace MicroJ
 
         public T[] Copy(long count = 0, long skip = 0, bool ascending=true) {
             T[] z = new T[count];
-            long yoffset = ascending ? 0L : (Count - count);
+            long yoffset = ascending ? skip : (Count - skip - count);
             for (long i = 0; i < count; i++) {
                 z[i] = Ravel[yoffset+i];
             }          
