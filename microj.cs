@@ -139,7 +139,13 @@ namespace MicroJ
             var cells = (long) Shape[Shape.Length-1];
             long idx = (long)Math.Floor((double)(n / cells));
             long remainder = (long) n % cells;
-            return  ((A<JString>)this).Ravel[idx].str[(int)remainder].ToString();
+            var str = ((A<JString>)this).Ravel[idx].str;
+            if (remainder < str.Length) {
+                return str[(int)remainder].ToString();
+            }
+            else {
+                return " ";
+            }
         }
 
         public long ShapeProduct(int skip=0, int drop=0) {
@@ -274,7 +280,9 @@ namespace MicroJ
     public class A<T> : AType where T : struct {
 
         public T[] Ravel;
-        public long Count { get { return Ravel.Length; } }
+
+        
+        public long Count { get { return Ravel == null ? 1 : Ravel.Length; } }
 
         public static Func<T, T, T> AddFunc;
 
@@ -318,9 +326,16 @@ namespace MicroJ
         }
 
         public A(long[] shape) : base(typeof(T)) {
-            var n = ShapeProduct(shape);
-            Ravel = new T[n];
-            Shape = shape;
+            if (typeof(T) != typeof(JString)) {
+                var n = ShapeProduct(shape);
+                Ravel = new T[n];
+                Shape = shape;
+            }
+            else {
+                var n = ShapeProduct(shape, drop:1);
+                Ravel = new T[n];
+                Shape = shape;
+            }
         }
 
         public override bool SliceEquals(long offseta, long offsetb, long count) {

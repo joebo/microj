@@ -537,7 +537,14 @@ namespace MicroJ {
             if (y.GetType() == typeof(A<JString>)) {
                 subshapeCt = 1;
             }
-            var v = new A<T>(newShape);
+            A<T> v;
+            if (y.Rank == 1 && x.Count == 1) {
+                v = new A<T>(0);
+            }
+            else {
+                v = new A<T>(newShape);
+            }
+            
             long offset = 0;            
             foreach (var xv in x.Ravel) {
                 bool ascending = xv >= 0;
@@ -1108,7 +1115,8 @@ namespace MicroJ {
                 var lines = code.Split('\n');
                 var usings = String.Join("\n", lines.Where(t => t.StartsWith("//css_using ")).Select(t => "using " + t.Replace("//css_using ", "") + ";").ToArray());
                 var refs = lines.Where(t => t.StartsWith("//css_ref ")).SelectMany(t => t.Replace("//css_ref ", "").Split(',')).Select(t => t.Trim()).ToArray();
-                func = CSScript.LoadDelegate<Func<AType, Parser, string>>(usings + "\n" + "string func (MicroJ.AType v, MicroJ.Parser parser) { " + code + " }", null, false, refs);
+                var codecs = usings + "\n" + "string func (MicroJ.AType v, MicroJ.Parser parser) { " + code + " }";
+                func = CSScript.LoadDelegate<Func<AType, Parser, string>>(codecs, null, false, refs);
                 dotnetMethodCache[y.Ravel[0].str] = func;
             }
             var ret = func(x, Parser);
