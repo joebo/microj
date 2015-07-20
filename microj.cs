@@ -260,11 +260,17 @@ namespace MicroJ
     }
 
     //tbd should we use chars instead?
-    public struct JString {
+    public struct JString : IComparable {
         public string str;
         public override string ToString() {
             //todo: determine if this is a good idea, needed for tests for now
             return str.Replace("\\n", "\n");
+        }
+
+
+
+        public int CompareTo(object obj) {
+            return str.CompareTo(((JString)obj).str);
         }
     }
 
@@ -541,6 +547,7 @@ namespace MicroJ
         public struct Token {
             public string word;
             public AType val;
+            public AType[] Fork;
             public override string ToString()  {
                 string str = "";
                 if (word != null) str += word;
@@ -563,7 +570,7 @@ namespace MicroJ
             cmd = MARKER + " " + cmd;
 
             Func<Token, bool> isEdge = token => token.word == MARKER || token.word == "=:" || token.word == "(";
-            Func<Token, bool> isVerb = token => (token.val != null && token.val.GetType() == typeof(A<Verb>)); //|| (token.word != null && verbs.ContainsKey(token.word));
+            Func<Token, bool> isVerb = token => ((token.val != null && token.val.GetType() == typeof(A<Verb>))  || token.Fork != null); //|| (token.word != null && verbs.ContainsKey(token.word));
             Func<Token, bool> isAdverb = token => token.word != null && Adverbs.Words.Contains(token.word);
             Func<Token, bool> isConj = token => token.word != null && Conjunctions.Words.Contains(token.word);
             Func<Token, bool> isNoun = token => (token.val != null && token.val.GetType() != typeof(A<Verb>));
@@ -594,7 +601,8 @@ namespace MicroJ
                 else if (isEdgeOrNotConj(w1) && isVerb(w2) && isVerb(w3) && isNoun(w4)) { step = 1; }
                 else if (isEdgeOrNotConj(w1) && isNoun(w2) && isVerb(w3) && isNoun(w4)) { step = 2; }
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isAdverb(w3) && true) { step = 3; } //adverb
-                else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isConj(w3) && (isNoun(w2) || isVerb(w2))) { step = 4; }
+                else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isConj(w3) && (isNoun(w2) || isVerb(w2))) { step = 4; } //conjunction
+                else if (isEdgeOrNotConj(w1) && isVerb(w2) && isVerb(w3) && isVerb(w4) ) { step = 5; } //fork
                 else if ((isNoun(w1) || isName(w1)) && (w2.word == "=:" || w2.word == "=.") && true && true) { step = 7; }
                 else if (w1.word == "(" && (isNoun(w2) || isVerb(w2)) && w3.word == ")" && true) { step = 8; }
 
@@ -604,8 +612,17 @@ namespace MicroJ
                         var p1 = stack.Pop();
                         var op = stack.Pop();
                         var y = stack.Pop();
-                        var z = Verbs.Call1(op.val, y.val);
-                        stack.Push(new Token { val = z });
+                        if (op.Fork == null) {
+                            var z = Verbs.Call1(op.val, y.val);
+                            stack.Push(new Token { val = z });
+                        }
+                        else {
+                            var z1 = Verbs.Call1(op.Fork[0], y.val);
+                            var z3 = Verbs.Call1(op.Fork[2], y.val);
+                            var z2 = Verbs.Call2(op.Fork[1], z1, z3);
+                            stack.Push(new Token { val = z2 });
+                        }
+                        
                         stack.Push(p1);
                     }
                     else if (step == 1) {   //monad                         
@@ -668,7 +685,14 @@ namespace MicroJ
                         }
                         stack.Push(p1);
                     }
-
+                    else if (step == 5) { //fork
+                        var p1 = stack.Pop();
+                        var v1 = stack.Pop();
+                        var v2 = stack.Pop();
+                        var v3 = stack.Pop();
+                        stack.Push(new Token { Fork = new AType[] { v1.val,v2.val,v3.val } });
+                        stack.Push(p1);
+                    }
                     else if (step == 7) { //copula
                         var name = stack.Pop();
                         var copula = stack.Pop();

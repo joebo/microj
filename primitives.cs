@@ -480,11 +480,12 @@ namespace MicroJ {
         }
 
         public A<T> head<T>(A<T> y) where T : struct {
-            long[] newShape = null;
-            if (y.Shape != null) { newShape = y.Shape.Skip(1).ToArray(); }
-            var v = new A<T>(y.ShapeProduct(skip: 1), newShape);
-            v.Ravel = y.Copy(v.Count > 0 ? v.Count : 1);
-            return v;
+            if (y.Shape == null) {
+                var v = new A<T>(0);
+                v.Ravel = y.Copy(1);
+                return v;
+            }
+            return from(new A<long>(0) { Ravel = new long[] { 0 } }, y);            
         }
 
         public A<T> behead<T>(A<T> y) where T : struct {
@@ -602,12 +603,12 @@ namespace MicroJ {
             return indices;
         }
         public A<long> gradeup<T>(A<T> y) where T : struct {
-            if (y.Rank > 1) {
+            if (y.Rank > 1 && y.GetType() != typeof(A<JString>)) {
                 throw new NotImplementedException("Grade is not implemented on rank > 1");                
             }
             long[] indices;
             indices = y.GradeUp();
-            A<long> ret = new A<long>(y.Shape);
+            A<long> ret = new A<long>(y.Count);
             for (long i = 0; i < y.Count; i++) {
                 ret.Ravel[i] = indices[i];
             }
@@ -1481,9 +1482,12 @@ namespace MicroJ {
             var newVerb = new A<Verb>(0);
             newVerb.Ravel[0] = new Verb { op = op };
             if (verb.childVerb != null) {
-                Verb cv = (Verb)verb.childVerb;
+                Verb cv = (Verb)verb.childVerb;                
                 newVerb.Ravel[0] = cv;
             }
+
+            newVerb.Ravel[0].conj = verb.conj;
+            newVerb.Ravel[0].rhs = verb.rhs;
 
             if (adverb == "/" && y.GetType() == typeof(A<long>) && x.GetType() == typeof(A<long>)) {
                 return table(newVerb, (A<long>)x, (A<long>)y);
