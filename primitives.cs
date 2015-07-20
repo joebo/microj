@@ -489,7 +489,7 @@ namespace MicroJ {
         }
 
         public A<T> behead<T>(A<T> y) where T : struct {
-            long[] newShape = y.Shape;
+            long[] newShape = y.ShapeCopy();
             newShape[0] = newShape[0] - 1;           
             var v = new A<T>(newShape);
             v.Ravel = y.Copy(v.Count > 0 ? v.Count : 1, skip: y.ShapeProduct(skip: 1));
@@ -706,6 +706,8 @@ namespace MicroJ {
                 return z;
             }            
         }
+
+       
 
         public AType primesm(AType w) {
             return primes(null, w);
@@ -1103,7 +1105,7 @@ namespace MicroJ {
 
             if (newRank == y.Rank) { return (A<T2>)Verbs.Call1(newVerb, y); }
 
-            var shape = y.Shape;
+            var shape = y.ShapeCopy();
             bool isString = y.GetType() == typeof(A<JString>);
 
             if (isString) {
@@ -1231,7 +1233,7 @@ namespace MicroJ {
                 //future: add special code for +/"n or use some type of integrated rank support
 
                 //not sure if this is the right way to deal with boxes yet
-                if (verb.childVerb != null && ((Verb)verb.childVerb).op == "<") {
+                if (y.GetType() == typeof(A<Box>) || (verb.childVerb != null && ((Verb)verb.childVerb).op == "<")) {
                     if (y.GetType() == typeof(A<long>)) {
                         return rank1ex<long, Box>(method, (A<long>)y);
                     }
@@ -1244,7 +1246,9 @@ namespace MicroJ {
                     else if (y.GetType() == typeof(A<bool>)) {
                         return rank1ex<bool, Box>(method, (A<bool>)y);
                     }
-
+                    else if (y.GetType() == typeof(A<Box>)) {
+                        return rank1ex<Box, Box>(method, (A<Box>)y);
+                    }
 
                 }
                 if (y.GetType() == typeof(A<long>)) { return rank1ex<long, long>(method, (A<long>)y); }
