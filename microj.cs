@@ -123,6 +123,7 @@ namespace MicroJ
         public abstract long GetCount();
         public abstract bool SliceEquals(long offseta, long offsetb, long count);
         public abstract AType Merge(long[] newShape, AType[] vs);
+        public abstract long[] GradeUp();
 
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
@@ -389,6 +390,14 @@ namespace MicroJ
 
         public override int GetHashCode(long n) {
             return Ravel[n].GetHashCode();
+        }
+
+        public override long[] GradeUp() {
+            var indices = new long[Count];
+            for (long i = 0; i < indices.Length; i++) {
+                indices[i] = i;
+            }
+            return indices.OrderBy(k => Ravel[k]).ToArray();
         }
 
         public override long GetCount() {

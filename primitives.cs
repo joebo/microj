@@ -37,7 +37,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{"};
+            "<.", ">.", "{", "/:", "\\:"};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -550,6 +550,80 @@ namespace MicroJ {
             return v;
         }
 
+        //return indices of nub
+        public Dictionary<long, List<long>> NubIndex<T>(A<T> x)  where T : struct {
+            var frame = x.Shape.Skip(1).ToArray();
+            var frameCt = AType.ShapeProduct(frame);            
+            var n = x.Count / frameCt;
+            long offset = 0;
+
+            bool isString = false;
+            if (x.GetType() == typeof(A<JString>)) {
+                 n = x.ShapeCopy()[0];
+                 isString = true;
+            }
+            
+            var indices = new Dictionary<long, List<long>>();
+            if (x.Rank == 1 || isString) {                 
+                for (var i = 0; i < n; i++) {
+                    var key = x.GetHashCode(i);
+                    List<long> spot = null;
+                    if (indices.TryGetValue(key, out spot)) {
+                        spot.Add(i);
+                    }
+                    else {
+                        spot = new List<long>();
+                        spot.Add(i);
+                        indices[key] = spot;
+                    }
+                }
+            }
+            else {
+                for (var i = 0; i < n; i++) {
+                    bool found = false;
+                    foreach (var k in indices.Keys) {
+                        if (x.SliceEquals(k, (i*frameCt), frameCt)) {
+                            indices[k].Add(i);
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        indices[i] = new List<long>();
+                        indices[i].Add(i);
+                    }
+                }
+            }
+            return indices;
+        }
+        public A<long> gradeup<T>(A<T> y) where T : struct {
+            if (y.Rank > 1) {
+                throw new NotImplementedException("Grade is not implemented on rank > 1");                
+            }
+            long[] indices;
+            indices = y.GradeUp();
+            A<long> ret = new A<long>(y.Shape);
+            for (long i = 0; i < y.Count; i++) {
+                ret.Ravel[i] = indices[i];
+            }
+            return ret;
+        }
+
+        public A<long> gradedown<T>(A<T> y) where T : struct {
+            var z = gradeup(y);
+            z.Ravel = z.Ravel.Reverse().ToArray();
+            return z;
+        }
+
+        public A<T> sortup<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
+            var indices = gradeup(x);
+            return from(indices, y);
+        }
+
+        public A<T> sortdown<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
+            var indices = gradedown(x);
+            return from(indices, y);
+        }
+
         public AType raze<T>(A<Box> y) where T : struct {
             Type type = null;
             long totalCount = 0;
@@ -818,6 +892,12 @@ namespace MicroJ {
                 z.Ravel[0] = x.ToString() == y.ToString();
                 return z;
             }
+            else if (op == "/:") {
+                return InvokeExpression("sortup", x, y, 2);
+            }
+            else if (op == "\\:") {
+                return InvokeExpression("sortdown", x, y, 2);
+            }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
                     return verbWithRank.DyadicFunc(x, y);
@@ -896,7 +976,6 @@ namespace MicroJ {
             else if (op == ">.") {
                 return InvokeExpression("ceiling", y);
             }
-
             else if (op == ";") {
                 if (y.GetType() == typeof(A<Box>)) {
                     return raze<Box>((A<Box>)y);
@@ -905,6 +984,12 @@ namespace MicroJ {
                     //raze seems to be like ravel for non-boxed
                     return InvokeExpression("ravel", y);
                 }
+            }
+            else if (op == "/:") {
+                return InvokeExpression("gradeup", y);
+            }
+            else if (op == "\\:") {
+                return InvokeExpression("gradedown", y);
             }
             else if (op == "!") {
                 A<double> a = new A<double>(1);
@@ -1183,50 +1268,10 @@ namespace MicroJ {
         }
 
         public AType key<T>(AType op, A<T> x, A<T> y) where T : struct {
-            var frame = x.Shape.Skip(1).ToArray();
-            var frameCt = AType.ShapeProduct(frame);            
-            var n = x.Count / frameCt;
-            long offset = 0;
+            var indices = Verbs.NubIndex<T>(x);
 
-            bool isString = false;
-            if (x.GetType() == typeof(A<JString>)) {
-                 n = x.ShapeCopy()[0];
-                 isString = true;
-            }
-            
-            var indices = new Dictionary<long, List<long>>();
-            if (x.Rank == 1 || isString) {                 
-                for (var i = 0; i < n; i++) {
-                    var key = x.GetHashCode(i);
-                    List<long> spot = null;
-                    if (indices.TryGetValue(key, out spot)) {
-                        spot.Add(i);
-                    }
-                    else {
-                        spot = new List<long>();
-                        spot.Add(i);
-                        indices[key] = spot;
-                    }
-                }
-            }
-            else {
-                for (var i = 0; i < n; i++) {
-                    bool found = false;
-                    foreach (var k in indices.Keys) {
-                        if (y.SliceEquals(k, (i*frameCt), frameCt)) {
-                            indices[k].Add(i);
-                            found = true;
-                        }
-                    }
-                    if (!found) {
-                        indices[i] = new List<long>();
-                        indices[i].Add(i);
-                    }
-                }
-            }
-                        
-            var vs = new AType[indices.Count()];
-            offset = 0;
+            long offset = 0;
+            var vs = new AType[indices.Count()];            
             foreach (var index in indices.Values) {              
                 var indexArray =index.ToArray();
                 var vals = Verbs.from<T>(new A<long>(indexArray.Length) { Ravel = indexArray }, y);
