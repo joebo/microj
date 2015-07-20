@@ -1219,29 +1219,36 @@ namespace MicroJ {
                 AType x;
                 var newVerb = new A<Verb>(0);
 
+                x = AType.MakeA(verb.rhs, Names);
+
                 if (verb.childVerb != null) {
-                    x = AType.MakeA(verb.rhs, Names);
-                    
-                    var z = Verbs.Call1(x, y);                    
-                    if (verb.childVerb != null) {
-                        newVerb.Ravel[0] = (Verb)verb.childVerb;
-                        z = Verbs.Call1(newVerb, z);
+                    AType z;
+                    if (x.GetType() == typeof(A<Verb>)) {
+                        //(*: & *:) 4
+                        z = Verbs.Call1(x, y);
+
+                        if (verb.childVerb != null) {
+                            newVerb.Ravel[0] = (Verb)verb.childVerb;
+                            z = Verbs.Call1(newVerb, z);
+                        }
                     }
+                    else {
+                        //plus=: +&2
+                        newVerb.Ravel[0] = (Verb)verb.childVerb;
+                        return z = Verbs.Call2(newVerb, y, x);
+                    }
+                    
+                    
                     return z;
                 }
                 else {
+                    //plusx=: 2&+
                     x = AType.MakeA(verb.op, Names);
                     newVerb.Ravel[0].op = verb.rhs;
                     return Verbs.Call2(newVerb, x, y);
                 }
                 
-                var op = newVerb.Ravel[0].op;
-                if (op != null && Verbs.Words.Contains(op)) {
-                    return Verbs.Call2(newVerb, y, x);
-                }
-                else {
-                    return Call2(newVerb, y, x);
-                }
+                
                 
 
             }
