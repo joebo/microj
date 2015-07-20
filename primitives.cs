@@ -37,7 +37,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">."};
+            "<.", ">.", "{"};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -54,7 +54,7 @@ namespace MicroJ {
             expressionMap["q:"] = new VerbWithRank(primesqm, primesq, 0, 0, 0);
         }
 
-        public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null) {
+        public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null) {
             var key = new Tuple<string, Type, Type>(op, x.GetType(), y.GetType());
             Delegate d;
             if (!expressionDict.TryGetValue(key, out d)) {
@@ -70,17 +70,36 @@ namespace MicroJ {
                 else {
                     meth = calleeType.GetMethod(op).MakeGenericMethod(x.GetType().GetGenericArguments().First(), y.GetType().GetGenericArguments().First());
                 }
-                var par1 = Expression.Parameter(x.GetType());
-                var par2 = Expression.Parameter(y.GetType());
-                var me = callee == null ? this : callee;
-                var instance = Expression.Constant(me);
-                var call = Expression.Call(instance, meth, par1, par2);
 
-                d = Expression.Lambda(call, par1, par2).Compile();
+                if (newVerb == null) {
+                    var par1 = Expression.Parameter(x.GetType());
+                    var par2 = Expression.Parameter(y.GetType());
+                    var me = callee == null ? this : callee;
+                    var instance = Expression.Constant(me);
+                    var call = Expression.Call(instance, meth, par1, par2);
 
+                    d = Expression.Lambda(call, par1, par2).Compile();
+                }
+                else {
+                    var par0 = Expression.Parameter(newVerb.GetType());
+                    var par1 = Expression.Parameter(x.GetType());
+                    var par2 = Expression.Parameter(y.GetType());
+                    var me = callee == null ? this : callee;
+                    var instance = Expression.Constant(me);
+                    var call = Expression.Call(instance, meth, par0, par1, par2);
+
+                    d = Expression.Lambda(call, par0, par1, par2).Compile();
+                }
+                
                 expressionDict[key] = d;
             }
-            return (AType)d.DynamicInvoke(x, y);
+            if (newVerb == null) {
+                return (AType)d.DynamicInvoke(x, y);
+            }
+            else {
+                return (AType)d.DynamicInvoke(newVerb, x, y);
+            }
+            
         }   
 
         public AType InvokeExpression(string op, AType y, object callee = null) {
@@ -491,7 +510,7 @@ namespace MicroJ {
         public A<T> drop<T>(A<long> x, A<T> y) where T : struct {
             long[] newShape = null;
 
-            if (x.Rank > 0) { throw new NotImplementedException("Rank > 0 not implemented on take"); }
+            if (x.Rank > 0) { throw new NotImplementedException("Rank > 0 not implemented on drop"); }
             var xct = Math.Abs(x.Ravel[0]);
             if (y.Shape != null) { 
                 newShape = y.Shape;
@@ -500,6 +519,34 @@ namespace MicroJ {
             var v = new A<T>(newShape);
             var skip = y.Count- AType.ShapeProduct(newShape);
             v.Ravel = y.Copy(v.Count, skip: skip, ascending: x.Ravel[0] >= 0);
+            return v;
+        }
+
+        public A<T> from<T>(A<long> x, A<T> y) where T : struct {
+            long[] newShape = null;
+
+            if (x.Rank > 1) { throw new NotImplementedException("Rank > 0 not implemented on from"); }
+            var xct = Math.Abs(x.Ravel[0]);
+            if (y.Shape != null) {
+                newShape = y.ShapeCopy();
+                newShape[0] = x.Count;
+            }
+            long subshapeCt = y.ShapeProduct(skip: 1);
+
+            //todo hack for strings, which have 1 atom of the string (not array of chars)
+            if (y.GetType() == typeof(A<JString>)) {
+                subshapeCt = 1;
+            }
+            var v = new A<T>(newShape);
+            long offset = 0;            
+            foreach (var xv in x.Ravel) {
+                bool ascending = xv >= 0;
+                long skip = Math.Abs(xv) * subshapeCt;
+                long yoffset = ascending ? skip : (y.Count - skip );
+                for (long i = 0; i < subshapeCt; i++) {
+                    v.Ravel[offset++] = y.Ravel[yoffset + i];
+                }          
+            }
             return v;
         }
 
@@ -762,6 +809,9 @@ namespace MicroJ {
             else if (op == "}.") {
                 return InvokeExpression("drop", x, y, 1);
             }
+            else if (op == "{") {
+                return InvokeExpression("from", x, y, 1);
+            }
             else if (op == "-:") {
                 //temporary
                 var z = new A<bool>(0);
@@ -783,7 +833,8 @@ namespace MicroJ {
         //candidate for code generation
         public AType Call1(AType method, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
-            if (verb.adverb != null) {
+
+            if (verb.adverb != null) { // || verb.childVerb   != null && ((Verb)verb.childVerb).adverb != null) {
                 return Adverbs.Call1(method, y);
             }
 
@@ -1048,7 +1099,7 @@ namespace MicroJ {
 
     }
     public class Adverbs {
-        public static readonly string[] Words = new[] { "/" };
+        public static readonly string[] Words = new[] { "/", "/.", "~" };
         public Verbs Verbs;
         public Conjunctions Conjunctions;
 
@@ -1126,6 +1177,105 @@ namespace MicroJ {
             throw new NotImplementedException();
         }
 
+        public AType reflex<T>(AType op, A<T> x, A<T> y) where T : struct {
+            var v = Verbs.Call2(op, x, y);
+            return v;
+        }
+
+        public AType key<T>(AType op, A<T> x, A<T> y) where T : struct {
+            var frame = x.Shape.Skip(1).ToArray();
+            var frameCt = AType.ShapeProduct(frame);            
+            var n = x.Count / frameCt;
+            long offset = 0;
+
+            bool isString = false;
+            if (x.GetType() == typeof(A<JString>)) {
+                 n = x.ShapeCopy()[0];
+                 isString = true;
+            }
+            /*
+            var values = new Dictionary<string, A<T>>();
+            for (var i = 0; i < n; i++) {
+                var zt = new A<T>(frame);
+                zt.Ravel = y.Copy(frameCt, skip: offset);
+                var key = zt.ToString();
+                if (!values.ContainsKey(key)) {
+                    values[key] = zt;
+                }
+                else {
+                    values[key] = Verbs.append(zt, values[key]);
+                }
+                offset += frameCt;                
+            }
+            */
+
+            /*
+            var indices = new Dictionary<string, List<long>>();
+            for (var i = 0; i < n; i++) {
+                //invoke expression was about 3x slower (e.g. 1500ms vs 500ms)
+                //var key = Verbs.InvokeExpression("from", new A<long>(0) { Ravel = new long[] { i } }, (AType)x,1).ToString();
+                var zt = new A<T>(frame);
+                zt.Ravel = y.Copy(frameCt, skip: offset);
+                var key = zt.ToString();
+                if (!indices.ContainsKey(key)) {
+                    indices[key] = new List<long>();
+                }
+                
+                indices[key].Add(i);
+                
+            }
+            */
+
+
+            var indices = new Dictionary<long, List<long>>();
+            if (x.Rank == 1 || isString) {                 
+                for (var i = 0; i < n; i++) {
+                    var key = x.GetHashCode(i);
+                    List<long> spot = null;
+                    if (indices.TryGetValue(key, out spot)) {
+                        spot.Add(i);
+                    }
+                    else {
+                        spot = new List<long>();
+                        spot.Add(i);
+                        indices[key] = spot;
+                    }
+                }
+            }
+            else {
+                for (var i = 0; i < n; i++) {
+                    bool found = false;
+                    foreach (var k in indices.Keys) {
+                        if (y.SliceEquals(k, (i*frameCt), frameCt)) {
+                            indices[k].Add(i);
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        indices[i] = new List<long>();
+                        indices[i].Add(i);
+                    }
+                }
+            }
+            
+            
+            var vs = new AType[indices.Count()];
+            offset = 0;
+            foreach (var index in indices.Values) {              
+                var indexArray =index.ToArray();
+                var vals = Verbs.from<T>(new A<long>(indexArray.Length) { Ravel = indexArray }, y);
+                vs[offset++] = Verbs.Call1(op, vals);                
+            }
+
+            long[] newShape = new long[] { vs.Length };
+            var ct = vs.Length * vs[0].GetCount();
+            if (vs[0].Shape != null) {
+                newShape = newShape.Concat(vs[0].Shape).ToArray();
+            }
+            return vs[0].Merge(newShape, vs);
+
+            throw new NotImplementedException();
+        }
         public A<T> table<T>(AType op, A<T> x, A<T> y) where T : struct {
             var ct = x.Count * y.Count;
             var shape = new[] { x.Count, y.Count };
@@ -1154,6 +1304,15 @@ namespace MicroJ {
             var newVerb = new A<Verb>(0);
             newVerb.Ravel[0] = new Verb { op = op };
 
+            if (verb.childAdverb != null) {
+                newVerb.Ravel[0].adverb = verb.childAdverb;
+            }
+
+            if (verb.childVerb != null) {
+                Verb cv = (Verb)verb.childVerb;
+                newVerb.Ravel[0] = cv;
+            }
+            
             //future: add check for integrated rank support (e.g. +/"1)
             if (verb.conj != null) {
                 return Conjunctions.Call1(method, y);
@@ -1179,21 +1338,33 @@ namespace MicroJ {
                     return reduce<double>(newVerb, (A<double>)y);
                 }
             }
+            else if (adverb == "~") {
+                return Verbs.InvokeExpression("reflex", y, y, 1, this, newVerb);
+            } 
+            
             throw new NotImplementedException(adverb + " on y:" + y + " type: " + y.GetType());
         }
 
-        public AType Call2(AType verb, AType x, AType y) {
-            var adverb = ((A<Verb>)verb).Ravel[0].adverb;
-            var op = ((A<Verb>)verb).Ravel[0].op;
+        public AType Call2(AType method, AType x, AType y) {
+            var verb = ((A<Verb>)method).Ravel[0];
+            var adverb = verb.adverb;
+            var op = verb.op;
 
             //create a new verb without the adverb component so we can safely pass it around
             var newVerb = new A<Verb>(0);
             newVerb.Ravel[0] = new Verb { op = op };
+            if (verb.childVerb != null) {
+                Verb cv = (Verb)verb.childVerb;
+                newVerb.Ravel[0] = cv;
+            }
 
             if (adverb == "/" && y.GetType() == typeof(A<long>) && x.GetType() == typeof(A<long>)) {
                 return table(newVerb, (A<long>)x, (A<long>)y);
             }
-
+            else if (adverb == "/.") {
+                return Verbs.InvokeExpression("key", x, y, 1, this, newVerb);
+            } 
+            
             throw new NotImplementedException("ADV: " + adverb + " on x:" + x + " y:" + y + " type: " + y.GetType());
         }
 

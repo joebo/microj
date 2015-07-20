@@ -118,7 +118,11 @@ namespace MicroJ
         }
 
 
+        public abstract string GetString(long n);
+        public abstract int GetHashCode(long n);
         public abstract long GetCount();
+        public abstract bool SliceEquals(long offseta, long offsetb, long count);
+        public abstract AType Merge(long[] newShape, AType[] vs);
 
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
@@ -128,7 +132,7 @@ namespace MicroJ
             return new JString { str = GetChar(n) };
         }
 
-        public abstract string GetString(long n);
+        
         
         public string GetChar(long n) {
             var cells = (long) Shape[Shape.Length-1];
@@ -144,6 +148,10 @@ namespace MicroJ
 
         public static long ShapeProduct(long[] ri, int skip=0, int drop=0) {
             return ri.Skip(skip).Take(ri.Length-skip-drop).Aggregate(1L, (prod, next) => prod * next);
+        }
+
+        public long[] ShapeCopy() {
+            return (long[])Shape.Clone();
         }
 
         public A<double> ConvertDouble() {
@@ -229,6 +237,7 @@ namespace MicroJ
         public string conj;
         public string rhs;
         public object childVerb;
+        public string childAdverb;
         public override string ToString() {
             string str = "";
             if (op != null) str+=op;
@@ -252,7 +261,11 @@ namespace MicroJ
         public AType val;
         public override string ToString() {
             var vt = val.ToString();
-            var sep = "+" + new String('-', (int)val.Shape[val.Shape.Length-1]) + "+";
+            var rep = 1;
+            if (val.Shape != null && val.Shape.Length > 0) {
+                rep = (int) val.Shape[val.Shape.Length-1];
+            }
+            var sep = "+" + new String('-', rep) + "+";
             return sep + "\n|" + vt + "|\n" + sep;
         }
     }
@@ -309,6 +322,28 @@ namespace MicroJ
             Shape = shape;
         }
 
+        public override bool SliceEquals(long offseta, long offsetb, long count) {
+            for (long i = 0; i < count; i++) {
+                if (!Ravel[offseta + i].Equals(Ravel[offsetb + i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+
+        //creates a new value from an array of values
+        public override AType Merge(long[] newShape, AType[] vs) {
+            var v = new A<T>(newShape);
+            long offset = 0;
+            for (var i = 0; i < vs.Length; i++) {                
+                for (var k = 0; k < Count; k++) {
+                    v.Ravel[offset++] = ((A<T>)vs[i]).Ravel[k];
+                }
+            }
+            return v;
+        }
+
         public string StringConverter(T val) {
             var str = "";
             if (typeof(T) == typeof(Box)) {
@@ -350,6 +385,10 @@ namespace MicroJ
         
         public override string GetString(long n) {
             return Ravel[n].ToString();
+        }
+
+        public override int GetHashCode(long n) {
+            return Ravel[n].GetHashCode();
         }
 
         public override long GetCount() {
@@ -565,7 +604,11 @@ namespace MicroJ
                         var op = stack.Pop();
                         var adv = stack.Pop();
                         var z = new A<Verb>(0);
-                        z.Ravel[0] = ((A<Verb>)op.val).Ravel[0];
+                        var v =  ((A<Verb>)op.val).Ravel[0];
+                        if (v.adverb != null) {
+                            v.childAdverb = v.adverb;
+                        }
+                        z.Ravel[0] = v;
                         z.Ravel[0].adverb = adv.word;
                         stack.Push(new Token { val = z });
                         stack.Push(p1);

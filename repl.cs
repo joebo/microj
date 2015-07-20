@@ -164,12 +164,18 @@ namespace App {
                             continue;
 
                         try {
-                            var ret = repl.parse(line);
-                            var formatter = new Formatter(ret.Shape);
-                            for(var i = 0; i < ret.GetCount() && i < 1000;i++) {
-                                formatter.Add(ret.GetString(i));
+                            var ret = repl.parse(line);                            
+                            if (ret.GetCount() > 1000) {
+                                var formatter = new Formatter(ret.Shape);
+                                for (var i = 0; i < ret.GetCount() && i < 1000; i++) {
+                                    formatter.Add(ret.GetString(i));
+                                }
+                                Console.WriteLine(formatter.ToString());
                             }
-                            Console.WriteLine(formatter.ToString());
+                            else {
+                                Console.WriteLine(ret.ToString());
+                            }
+                            
                             
                         } catch (Exception e) {
                             Console.WriteLine(e.ToString());
