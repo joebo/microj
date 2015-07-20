@@ -690,6 +690,22 @@ namespace MicroJ {
             return v;
         }
 
+        public A<Box> link<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
+            if (y.GetType() != typeof(A<Box>)) {
+                var z = new A<Box>(2);
+                z.Ravel[0] = new Box { val = x };            
+                z.Ravel[1] = new Box { val = y };
+                return z;
+            } else {
+                var z = new A<Box>(y.Count+1);
+                z.Ravel[0] = new Box { val = x };
+                for(var i = 0; i < y.Count; i++) {
+                    z.Ravel[1+i] = (Box)(object)y.Ravel[i];
+                }
+                return z;
+            }            
+        }
+
         public AType primesm(AType w) {
             return primes(null, w);
         }
@@ -903,6 +919,9 @@ namespace MicroJ {
             }
             else if (op == "\\:") {
                 return InvokeExpression("sortdown", x, y, 2);
+            }
+            else if (op == ";") {
+                return InvokeExpression("link", x, y, 2);
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
