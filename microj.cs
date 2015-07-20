@@ -251,6 +251,10 @@ namespace MicroJ
             if (adverb != null) str+=" " + adverb;
             if (conj != null) str+=" " + conj;
             if (rhs != null) str+=" " + rhs;
+
+            if (childVerb != null) {
+                str = str + childVerb.ToString();
+            }
             return str;
         }
     }

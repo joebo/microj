@@ -37,7 +37,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:"};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -997,6 +997,22 @@ namespace MicroJ {
             else if (op == "\\:") {
                 return InvokeExpression("gradedown", y);
             }
+            else if (op == "*:") {
+                if (y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)y, (A<long>)y, (a, b) => a * b);
+                }
+                else if (y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)y, (A<double>)y, (a, b) => a * b);
+                }                
+            }
+            else if (op == "+:") {
+                if (y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)y, (A<long>)y, (a, b) => a + b);
+                }
+                else if (y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)y, (A<double>)y, (a, b) => a + b);
+                }
+            }
             else if (op == "!") {
                 A<double> a = new A<double>(1);
                 if (y is A<int> || y is A<long>)
@@ -1205,7 +1221,13 @@ namespace MicroJ {
 
                 if (verb.childVerb != null) {
                     x = AType.MakeA(verb.rhs, Names);
-                    newVerb.Ravel[0] = (Verb)verb.childVerb;
+                    
+                    var z = Verbs.Call1(x, y);                    
+                    if (verb.childVerb != null) {
+                        newVerb.Ravel[0] = (Verb)verb.childVerb;
+                        z = Verbs.Call1(newVerb, z);
+                    }
+                    return z;
                 }
                 else {
                     x = AType.MakeA(verb.op, Names);
