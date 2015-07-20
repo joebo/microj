@@ -450,7 +450,8 @@ namespace MicroJ
             Verbs = new Verbs();
             Adverbs = new Adverbs(Verbs);
             Conjunctions = new Conjunctions(Verbs);
-            
+            Conjunctions.Parser = this;
+
             Adverbs.Conjunctions = Conjunctions;
 
             Verbs.Adverbs = Adverbs;

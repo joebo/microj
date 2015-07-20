@@ -1008,6 +1008,7 @@ namespace MicroJ {
         public static readonly string[] Words = new[] { "\"", "!:", "&", ":" };
         public Verbs Verbs;
         public Dictionary<string, AType> Names;
+        public Parser Parser;
 
         public Conjunctions(Verbs verbs) {
             Verbs = verbs;
@@ -1096,21 +1097,21 @@ namespace MicroJ {
         //(3 2 $ 1)  (150!:0) 'return v.ToString();'
         //'' (150!:0) 'System.Diagnostics.Debugger.Break();'
         //should the code be x or y?
-        Dictionary<string, Func<AType, string>> dotnetMethodCache = null;
+        Dictionary<string, Func<AType, Parser, string>> dotnetMethodCache = null;
         public A<JString> calldotnet<T>(A<T> x, A<JString> y) where T : struct {
 
 #if CSSCRIPT
-            if (dotnetMethodCache == null) { dotnetMethodCache = new Dictionary<string, Func<AType, string>>(); }
-            Func<AType, string> func = null;
+            if (dotnetMethodCache == null) { dotnetMethodCache = new Dictionary<string, Func<AType, Parser, string>>(); }
+            Func<AType, Parser, string> func = null;
             if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
                 var code = y.Ravel[0].str;
                 var lines = code.Split('\n');
                 var usings = String.Join("\n", lines.Where(t => t.StartsWith("//css_using ")).Select(t => "using " + t.Replace("//css_using ", "") + ";").ToArray());
                 var refs = lines.Where(t => t.StartsWith("//css_ref ")).SelectMany(t => t.Replace("//css_ref ", "").Split(',')).Select(t => t.Trim()).ToArray();
-                func = CSScript.LoadDelegate<Func<AType, string>>(usings + "\n" + "string func (MicroJ.AType v) { " + code + " }", null, false, refs);
+                func = CSScript.LoadDelegate<Func<AType, Parser, string>>(usings + "\n" + "string func (MicroJ.AType v, MicroJ.Parser parser) { " + code + " }", null, false, refs);
                 dotnetMethodCache[y.Ravel[0].str] = func;
             }
-            var ret = func(x);
+            var ret = func(x, Parser);
             var v = new A<JString>(0);
             v.Ravel[0] = new JString { str = ret };
             return v;
@@ -1122,6 +1123,46 @@ namespace MicroJ {
 
         }
 
+        public AType runfile(A<Box> y, Verb verb) {
+            string file = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
+            
+            if (!File.Exists(file)) {
+                Console.WriteLine("file: " + file + " does not exist");                
+            }
+            var oldRL = Parser.ReadLine;
+            string[] lines = File.ReadAllLines(file);
+            string lastEval = "";
+            for (var i = 0; i < lines.Length; i++) {
+                var line = lines[i];
+                try {
+                    if (line.StartsWith("NB.") || line.Length == 0) continue;
+                    if (line.StartsWith("exit")) break;
+                    if (line.StartsWith("!B")) {
+                        Debugger.Launch();
+                        Debugger.Break();
+                        line = line.Substring(2, line.Length - 2);
+                    }
+                    Parser.ReadLine = () => {
+                        i++;
+                        return lines[i];
+                    };
+                    if (verb.rhs == "1") {
+                        Console.WriteLine(line);
+                    }
+                    var ret = Parser.parse(line).ToString();
+                    lastEval = ret;
+                }
+                finally { }
+            }
+            Parser.ReadLine = oldRL;
+            var z = new A<JString>(0);
+            if (verb.rhs == "1") {                
+                z.Ravel[0].str = lastEval;
+            }
+            
+
+            return z;
+        }
         public AType Call1(AType method, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
 
@@ -1166,6 +1207,9 @@ namespace MicroJ {
                     return v;
                 }
             }
+            else if (verb.conj == "!:" && verb.op == "0") {
+                return runfile((A<Box>) y,verb);
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
@@ -1179,6 +1223,7 @@ namespace MicroJ {
                     return (A<JString>)calldotnet((A<long>)x, (A<JString>)y);
                 }
             }
+            
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
