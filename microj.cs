@@ -547,7 +547,6 @@ namespace MicroJ
         public struct Token {
             public string word;
             public AType val;
-            public AType[] Fork;
             public override string ToString()  {
                 string str = "";
                 if (word != null) str += word;
@@ -570,7 +569,7 @@ namespace MicroJ
             cmd = MARKER + " " + cmd;
 
             Func<Token, bool> isEdge = token => token.word == MARKER || token.word == "=:" || token.word == "(";
-            Func<Token, bool> isVerb = token => ((token.val != null && token.val.GetType() == typeof(A<Verb>))  || token.Fork != null); //|| (token.word != null && verbs.ContainsKey(token.word));
+            Func<Token, bool> isVerb = token => ((token.val != null && token.val.GetType() == typeof(A<Verb>))); //|| (token.word != null && verbs.ContainsKey(token.word));
             Func<Token, bool> isAdverb = token => token.word != null && Adverbs.Words.Contains(token.word);
             Func<Token, bool> isConj = token => token.word != null && Conjunctions.Words.Contains(token.word);
             Func<Token, bool> isNoun = token => (token.val != null && token.val.GetType() != typeof(A<Verb>));
@@ -612,17 +611,8 @@ namespace MicroJ
                         var p1 = stack.Pop();
                         var op = stack.Pop();
                         var y = stack.Pop();
-                        if (op.Fork == null) {
-                            var z = Verbs.Call1(op.val, y.val);
-                            stack.Push(new Token { val = z });
-                        }
-                        else {
-                            var z1 = Verbs.Call1(op.Fork[0], y.val);
-                            var z3 = Verbs.Call1(op.Fork[2], y.val);
-                            var z2 = Verbs.Call2(op.Fork[1], z1, z3);
-                            stack.Push(new Token { val = z2 });
-                        }
-                        
+                        var z = Verbs.Call1(op.val, y.val);
+                        stack.Push(new Token { val = z });
                         stack.Push(p1);
                     }
                     else if (step == 1) {   //monad                         
@@ -649,14 +639,29 @@ namespace MicroJ
                         var p1 = stack.Pop();
                         var op = stack.Pop();
                         var adv = stack.Pop();
-                        var z = new A<Verb>(0);
-                        var v =  ((A<Verb>)op.val).Ravel[0];
-                        if (v.adverb != null) {
-                            v.childAdverb = v.adverb;
+
+                        var verbs = ((A<Verb>)op.val);
+                        if (verbs.Count == 1) {
+                            var z = new A<Verb>(0);                        
+                            var v =  ((A<Verb>)op.val).Ravel[0];
+                            if (v.adverb != null) {
+                                v.childAdverb = v.adverb;
+                            }
+                            z.Ravel[0] = v;
+                            z.Ravel[0].adverb = adv.word;
+                            stack.Push(new Token { val = z });
                         }
-                        z.Ravel[0] = v;
-                        z.Ravel[0].adverb = adv.word;
-                        stack.Push(new Token { val = z });
+                        else {
+                            var z = new A<Verb>(verbs.Count+1);
+                            for (var k = 0; k < verbs.Count; k++) {
+                                z.Ravel[k + 1] = verbs.Ravel[k];
+                            }                            
+                            z.Ravel[0].adverb = adv.word;
+                            stack.Push(new Token { val = z });                            
+                        }
+
+                        
+                        
                         stack.Push(p1);
                     }
                     else if (step == 4) { //conjunction
@@ -690,7 +695,11 @@ namespace MicroJ
                         var v1 = stack.Pop();
                         var v2 = stack.Pop();
                         var v3 = stack.Pop();
-                        stack.Push(new Token { Fork = new AType[] { v1.val,v2.val,v3.val } });
+                        var z = new A<Verb>(3);
+                        z.Ravel[0] = ((A<Verb>)v1.val).Ravel[0];
+                        z.Ravel[1] = ((A<Verb>)v2.val).Ravel[0];
+                        z.Ravel[2] = ((A<Verb>)v3.val).Ravel[0];
+                        stack.Push(new Token { val = z });
                         stack.Push(p1);
                     }
                     else if (step == 7) { //copula

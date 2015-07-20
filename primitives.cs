@@ -778,9 +778,19 @@ namespace MicroJ {
 
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
+            var verbs = (A<Verb>)method;
+            
+
             if (verb.adverb != null) {
                 return Adverbs.Call2(method, x, y);
             }
+
+            if (verbs.GetCount() > 1) {
+                var z1 = Call2(verbs.ToAtom(0), x, y);
+                var z3 = Call2(verbs.ToAtom(2), x, y);
+                var z2 = Call2(verbs.ToAtom(1), z1, z3);
+                return z2;
+            } 
 
             //future: add check for integrated rank support
             if (verb.conj != null) {
@@ -938,6 +948,13 @@ namespace MicroJ {
 
         //candidate for code generation
         public AType Call1(AType method, AType y) {
+            var verbs = (A<Verb>)method;
+            if (verbs.GetCount()  == 3) {
+                var z1 = Call1(verbs.ToAtom(0), y);
+                var z3 = Call1(verbs.ToAtom(2), y);
+                var z2 = Call2(verbs.ToAtom(1), z1, z3);
+                return z2;
+            } 
             var verb = ((A<Verb>)method).Ravel[0];
 
             if (verb.adverb != null) { // || verb.childVerb   != null && ((Verb)verb.childVerb).adverb != null) {
@@ -1424,6 +1441,7 @@ namespace MicroJ {
             return v;
         }
         public AType Call1(AType method, AType y) {
+            var verbs = ((A<Verb>)method);
             var verb = ((A<Verb>)method).Ravel[0];
             var adverb = verb.adverb;
             var op = verb.op;
@@ -1439,6 +1457,14 @@ namespace MicroJ {
             if (verb.childVerb != null) {
                 Verb cv = (Verb)verb.childVerb;
                 newVerb.Ravel[0] = cv;
+            }
+
+            //todo: hack to support train in adverb
+            if (verbs.Count > 1) {
+                newVerb = new A<Verb>(verbs.Count-1);
+                for (var i = 1; i < verbs.Count; i++) {
+                    newVerb.Ravel[(i-1)] = verbs.Ravel[i];
+                }
             }
             
             //future: add check for integrated rank support (e.g. +/"1)
@@ -1477,6 +1503,7 @@ namespace MicroJ {
             var verb = ((A<Verb>)method).Ravel[0];
             var adverb = verb.adverb;
             var op = verb.op;
+           
 
             //create a new verb without the adverb component so we can safely pass it around
             var newVerb = new A<Verb>(0);
@@ -1488,6 +1515,15 @@ namespace MicroJ {
 
             newVerb.Ravel[0].conj = verb.conj;
             newVerb.Ravel[0].rhs = verb.rhs;
+
+            var verbs = ((A<Verb>)method);
+            //todo: hack to support train in adverb
+            if (verbs.Count > 1) {
+                newVerb = new A<Verb>(verbs.Count - 1);
+                for (var i = 1; i < verbs.Count; i++) {
+                    newVerb.Ravel[(i - 1)] = verbs.Ravel[i];
+                }
+            }
 
             if (adverb == "/" && y.GetType() == typeof(A<long>) && x.GetType() == typeof(A<long>)) {
                 return table(newVerb, (A<long>)x, (A<long>)y);
