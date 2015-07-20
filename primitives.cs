@@ -562,7 +562,6 @@ namespace MicroJ {
             var frame = x.Shape.Skip(1).ToArray();
             var frameCt = AType.ShapeProduct(frame);            
             var n = x.Count / frameCt;
-            long offset = 0;
 
             bool isString = false;
             if (x.GetType() == typeof(A<JString>)) {
@@ -1201,11 +1200,27 @@ namespace MicroJ {
             }
             //bond
             else if (verb.conj == "&") {
-                var x = AType.MakeA(verb.rhs, Names);
+                AType x;
                 var newVerb = new A<Verb>(0);
-                newVerb.Ravel[0] = (Verb)verb.childVerb;
-                //todo this order may not be right
-                return Call2(newVerb, y, x);
+
+                if (verb.childVerb != null) {
+                    x = AType.MakeA(verb.rhs, Names);
+                    newVerb.Ravel[0] = (Verb)verb.childVerb;
+                }
+                else {
+                    x = AType.MakeA(verb.op, Names);
+                    newVerb.Ravel[0].op = verb.rhs;
+                    return Verbs.Call2(newVerb, x, y);
+                }
+                
+                var op = newVerb.Ravel[0].op;
+                if (op != null && Verbs.Words.Contains(op)) {
+                    return Verbs.Call2(newVerb, y, x);
+                }
+                else {
+                    return Call2(newVerb, y, x);
+                }
+                
 
             }
             else if (verb.conj == ":" && verb.op == "0") {
