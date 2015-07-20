@@ -1193,40 +1193,7 @@ namespace MicroJ {
                  n = x.ShapeCopy()[0];
                  isString = true;
             }
-            /*
-            var values = new Dictionary<string, A<T>>();
-            for (var i = 0; i < n; i++) {
-                var zt = new A<T>(frame);
-                zt.Ravel = y.Copy(frameCt, skip: offset);
-                var key = zt.ToString();
-                if (!values.ContainsKey(key)) {
-                    values[key] = zt;
-                }
-                else {
-                    values[key] = Verbs.append(zt, values[key]);
-                }
-                offset += frameCt;                
-            }
-            */
-
-            /*
-            var indices = new Dictionary<string, List<long>>();
-            for (var i = 0; i < n; i++) {
-                //invoke expression was about 3x slower (e.g. 1500ms vs 500ms)
-                //var key = Verbs.InvokeExpression("from", new A<long>(0) { Ravel = new long[] { i } }, (AType)x,1).ToString();
-                var zt = new A<T>(frame);
-                zt.Ravel = y.Copy(frameCt, skip: offset);
-                var key = zt.ToString();
-                if (!indices.ContainsKey(key)) {
-                    indices[key] = new List<long>();
-                }
-                
-                indices[key].Add(i);
-                
-            }
-            */
-
-
+            
             var indices = new Dictionary<long, List<long>>();
             if (x.Rank == 1 || isString) {                 
                 for (var i = 0; i < n; i++) {
@@ -1257,8 +1224,7 @@ namespace MicroJ {
                     }
                 }
             }
-            
-            
+                        
             var vs = new AType[indices.Count()];
             offset = 0;
             foreach (var index in indices.Values) {              
