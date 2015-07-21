@@ -123,6 +123,7 @@ NB. == gamma (!)
 (, i. 2 2) -: 0 1 2 3                        NB. ravel list
 $ ,1 -: 1                                    NB. ravel atom
 (2,3 4) -: (2 3 4)                           NB. append
+('abc','123') -: 'abc123'					 NB. append with string
 
 ((i. 2 2) , (i.2 2)) -: '0 1\n2 3\n0 1\n2 3' NB. ravel rank > 1
 

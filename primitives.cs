@@ -428,11 +428,24 @@ namespace MicroJ {
         }
 
         public A<T> ravel<T>(A<T> y) where T : struct {
-            var v = new A<T>(y.Count);
-            for (var n = 0; n < y.Count; n++) {
-                v.Ravel[n] = y.Ravel[n];
+            if (y.GetType() != typeof(A<JString>)) {
+                var v = new A<T>(y.Count);
+                for (var n = 0; n < y.Count; n++) {
+                    v.Ravel[n] = y.Ravel[n];
+                }
+                return v;
             }
-            return v;
+            else {
+                
+                var sb = new StringBuilder();
+                for (var n = 0; n < y.Count; n++) {
+                    sb.Append(y.GetString(n));
+                }
+                var str = sb.ToString();
+                var v = new A<JString>(1);
+                v.Ravel[0] = new JString { str = str };
+                return (A<T>)(object)v;
+            }            
         }
 
         public A<long> floor<T>(AType y) where T : struct {            
@@ -671,6 +684,7 @@ namespace MicroJ {
                 type = thisType;
             }
             if (type == typeof(A<long>)) {
+                //e.g. ; < i. 3 3
                 if (y.Count == 1) {
                     var z = new A<long>(totalCount, y.Ravel[0].val.Shape);
                     long offset = 0;
@@ -687,12 +701,22 @@ namespace MicroJ {
                     return Adverbs.reduceboxed<long>(op, y);
                 }
             }
+            else if (type == typeof(A<JString>)) {
+                var op = new A<Verb>(0);
+                op.Ravel[0] = new Verb { op = "," };
+                return Adverbs.reduceboxed<JString>(op, y);
+            }
             return null;
         }
 
         public A<T> append<T>(A<T> x, A<T> y) where T : struct {
             if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
 
+            if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>) && x.Rank <= 1 && y.Rank <= 1) {
+                var vs = new A<JString>(x.ShapeProduct() + y.ShapeProduct());
+                vs.Ravel[0] = new JString { str = String.Intern(x.GetString(0) + y.GetString(0)) };
+                return (A<T>)(object)vs;
+            }
             long[] newShape;
             newShape = new long[] { x.Count + y.Count };
 
