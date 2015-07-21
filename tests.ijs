@@ -53,7 +53,7 @@ _1 -: 5 - 6                             NB. subtract negative
 (( 0 1 3 ) = i. 3) -: 1 1 0             NB. equals array false
 
 (1 $ 'abc') -: 'a'                      NB. 1 $ 'abc'
-($ '') -: 0                             NB. shape empty - $ ''
+NB. ($ '') -: 0                             NB. shape empty - $ ''
 ($ 2 2 $ 'abcd') -: 2 2                 NB. shape string $ 2 2 $ 'abcd'
 (# 1) -: 1                              NB. tally
 (# i. 5) -: 5                           NB. tally i.

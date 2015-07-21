@@ -585,11 +585,34 @@ namespace MicroJ {
                     }
                 }
             }
+            else if (x.Rank == 2 && x.GetType() == typeof(A<Byte>)) {
+                var shape = x.ShapeCopy();
+                var newShape = shape.Take(shape.Length - 1).ToArray();
+                var shapeProduct = AType.ShapeProduct(newShape);
+                long offset = 0;
+                long count = shape[shape.Length - 1];
+                var ravel = (Byte[])(object)x.Ravel;
+                var found = new HashSet<string>();
+                for (var i = 0; i < shapeProduct; i++) {
+                    var str = System.Text.Encoding.UTF8.GetString(ravel, (int)offset, (int)count);
+                    var key = str.GetHashCode();
+                    List<long> spot = null;
+                    if (indices.TryGetValue(key, out spot)) {
+                        spot.Add(i);
+                    }
+                    else {
+                        spot = new List<long>();
+                        spot.Add(i);
+                        indices[key] = spot;
+                    }
+                    offset += count;
+                }
+            }
             else {
                 for (var i = 0; i < n; i++) {
                     bool found = false;
                     foreach (var k in indices.Keys) {
-                        if (x.SliceEquals(k, (i*frameCt), frameCt)) {
+                        if (x.SliceEquals((k * frameCt), (i * frameCt), frameCt)) {
                             indices[k].Add(i);
                             found = true;
                         }

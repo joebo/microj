@@ -382,6 +382,9 @@ namespace MicroJ
                 //chop trailing \n
                 return ret.Substring(0, ret.Length - 1);
             }
+            else if (typeof(T) == typeof(Byte)) {
+                return System.Text.Encoding.UTF8.GetString((Byte[])(object)Ravel);
+            }
             else if (typeof(T) == typeof(bool)) {
                 str = Convert.ToBoolean(val) ? "1" : "0";
             }
@@ -441,6 +444,20 @@ namespace MicroJ
                 var shapeProduct = AType.ShapeProduct(Shape);
                 var chars = Enumerable.Range(0, (int)shapeProduct).Select(x=>GetChar(x));
                 return new Formatter(Shape,"").AddRange(chars).ToString();
+            }
+            else if (typeof(T) == typeof(Byte) && Rank > 1) {
+                var shape = ShapeCopy();
+                var newShape = shape.Take(shape.Length - 1).ToArray();
+                var shapeProduct = AType.ShapeProduct(newShape);
+                var formatter = new Formatter(newShape);
+                long offset = 0;
+                long count = shape[shape.Length - 1];
+                var ravel = (Byte[])(object)Ravel;
+                for (var i = 0; i < shapeProduct; i++) {
+                    formatter.Add(System.Text.Encoding.UTF8.GetString(ravel, (int)offset, (int)count));
+                    offset += count;
+                }
+                return formatter.ToString();
             }
             
             return new Formatter(Shape).AddRange(Ravel.Select(x=>StringConverter(x))).ToString();
@@ -505,7 +522,7 @@ namespace MicroJ
             if (w.EndsWith(" : 0")) {
                 w+= "'";
                 while(true) {
-                    var nextLine = ReadLine();
+                    var nextLine = ReadLine().Replace("'", "''");
                     if (nextLine == ")") break;
                     w+=nextLine+"\n";
                 }
@@ -519,11 +536,11 @@ namespace MicroJ
             Func<char, bool> isDigit = c => char.IsDigit(c) || c == '_';
             bool inQuote = false;
 
-            foreach (var c in w)
-            {
+            for (var ci = 0; ci < w.Length; ci++ ) {
+                var c = w[ci];
                 if (!inQuote && c == '\'') { emit(); currentWord.Append(c); inQuote = true; }
-                else if (inQuote && c == '\'') { currentWord.Append(c); emit(); inQuote = !inQuote; }
-                else if (inQuote) { currentWord.Append(c); }
+                else if (inQuote && c == '\'' && (ci < w.Length-1 && w[ci+1] != '\'' && w[ci-1] != '\'')) { currentWord.Append(c); emit(); inQuote = !inQuote; }
+                else if (inQuote) { if (ci >= w.Length -1 || !(c == '\'' && w[ci-1] == '\'')) { currentWord.Append(c); }  }
                 else {
 
                     if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
