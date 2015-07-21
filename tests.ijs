@@ -317,3 +317,6 @@ NB. train with adverb
 |2|3|
 +-+-+
 )
+
+NB. rank2ex
+1 0 1 0 -: ((3 $ 'abc') -:"1 (4 3 $ 'abcxyz')) 

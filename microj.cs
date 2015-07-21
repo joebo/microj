@@ -174,6 +174,18 @@ namespace MicroJ
             throw new NotImplementedException();
         }
 
+        public A<long> ConvertLong() {
+            if (Type == typeof(long)) {
+                return (A<long>)this;
+            }
+            else if (Type == typeof(bool)) {
+                var a = (A<bool>)this;
+                var z = new A<long>(a.Count, a.Shape);
+                z.Ravel = a.Ravel.Select(x =>(long) ( x == true ? 1 : 0)).ToArray();
+                return z;
+            }
+            throw new NotImplementedException();
+        }
 
         public static AType MakeA(string word, Dictionary<string, AType> names) {
             int val;

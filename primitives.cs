@@ -222,7 +222,11 @@ namespace MicroJ {
 
         public AType unbox(A<Box> y) {
             var newShape = y.ShapeCopy();
-            newShape = newShape.Concat(y.Ravel[0].val.Shape).ToArray();
+            var shape = y.Ravel[0].val.Shape;
+            if (shape == null) {
+                shape = new long[] { 1 };
+            }
+            newShape = newShape.Concat(shape).ToArray();
             var v = y.Ravel[0].val.Merge(newShape, y.Ravel.Select(x => x.val).ToArray());
 
             return v;
@@ -523,7 +527,13 @@ namespace MicroJ {
                 v.Ravel = y.Copy(1);
                 return v;
             }
-            return from(new A<long>(0) { Ravel = new long[] { 0 } }, y);            
+            //drop 1 from the shape;
+            var z = from(new A<long>(0) { Ravel = new long[] { 0 } }, y);
+            if (z.Shape != null) {
+                z.Shape = z.Shape.Skip(1).ToArray();
+            }
+            
+            return z;
         }
 
         public A<T> behead<T>(A<T> y) where T : struct {
@@ -976,7 +986,7 @@ namespace MicroJ {
                 else return InvokeExpression("equals", x, y, 2);
             }
             else if (op == "#") {
-                return InvokeExpression("copy", x, y, 1);
+                return InvokeExpression("copy", x.ConvertLong(), y, 1);
             }
             else if (op == "i.") {
                 return InvokeExpression("indexof", x, y, 1);
@@ -996,7 +1006,25 @@ namespace MicroJ {
             else if (op == "-:") {
                 //temporary
                 var z = new A<bool>(0);
-                z.Ravel[0] = x.ToString() == y.ToString();
+                if (x.Type == typeof(Byte) && y.Type == typeof(Byte)) {
+                    var ax = (A<Byte>)x;
+                    var ay = (A<Byte>)y;
+
+                    bool same = true;
+                    for (var i = 0; i < ax.Count; i++) {
+                        if (ax.Ravel[i] != ay.Ravel[i]) { same = false; break; }
+                    }
+                    z.Ravel[0] = same;
+                        /*
+                        var xv = System.Text.Encoding.UTF8.GetString(((A<Byte>)x).Ravel);
+                        var yv = System.Text.Encoding.UTF8.GetString(((A<Byte>)y).Ravel);
+                         */
+                        //z.Ravel[0] = xv == yv;
+                }
+                else {
+                    z.Ravel[0] = x.ToString() == y.ToString();
+                }
+                
                 return z;
             }
             else if (op == "/:") {
@@ -1216,18 +1244,76 @@ namespace MicroJ {
                 newShape = newShape.Concat(vs[0].Shape).ToArray();
             }
        
-            return vs[0].Merge(newShape, vs);
+            return vs[0].Merge(newShape, vs);          
+        }
 
-            /*
-            var v = new A<T2>(ct, newShape);
-            offset = 0;
+        public AType matchfast<T>(AType method, A<T> x, A<T> y) where T : struct {
+            var z = new A<bool>(y.Shape[0]);
+            var ax = (A<Byte>)(object)x;
+            var ay = (A<Byte>)(object)y;
+            var xv = System.Text.Encoding.UTF8.GetString(ax.Ravel);
+            var ct = (int) y.Shape[y.Shape.Length - 1];
+            for (int i = 0; i < y.Shape[0]; i++ ) {
+                var yv = System.Text.Encoding.UTF8.GetString(ay.Ravel, (i * ct), ct);
+                z.Ravel[i] = xv.Equals(yv);
+            }
+
+            return z;
+        }
+
+        public AType rank2ex<T>(AType method, A<T> x, A<T> y)
+            where T : struct {
+            var verb = ((A<Verb>)method).Ravel[0];
+            var newRank = Convert.ToInt32(verb.rhs);
+
+            //create a new verb without the conj component so we can safely pass it around
+            var newVerb = new A<Verb>(1);
+            if (verb.childVerb != null) {
+                Verb cv = (Verb)verb.childVerb;
+                newVerb.Ravel[0] = cv;
+            }
+            else {
+                newVerb.Ravel[0] = new Verb { op = verb.op, adverb = verb.adverb };
+            }
+
+            if (newRank == y.Rank) { return Verbs.Call2(newVerb, x, y); }
+
+            var shape = y.ShapeCopy();
+            bool isString = y.GetType() == typeof(A<JString>);
+
+            if (isString) {
+                //drop the last part of the shape for strings, since it's an indirect reference
+                shape = y.Shape.Take(y.Shape.Length - 1).ToArray();
+            }
+            var newShape = shape.Take(y.Rank - newRank).ToArray();
+
+
+            var newCt = AType.ShapeProduct(newShape);
+            var vs = new AType[newCt];
+            var subShape = shape.Skip(y.Rank - newRank).ToArray();
+            var subShapeCt = AType.ShapeProduct(subShape);
+            var offset = 0;
+
             for (var i = 0; i < vs.Length; i++) {
-                for (var k = 0; k < vs[0].GetCount(); k++) {
-                    v.Ravel[offset++] = vs[i].Ravel[k];
+                var newY = new A<T>(subShapeCt, subShape);
+                for (var k = 0; k < newY.Count; k++) {
+                    if (!isString || newRank > 0) {
+                        newY.Ravel[k] = y.Ravel[offset];
+                    }
+                    else {
+                        newY.Ravel[k] = (T)(object)y.GetCharJString(offset);
+                    }
+                    offset++;
                 }
-            }*/
-            
-            
+                vs[i] = Verbs.Call2(newVerb, x, newY);
+            }
+            var ct = vs.Length * vs[0].GetCount();
+
+            if (vs[0].Shape != null) {
+                newShape = newShape.Concat(vs[0].Shape).ToArray();
+            }
+
+            return vs[0].Merge(newShape, vs);
         }
 
         //to use interop, download https://csscriptsource.codeplex.com/releases/view/614904
@@ -1378,10 +1464,6 @@ namespace MicroJ {
                     newVerb.Ravel[0].op = verb.rhs;
                     return Verbs.Call2(newVerb, x, y);
                 }
-                
-                
-                
-
             }
             else if (verb.conj == ":" && verb.op == "0") {
                 if (verb.rhs == "0") {
@@ -1392,6 +1474,13 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "0") {
                 return runfile((A<Box>) y,verb);
+            }
+            else if (verb.conj == "!:" && verb.op == "3" && verb.rhs == "100") {
+                var str = y.ToString();
+                var z = new A<Byte>(str.Length);
+                z.Ravel = System.Text.UTF8Encoding.UTF8.GetBytes(str);
+                return z;
+
             }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
@@ -1406,7 +1495,12 @@ namespace MicroJ {
                     return (A<JString>)calldotnet((A<long>)x, (A<JString>)y);
                 }
             }
-            
+            else if (verb.conj == "\"") {
+                if (verb.childVerb != null && ((Verb)verb.childVerb).op == "-:" && x.Type == typeof(Byte) && y.Type == typeof(Byte)) {
+                    return Verbs.InvokeExpression("matchfast", x, y, 1, this, method);
+                }
+                return Verbs.InvokeExpression("rank2ex", x, y, 1, this,method);
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
