@@ -360,11 +360,12 @@ namespace MicroJ
 
         //creates a new value from an array of values
         public override AType Merge(long[] newShape, AType[] vs) {
-            var v = new A<T>(AType.ShapeProduct(newShape), newShape);
+            var v = new A<T>(newShape);
             long offset = 0;
-            for (var i = 0; i < vs.Length; i++) {                
-                for (var k = 0; k < Count; k++) {
-                    v.Ravel[offset++] = ((A<T>)vs[i]).Ravel[k];
+            for (var i = 0; i < vs.Length; i++) {
+                var a = (A<T>)vs[i];
+                for (var k = 0; k < a.Count; k++) {
+                    v.Ravel[offset++] =a.Ravel[k];
                 }
             }
             return v;

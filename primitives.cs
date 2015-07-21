@@ -37,7 +37,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">"};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -220,6 +220,15 @@ namespace MicroJ {
             return v;
         }
 
+        public AType unbox(A<Box> y) {
+            var newShape = y.ShapeCopy();
+            newShape = newShape.Concat(y.Ravel[0].val.Shape).ToArray();
+            var v = y.Ravel[0].val.Merge(newShape, y.Ravel.Select(x => x.val).ToArray());
+
+            return v;
+        }
+
+
         public A<T> copy<T>(A<long> x, A<T> y) where T : struct {
             if (x.Rank == 0) {
                 var copies = x.Ravel[0];
@@ -398,10 +407,19 @@ namespace MicroJ {
         }
 
         public A<JString> tostring<T>(A<T> y) where T: struct {
-            var str = y.ToString();
-            var z = new A<JString>(0);
-            z.Ravel[0] = new JString { str = str };
-            return z;   
+            if (y.Rank <= 1) {
+                var str = y.ToString();
+                var z = new A<JString>(new long[] { str.Length });
+                z.Ravel[0] = new JString { str = str };
+                return z;
+            }
+            else {
+                var conj = new A<Verb>(0);
+                conj.Ravel[0] = new Verb { op = "\":", conj = "\"", rhs = (y.Rank-1).ToString() };
+                return (A<JString>)Conjunctions.rank1ex<T>(conj, y);
+            }
+            
+            
         }
 
         public A<long> indexof<T>(A<T> x, A<T> y) where T : struct {            
@@ -712,7 +730,7 @@ namespace MicroJ {
                 var op = new A<Verb>(0);
                 op.Ravel[0] = new Verb { op = "," };
                 return Adverbs.reduceboxed<JString>(op, y);
-            }
+            }            
             return null;
         }
 
@@ -1048,7 +1066,9 @@ namespace MicroJ {
             else if (op == "<") {
                 return box(y);
             }
-
+            else if (op == ">") {
+                return unbox((A<Box>)y);
+            }
             else if (op == "|:") {
                 if (y.GetType() == typeof(A<int>)) {
                     return transpose((A<int>)y);
@@ -1310,6 +1330,9 @@ namespace MicroJ {
                     else if (y.GetType() == typeof(A<Box>)) {
                         return rank1ex<Box>(method, (A<Box>)y);
                     }
+                    else if (y.GetType() == typeof(A<Byte>)) {
+                        return rank1ex<Byte>(method, (A<Byte>)y);
+                    }
 
                 }
                 if (y.GetType() == typeof(A<long>)) { return rank1ex<long>(method, (A<long>)y); }
@@ -1337,7 +1360,13 @@ namespace MicroJ {
                     else {
                         //plus=: +&2
                         newVerb.Ravel[0] = (Verb)verb.childVerb;
-                        return z = Verbs.Call2(newVerb, y, x);
+                        if (x.GetType() == typeof(A<Undefined>)) {
+                            return z = Verbs.Call1(newVerb, y);
+                        }
+                        else {
+                            return z = Verbs.Call2(newVerb, y, x);
+                        }
+                        
                     }
                     
                     
