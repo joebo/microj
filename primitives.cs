@@ -37,7 +37,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":"};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -138,7 +138,7 @@ namespace MicroJ {
                         var nr = z.Rank - i;
                         var conj = new A<Verb>(0);
                         conj.Ravel[0] = new Verb { op = "|.", conj = "\"", rhs = nr.ToString() };
-                        z = Conjunctions.rank1ex<long, long>(conj, z);
+                        z = (A<long>)Conjunctions.rank1ex<long>(conj, z);
                     }
                 }
             }
@@ -397,6 +397,13 @@ namespace MicroJ {
             return z;
         }
 
+        public A<JString> tostring<T>(A<T> y) where T: struct {
+            var str = y.ToString();
+            var z = new A<JString>(0);
+            z.Ravel[0] = new JString { str = str };
+            return z;   
+        }
+
         public A<long> indexof<T>(A<T> x, A<T> y) where T : struct {            
             var z = new A<long>(y.Count);
             if (y.Rank <= 1 && x.Rank <= 1) {
@@ -442,7 +449,7 @@ namespace MicroJ {
                     sb.Append(y.GetString(n));
                 }
                 var str = sb.ToString();
-                var v = new A<JString>(1);
+                var v = new A<JString>(0);
                 v.Ravel[0] = new JString { str = str };
                 return (A<T>)(object)v;
             }            
@@ -713,7 +720,7 @@ namespace MicroJ {
             if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
 
             if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>) && x.Rank <= 1 && y.Rank <= 1) {
-                var vs = new A<JString>(x.ShapeProduct() + y.ShapeProduct());
+                var vs = new A<JString>(0);
                 vs.Ravel[0] = new JString { str = String.Intern(x.GetString(0) + y.GetString(0)) };
                 return (A<T>)(object)vs;
             }
@@ -1106,6 +1113,9 @@ namespace MicroJ {
                 else a.Ravel[0] = Gamma.GammaReal(1.0 * (((A<double>)y).Ravel[0]));
                 return a;
             }
+            else if (op == "\":") {
+                return InvokeExpression("tostring", y);
+            }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 return verbWithRank.MonadicFunc(y);
             }
@@ -1134,9 +1144,8 @@ namespace MicroJ {
             });
         }
 
-        public A<T2> rank1ex<T, T2>(AType method, A<T> y)
-            where T : struct
-            where T2 : struct {
+        public AType rank1ex<T>(AType method, A<T> y)
+            where T : struct {
             var verb = ((A<Verb>)method).Ravel[0];
             var newRank = Convert.ToInt32(verb.rhs);
 
@@ -1150,7 +1159,7 @@ namespace MicroJ {
                 newVerb.Ravel[0] = new Verb { op = verb.op, adverb = verb.adverb };
             }
 
-            if (newRank == y.Rank) { return (A<T2>)Verbs.Call1(newVerb, y); }
+            if (newRank == y.Rank) { return Verbs.Call1(newVerb, y); }
 
             var shape = y.ShapeCopy();
             bool isString = y.GetType() == typeof(A<JString>);
@@ -1163,7 +1172,7 @@ namespace MicroJ {
 
 
             var newCt = AType.ShapeProduct(newShape);
-            var vs = new A<T2>[newCt];
+            var vs = new AType[newCt];
             var subShape = shape.Skip(y.Rank - newRank).ToArray();
             var subShapeCt = AType.ShapeProduct(subShape);
             var offset = 0;
@@ -1179,21 +1188,26 @@ namespace MicroJ {
                     }
                     offset++;
                 }
-                vs[i] = (A<T2>)Verbs.Call1(newVerb, newY);
+                vs[i] = Verbs.Call1(newVerb, newY);
             }
-            var ct = vs.Length * vs[0].Count;
+            var ct = vs.Length * vs[0].GetCount();
 
             if (vs[0].Shape != null) {
                 newShape = newShape.Concat(vs[0].Shape).ToArray();
             }
+       
+            return vs[0].Merge(newShape, vs);
+
+            /*
             var v = new A<T2>(ct, newShape);
             offset = 0;
             for (var i = 0; i < vs.Length; i++) {
-                for (var k = 0; k < vs[0].Count; k++) {
+                for (var k = 0; k < vs[0].GetCount(); k++) {
                     v.Ravel[offset++] = vs[i].Ravel[k];
                 }
-            }
-            return v;
+            }*/
+            
+            
         }
 
         //to use interop, download https://csscriptsource.codeplex.com/releases/view/614904
@@ -1282,23 +1296,23 @@ namespace MicroJ {
                 //not sure if this is the right way to deal with boxes yet
                 if (y.GetType() == typeof(A<Box>) || (verb.childVerb != null && ((Verb)verb.childVerb).op == "<")) {
                     if (y.GetType() == typeof(A<long>)) {
-                        return rank1ex<long, Box>(method, (A<long>)y);
+                        return rank1ex<long>(method, (A<long>)y);
                     }
                     else if (y.GetType() == typeof(A<JString>)) {
-                        return rank1ex<JString, Box>(method, (A<JString>)y);
+                        return rank1ex<JString>(method, (A<JString>)y);
                     }
                     else if (y.GetType() == typeof(A<double>)) {
-                        return rank1ex<double, Box>(method, (A<double>)y);
+                        return rank1ex<double>(method, (A<double>)y);
                     }
                     else if (y.GetType() == typeof(A<bool>)) {
-                        return rank1ex<bool, Box>(method, (A<bool>)y);
+                        return rank1ex<bool>(method, (A<bool>)y);
                     }
                     else if (y.GetType() == typeof(A<Box>)) {
-                        return rank1ex<Box, Box>(method, (A<Box>)y);
+                        return rank1ex<Box>(method, (A<Box>)y);
                     }
 
                 }
-                if (y.GetType() == typeof(A<long>)) { return rank1ex<long, long>(method, (A<long>)y); }
+                if (y.GetType() == typeof(A<long>)) { return rank1ex<long>(method, (A<long>)y); }
                 //todo: evaluate performance of dynamic dispatch of rank -- probably ok
                 else return Verbs.InvokeExpression("rank1ex", method, y, 1, this);
             }

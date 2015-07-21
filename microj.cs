@@ -360,7 +360,7 @@ namespace MicroJ
 
         //creates a new value from an array of values
         public override AType Merge(long[] newShape, AType[] vs) {
-            var v = new A<T>(newShape);
+            var v = new A<T>(AType.ShapeProduct(newShape), newShape);
             long offset = 0;
             for (var i = 0; i < vs.Length; i++) {                
                 for (var k = 0; k < Count; k++) {
@@ -441,11 +441,31 @@ namespace MicroJ
                 } else if (ravel != null && ravel.Length == 1) {
                     return ravel[0].ToString();
                 }
-                var shapeProduct = AType.ShapeProduct(Shape);
-                var chars = Enumerable.Range(0, (int)shapeProduct).Select(x=>GetChar(x));
-                return new Formatter(Shape,"").AddRange(chars).ToString();
+                var maxLen = 0;
+                foreach(var jstr in ravel) {
+                    if (jstr.str.Length > maxLen) { maxLen = jstr.str.Length; }
+                }
+                var newShape = new long[] { Shape[0], maxLen };
+                if (Rank > 2) {
+                    newShape = Shape.Concat(new long[] { maxLen }).ToArray();
+                }
+                var formatter = new Formatter(newShape, "");
+                foreach (var jstr in ravel) {
+                    for (var i = 0; i < maxLen; i++) {
+                        if (i < jstr.str.Length) {
+                            formatter.Add(jstr.str[i].ToString());
+                        }
+                        else {
+                            formatter.Add(" ");
+                        }
+                    }
+                }
+                //var shapeProduct = AType.ShapeProduct(Shape);
+                //var chars = Enumerable.Range(0, (int)shapeProduct).Select(x=>GetChar(x));
+                //return new Formatter(Shape,"").AddRange(chars).ToString();
+                return formatter.ToString();
             }
-            else if (typeof(T) == typeof(Byte) && Rank > 1) {
+            else if (typeof(T) == typeof(Byte) && Rank > 0 ) {
                 var shape = ShapeCopy();
                 var newShape = shape.Take(shape.Length - 1).ToArray();
                 var shapeProduct = AType.ShapeProduct(newShape);
