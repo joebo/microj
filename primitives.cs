@@ -13,6 +13,8 @@ using System.IO;
 using CSScriptLibrary;
 #endif
 
+using System.IO.MemoryMappedFiles;
+
 namespace MicroJ {
    
     public class VerbWithRank {
@@ -1352,6 +1354,31 @@ namespace MicroJ {
 
         }
 
+        //(0;12) (151!:0) 'dates';'c:/temp/dates.bin';
+        public unsafe AType readmmap(A<Box> x, A<Box> y, Verb verb) {
+            string name = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
+            string file = ((A<JString>)y.Ravel[1].val).Ravel[0].str;            
+            long type = ((A<long>)x.Ravel[0].val).Ravel[0];
+            long size = ((A<long>)x.Ravel[1].val).Ravel[0];
+            var num = new FileInfo(file).Length;
+            using (var mmf = MemoryMappedFile.CreateFromFile(file, FileMode.Open,"ImgA")) {
+                using (var view = mmf.CreateViewAccessor(0, num)) {
+                    //int size = 12;
+                    var rows = num / size;
+                    byte[] arr = new byte[num];
+                    byte* ptr = (byte*)0;
+                    view.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
+                    System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);
+                    view.SafeMemoryMappedViewHandle.ReleasePointer();
+                    Parser.Names[name] = new A<Byte>(new long[] { rows, size }) { Ravel = arr };
+                }
+                
+            }
+            var z = new A<JString>(0);
+            z.Ravel[0].str = "";
+            return z;
+        }
+
         public AType runfile(A<Box> y, Verb verb) {
             string file = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
             
@@ -1501,6 +1528,9 @@ namespace MicroJ {
                 }
                 return Verbs.InvokeExpression("rank2ex", x, y, 1, this,method);
             }
+            else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "0") {
+                return readmmap((A<Box>)x, (A<Box>)y, verb);
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
@@ -1554,6 +1584,9 @@ namespace MicroJ {
         }
 
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
+            if (y.Rank == 0) {
+                return y;
+            }
             if (y.Rank == 1) {
                 var v = new A<T>(0);
                 v = (A<T>)Verbs.Call2(op, y.ToAtom(y.Count - 2), y.ToAtom(y.Count - 1));
@@ -1589,8 +1622,8 @@ namespace MicroJ {
             return v;
         }
 
-        public AType key<T>(AType op, A<T> x, A<T> y) where T : struct {
-            var indices = Verbs.NubIndex<T>(x);
+        public AType key<T2, T>(AType op, A<T2> x, A<T> y) where T : struct where T2 : struct {
+            var indices = Verbs.NubIndex<T2>(x);
 
             long offset = 0;
             var vs = new AType[indices.Count()];            
@@ -1701,6 +1734,10 @@ namespace MicroJ {
                 newVerb.Ravel[0] = cv;
             }
 
+            if (verb.childAdverb != null) {
+                newVerb.Ravel[0].adverb = verb.childAdverb;
+            }
+
             newVerb.Ravel[0].conj = verb.conj;
             newVerb.Ravel[0].rhs = verb.rhs;
 
@@ -1717,7 +1754,7 @@ namespace MicroJ {
                 return table(newVerb, (A<long>)x, (A<long>)y);
             }
             else if (adverb == "/.") {
-                return Verbs.InvokeExpression("key", x, y, 1, this, newVerb);
+                return Verbs.InvokeExpression("key", x, y, 2, this, newVerb);
             } 
             
             throw new NotImplementedException("ADV: " + adverb + " on x:" + x + " y:" + y + " type: " + y.GetType());
