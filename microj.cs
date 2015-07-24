@@ -516,11 +516,15 @@ namespace MicroJ
         
         public Dictionary<string, AType> Names;
 
+        //needed for state in calldotnet procedures
+        public Dictionary<string, object> Globals;
+
         char[] symbols = null;
         char[] symbolPrefixes = null;
 
         public Parser() {
             Names = new Dictionary<string, AType>();
+            Globals = new Dictionary<string, object>();
 
             Verbs = new Verbs();
             Adverbs = new Adverbs(Verbs);

@@ -621,7 +621,26 @@ namespace MicroJ {
             }
             
             var indices = new Dictionary<long, List<long>>();
-            if (x.Rank == 1 || isString) {                 
+            if (isString) {
+                var ax = (A<JString>) (object) x;
+                var found = new Dictionary<string, List<long>>();
+                for (var i = 0; i < n; i++) {
+                    var key = ax.Ravel[i].str;
+                    List<long> spot = null;
+                    if (found.TryGetValue(key, out spot)) {
+                        spot.Add(i);
+                    }
+                    else {
+                        spot = new List<long>();
+                        spot.Add(i);
+                        found[key] = spot;
+                    }
+                }
+                foreach (var val in found.Values) {
+                    indices[val[0]] = val;
+                }
+            }
+            else if (x.Rank == 1) {                 
                 for (var i = 0; i < n; i++) {
                     var key = x.GetHashCode(i);
                     List<long> spot = null;
@@ -642,7 +661,6 @@ namespace MicroJ {
                 long offset = 0;
                 long count = shape[shape.Length - 1];
                 var ravel = (Byte[])(object)x.Ravel;
-                var found = new HashSet<string>();
                 for (var i = 0; i < shapeProduct; i++) {
                     var str = System.Text.Encoding.UTF8.GetString(ravel, (int)offset, (int)count);
                     var key = str.GetHashCode();
@@ -1354,23 +1372,45 @@ namespace MicroJ {
 
         }
 
-        //(0;12) (151!:0) 'dates';'c:/temp/dates.bin';
+        //JCHAR = 2, JFL = 8
+        //(2;12) (151!:0) 'dates';'c:/temp/dates.bin';
+        //(<8) (151!:0) 'tv';'c:/temp/tv.bin';                
         public unsafe AType readmmap(A<Box> x, A<Box> y, Verb verb) {
             string name = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
             string file = ((A<JString>)y.Ravel[1].val).Ravel[0].str;            
             long type = ((A<long>)x.Ravel[0].val).Ravel[0];
-            long size = ((A<long>)x.Ravel[1].val).Ravel[0];
+            long size = 0;
+            if (x.Count > 1) {
+                size = ((A<long>)x.Ravel[1].val).Ravel[0];
+            }
+            
             var num = new FileInfo(file).Length;
-            using (var mmf = MemoryMappedFile.CreateFromFile(file, FileMode.Open,"ImgA")) {
-                using (var view = mmf.CreateViewAccessor(0, num)) {
-                    //int size = 12;
-                    var rows = num / size;
-                    byte[] arr = new byte[num];
+            using (var mmf = MemoryMappedFile.CreateFromFile(file, FileMode.Open)) {
+                using (var view = mmf.CreateViewAccessor(0, num)) {                                        
                     byte* ptr = (byte*)0;
-                    view.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
-                    System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);
+                    AType val = null;
+                    view.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);                                                
+                    if (type == 2) {
+                        var rows = size > 0 ? num / size : num;
+                        byte[] arr = new byte[num];
+                        System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);                        
+                        val = new A<Byte>(new long[] { rows, size }) { Ravel = arr };
+                    }
+                    else if (type == 8) {
+                        var rows = num / sizeof(double);
+                        double[] arr = new double[rows];
+                        System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)rows);
+                        val = new A<double>(new long[] { rows }) { Ravel = arr };
+                    }
+                    else if (type == 4) {
+                        var rows = size > 0 ? num / size : num;
+                        long[] arr = new long[num];
+                        System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);
+                        val = new A<long>(new long[] { rows }) { Ravel = arr };
+                    }
                     view.SafeMemoryMappedViewHandle.ReleasePointer();
-                    Parser.Names[name] = new A<Byte>(new long[] { rows, size }) { Ravel = arr };
+                    Parser.Names[name] = val;
+                    
                 }
                 
             }
@@ -1419,6 +1459,17 @@ namespace MicroJ {
 
             return z;
         }
+
+        public AType timeit(A<JString> y) {
+            var z = new A<double>(0);
+            var watch = new Stopwatch();
+            watch.Start();
+            Parser.exec(y.Ravel[0].str);
+            watch.Stop();
+            z.Ravel[0] = watch.Elapsed.TotalSeconds;
+            return z;
+        }
+
         public AType Call1(AType method, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
 
@@ -1507,7 +1558,9 @@ namespace MicroJ {
                 var z = new A<Byte>(str.Length);
                 z.Ravel = System.Text.UTF8Encoding.UTF8.GetBytes(str);
                 return z;
-
+            }
+            else if (verb.conj == "!:" && verb.op == "6" && verb.rhs == "2") {
+                return timeit((A<JString>)y);
             }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
@@ -1990,3 +2043,4 @@ namespace MicroJ {
     }
 
 }
+
