@@ -50,18 +50,17 @@ new Thread(() => {
     var rows = ret[1] as object[];
     parser.Names["name_country_"] = buildString(rows,x=>x["name"].ToString());
 
-    //dynamic makes things nicer
-    parser.Names["region_country_"] = buildString(rows, x=>((dynamic)x["region"])["value"].ToString());
-    parser.Names["incomeLevel_country_"] = buildString(rows, x=>((dynamic)x["incomeLevel"])["value"].ToString());
+    parser.Names["region_country_"] = buildString(rows, x=>(x["region"] as Dictionary<string, object>)["value"].ToString());
+    parser.Names["incomeLevel_country_"] = buildString(rows, x=>(x["incomeLevel"] as Dictionary<string, object>)["value"].ToString());
     Console.WriteLine(parser.exec("regionTable region_country_").ToString());
 
     var popData = new System.Net.WebClient().DownloadString(@"http://api.worldbank.org/countries/all/indicators/SP.POP.TOTL?format=json&date=2014&per_page=5000");
     //var popData = File.ReadAllText(@"c:\temp\sp.pop.totl");
     ret = (object[])ser.DeserializeObject(popData);
     rows = ret[1] as object[];
-    parser.Names["id_pop_"] = buildString(rows,x=>((dynamic)x["country"])["id"].ToString());
-    parser.Names["country_pop_"] = buildString(rows,x=>((dynamic)x["country"])["value"].ToString());
-    parser.Names["pop_pop_"] = buildLong(rows,x=>(((dynamic)x)["value"]??"0").ToString());
+    parser.Names["id_pop_"] = buildString(rows,x=>(x["country"] as Dictionary<string, object>)["id"].ToString());
+    parser.Names["country_pop_"] = buildString(rows,x=>(x["country"] as Dictionary<string, object>)["value"].ToString());
+    parser.Names["pop_pop_"] = buildLong(rows,x=>((x as Dictionary<string, object>)["value"]??"0").ToString());
 
     
 }).Start();
