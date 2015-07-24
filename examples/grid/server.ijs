@@ -1,6 +1,3 @@
-A=: i. 10000
-B=: i. 10000
-
 serverCode =: 0 : 0
 //css_using MicroJ    
 //css_using System.IO
@@ -48,6 +45,11 @@ ThreadStart proc = () => {
                      var arr = new Dictionary<string, string>();
                      var input = ser.DeserializeObject(json) as Dictionary<string, object>;
                      var newParser = new Parser();
+
+                     //copy names from parent
+                     foreach(var key in parser.Names.Keys) {
+                         newParser.Names[key] = parser.Names[key];
+                     }
                      newParser.SafeMode = true;
                      if (input != null) {
                          foreach(var key in input) {
@@ -182,3 +184,5 @@ return "";
 startServer  =: (150!:0) & serverCode
 
 startServer''
+
+
