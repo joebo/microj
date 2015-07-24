@@ -3,6 +3,7 @@ NB. 0!:0 <'examples\worldbank.ijs'
 countriesCode =: 0 : 0
 //css_using MicroJ    
 //css_using System.IO
+//css_using System.Linq
 //css_using System.Collections.Generic
 //css_ref System.Web.Extensions
 //css_ref Microsoft.CSharp.dll
@@ -18,7 +19,7 @@ new Thread(() => {
     ser.MaxJsonLength  = Int32.MaxValue;
     object[] ret = (object[])ser.DeserializeObject(text);
 
-    Func<object[], string, Func<Dictionary<string, object>, string>, A<JString>> buildString = (arr, col, selector) => {
+    Func<object[], Func<Dictionary<string, object>, string>, A<JString>> buildString = (arr,selector) => {
         var ct = arr.Length;
         var z = new MicroJ.A<JString>(ct);
         long offset = 0;
@@ -34,13 +35,34 @@ new Thread(() => {
         z.Shape = new long[] {  ct, maxLen };
         return z;
     };
+
+     Func<object[], Func<Dictionary<string, object>, string>, A<long>> buildLong = (arr,selector) => {
+        var ct = arr.Length;
+        var z = new MicroJ.A<long>(ct);
+        long offset = 0;
+        foreach(var row in arr) {
+            var str = selector(row as Dictionary<string, object>);
+            z.Ravel[offset++] = Convert.ToInt64( str );
+        }
+        z.Shape = new long[] {  ct };
+        return z;
+    };
     var rows = ret[1] as object[];
-    parser.Names["name_country_"] = buildString(rows, "name", x=>x["name"].ToString());
+    parser.Names["name_country_"] = buildString(rows,x=>x["name"].ToString());
 
     //dynamic makes things nicer
-    parser.Names["region_country_"] = buildString(rows, "name", x=>((dynamic)x["region"])["value"].ToString());
-    parser.Names["incomeLevel_country_"] = buildString(rows, "name", x=>((dynamic)x["incomeLevel"])["value"].ToString());
+    parser.Names["region_country_"] = buildString(rows, x=>((dynamic)x["region"])["value"].ToString());
+    parser.Names["incomeLevel_country_"] = buildString(rows, x=>((dynamic)x["incomeLevel"])["value"].ToString());
     Console.WriteLine(parser.exec("regionTable region_country_").ToString());
+
+    var popData = new System.Net.WebClient().DownloadString(@"http://api.worldbank.org/countries/all/indicators/SP.POP.TOTL?format=json&date=2014&per_page=5000");
+    //var popData = File.ReadAllText(@"c:\temp\sp.pop.totl");
+    ret = (object[])ser.DeserializeObject(popData);
+    rows = ret[1] as object[];
+    parser.Names["id_pop_"] = buildString(rows,x=>((dynamic)x["country"])["id"].ToString());
+    parser.Names["country_pop_"] = buildString(rows,x=>((dynamic)x["country"])["value"].ToString());
+    parser.Names["pop_pop_"] = buildLong(rows,x=>(((dynamic)x)["value"]??"0").ToString());
+
     
 }).Start();
 
