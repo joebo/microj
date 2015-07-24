@@ -56,24 +56,7 @@ ThreadStart proc = () => {
                              var ypos = Convert.ToInt32(parts[1]);
 
                              var cmd = key.Value.ToString();
-                             /*
-                             var offsetMatches = Regex.Matches(cmd, "OFFSET\\((\\d+),(\\d+),(\\d+),(\\d+\\))");
-                             var anonIdx = 0;
-                             if (offsetMatches.Count > 0) {
-                                 
-                                 foreach(Match match in offsetMatches) {
-                                     Console.WriteLine("processing offset");
-                                     var shape = new long[] { Convert.ToInt32(match.Groups[3].Value), Convert.ToInt32(match.Groups[2].Value) };
-                                     var anon = new A<JString>(shape);
-                                     var anonct = anon.GetCount();
-                                     for(var i = 0; i < anonct; i++) {
-                                         anon.Ravel[i] = new JString { str = i.ToString() };
-                                     }
-                                     newParser.Names["anon" + anonIdx.ToString()] = anon;
-                                 }
-                                                            
-                             }
-                             */
+                             
                              try {
                                  var anonIdx = 0;
                                  var offsetRx = new Regex("OFFSET\\((\\d+),(\\d+),(\\d+),(\\d+)\\)");
@@ -126,12 +109,10 @@ ThreadStart proc = () => {
                                      }
                                      return match.ToString();
                                  }));
-                                 Console.WriteLine(cmd);
-
-                             
+                                 Console.WriteLine(String.Format("{0}:{1} {2}", DateTime.Now, Request.RemoteEndPoint, cmd));
                                  var a = newParser.exec(cmd);
                                  
-                                 Console.WriteLine(a.ToString());
+                                 //Console.WriteLine(a.ToString());
                                  var ct = a.GetCount();
                                  var cols = a.Shape == null ? 1 : a.Shape[a.Shape.Length-1];
 
@@ -146,7 +127,11 @@ ThreadStart proc = () => {
                                          var val = "";
                                          if (a.Type != typeof(Box)) {
                                              val = a.GetString(offset);
-                                         } else {
+                                             if (a.Type == typeof(JString)) {
+                                                 //val = "'" + val + "'";
+                                             }
+                                         }
+                                         else {
                                              val = ((A<Box>)a).Ravel[offset].val.GetString(0);
                                          }
                                          arr[(xpos+k).ToString()+':'+(ypos+i).ToString()] = val;
