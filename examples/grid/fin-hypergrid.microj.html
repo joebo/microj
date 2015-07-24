@@ -1,0 +1,396 @@
+<polymer-element name="fin-hypergrid-behavior-microj" extends="fin-hypergrid-behavior-base" attributes="url" assetpath="/dev/fin-hypergrid/polymer/html/behaviors/">
+  <template>
+    <style type="text/css">
+                        :host {
+            display: block;
+            position: relative;
+        }
+</style>
+  </template>
+    <script>
+        (function(a){function b(){this._callbacks=[];}b.prototype.then=function(a,c){var d;if(this._isdone)d=a.apply(c,this.result);else{d=new b();this._callbacks.push(function(){var b=a.apply(c,arguments);if(b&&typeof b.then==='function')b.then(d.done,d);});}return d;};b.prototype.done=function(){this.result=arguments;this._isdone=true;for(var a=0;a<this._callbacks.length;a++)this._callbacks[a].apply(null,arguments);this._callbacks=[];};function c(a){var c=new b();var d=[];if(!a||!a.length){c.done(d);return c;}var e=0;var f=a.length;function g(a){return function(){e+=1;d[a]=Array.prototype.slice.call(arguments);if(e===f)c.done(d);};}for(var h=0;h<f;h++)a[h].then(g(h));return c;}function d(a,c){var e=new b();if(a.length===0)e.done.apply(e,c);else a[0].apply(null,c).then(function(){a.splice(0,1);d(a,arguments).then(function(){e.done.apply(e,arguments);});});return e;}function e(a){var b="";if(typeof a==="string")b=a;else{var c=encodeURIComponent;var d=[];for(var e in a)if(a.hasOwnProperty(e))d.push(c(e)+'='+c(a[e]));b=d.join('&');}return b;}function f(){var a;if(window.XMLHttpRequest)a=new XMLHttpRequest();else if(window.ActiveXObject)try{a=new ActiveXObject("Msxml2.XMLHTTP");}catch(b){a=new ActiveXObject("Microsoft.XMLHTTP");}return a;}function g(a,c,d,g){var h=new b();var j,k;d=d||{};g=g||{};try{j=f();}catch(l){h.done(i.ENOXHR,"");return h;}k=e(d);if(a==='GET'&&k){c+='?'+k;k=null;}j.open(a,c);var m='application/x-www-form-urlencoded';for(var n in g)if(g.hasOwnProperty(n))if(n.toLowerCase()==='content-type')m=g[n];else j.setRequestHeader(n,g[n]);j.setRequestHeader('Content-type',m);function o(){j.abort();h.done(i.ETIMEOUT,"",j);}var p=i.ajaxTimeout;if(p)var q=setTimeout(o,p);j.onreadystatechange=function(){if(p)clearTimeout(q);if(j.readyState===4){var a=(!j.status||(j.status<200||j.status>=300)&&j.status!==304);h.done(a,j.responseText,j);}};j.send(k);return h;}function h(a){return function(b,c,d){return g(a,b,c,d);};}var i={Promise:b,join:c,chain:d,ajax:g,get:h('GET'),post:h('POST'),put:h('PUT'),del:h('DELETE'),ENOXHR:1,ETIMEOUT:2,ajaxTimeout:0};if(typeof define==='function'&&define.amd)define(function(){return i;});else a.promise=i;})(this);
+
+'use strict';
+(function() {
+
+    /*
+ *  Copyright 2012-2013 (c) Pierre Duquesne <stackp@online.fr>
+ *  Licensed under the New BSD License.
+ *  https://github.com/stackp/promisejs
+ */
+
+    
+    //keys mapping Q datatypes to aligment and renderers are setup here.
+    //<br>see [q datatypes](http://code.kx.com/wiki/Reference/Datatypes) for more.
+
+    var typeAlignmentMap = {
+        j: 'right',
+        s: 'left',
+        t: 'center',
+        f: 'right',
+        d: 'center'
+    };
+
+    var arr = { }
+
+    var sparse = true;
+    
+    //there are 4 default cell renderer types to choose from at the moment
+    //<br>simpleCellRenderer, sliderCellRenderer, sparkbarCellRenderer, sparklineCellRenderer
+    // var typeRendererMap = {
+    //     J: 'sparklineCellRenderer',
+    //     j: 'simpleCellRenderer',
+    //     s: 'simpleCellRenderer',
+    //     t: 'simpleCellRenderer',
+    //     f: 'simpleCellRenderer',
+    //     d: 'simpleCellRenderer'
+    // };
+
+    //sort states are also the visual queues in the column headers
+    //* '' no sort
+    //* ^ sort ascending
+    //* v sort descending
+    //* |^| sort absolute value ascending
+    //* |v| sort absolute value descending
+
+    Polymer({ /* jslint ignore:line */
+
+        ready: function() {
+            this.block = {
+                data: [],
+                headers: [],
+                rows: 0,
+                start: 0
+            };
+            this.readyInit();
+            this.sorted = {};
+            this.sortStates = ['', ' ^', ' v', ' |^|', ' |v|'];
+            this.reconnect();
+        },
+
+        attributeChanged: function(attrName, oldVal, newVal) {
+            console.log(attrName, 'old: ' + oldVal, 'new:', newVal);
+            if (attrName === 'url') {
+                this.reconnect();
+            }
+            if (attrName === 'table') {
+                //force a refresh of the data
+                this.setScrollPositionY(0);
+            }
+        },
+
+        connectTo: function(newUrl) {
+            this.setAttribute('url', newUrl);
+            this.reconnect();
+        },
+        setData: function(data) {
+            this.arr = data;
+            this.fetchTableData();
+        },
+        reconnect: function() {
+            this.url = this.getAttribute('url');
+            if (!this.url) {
+                return;
+            }
+            this.connect();
+            this.scrollPositionY = 0;
+            this.scrolled = false;
+        },
+        _getValue: function(x, y) {
+            x = this.translateColumnIndex(x);
+            return this.getValue(x, y);
+        },
+        getValue: function(x, y) {
+            if (sparse) {
+                return (arr[x+':'+y]||'')
+            } else {
+                var override = this.dataUpdates['p_' + x + '_' + y];
+                if (override) {
+                    return override;
+                }
+
+                var normalized = Math.floor(y - this.scrollPositionY);
+                if (this.block && normalized < this.block.data.length) {
+                    //return this.block.data[normalized][x + 1];
+                    return this.block.data[y][x + 1];
+                } else {
+                    return '';
+                }
+            }
+        },
+        
+        clearData: function() {
+            this.block.rows = [];
+            this.changed();
+        },
+
+        getRowCount: function() {
+            return this.block.rows;
+        },
+
+        getColumnCount: function() {
+            return Math.max(0, this.block.headers.length - 1);
+        },
+
+        getFixedColumnCount: function() {
+            return 1;
+        },
+
+        setScrollPositionY: function(y) {
+            if (this.scrollPositionY === y) {
+                return;
+            }
+            this.scrollPositionY = y;
+            
+            var tableName = this.getAttribute('table');
+            if (!tableName) {
+                console.log('you must provide a table attribute for the q behavior');
+                return;
+            }
+            /*
+            this.ws.send(JSON.stringify({
+                cmd: 'fetchTableData',
+                data: {
+                    table: tableName,
+                    start: this.scrollPositionY,
+                    num: 60
+                }
+            }));
+            */
+
+            if (y < this.block.start || y > this.block.start + 1000) {
+                console.log('fetching');
+                this.fetchTableData();
+            }
+        },
+
+        /**
+        * @function
+        * @instance
+        * @description
+        return true if we are connected to q
+        * #### returns: boolean
+        */
+        isConnected: function() {
+            if (!this.ws) {
+                return false;
+            }
+            return this.ws.readyState === this.ws.OPEN;
+        },
+
+        /**
+         * @function
+         * @instance
+         * @description
+         return the data value at point x,y in the fixed row area
+         * #### returns: Object
+         * @param {integer} x - x coordinate
+         * @param {integer} y - y coordinate
+         */
+        getFixedRowValue: function(x) {
+            if (!this.sorted[x + 1]) {
+                this.sorted[x + 1] = 0;
+            }
+            var sortIndicator = this.sortStates[this.sorted[x + 1]];
+            return this.block.headers[x + 1][0] + sortIndicator;
+        },
+
+        /**
+         * @function
+         * @instance
+         * @description
+         return the column heading at colIndex
+         * #### returns: string
+         * @param {integer} colIndex - the column index of interest
+         */
+        getHeader: function(x) {
+            return this.block.headers[x + 1][0];
+        },
+
+        /**
+         * @function
+         * @instance
+         * @description
+         return the value at x,y for the fixed row area
+         * #### returns: Object
+         * @param {integer} x - x coordinate
+         * @param {integer} y - y coordinate
+         */
+        getFixedColumnValue: function(x, y) {
+            return y;
+        },
+
+        /**
+        * @function
+        * @instance
+        * @description
+        returns true if we support sorting
+        * #### returns: boolean
+        */
+        getCanSort: function() {
+            var canSort = this.block.features.sorting === true;
+            return canSort;
+        },
+
+        /**
+         * @function
+         * @instance
+         * @description
+         toggle the sort at columnIndex to it's next state
+         * @param {integer} columnIndex - the column index of interest
+         */
+        toggleSort: function(columnIndex) {
+            if (!this.getCanSort()) {
+                return;
+            }
+            columnIndex++;
+            var current = this.sorted[columnIndex];
+            var stateCount = this.sortStates.length;
+            this.sorted = {}; //clear out other sorted for now, well add multicolumn sort later
+            this.sorted[columnIndex] = (current + 1) % stateCount;
+            var state = this.sortStates[this.sorted[columnIndex]];
+            var message = {
+                cmd: 'sortTable',
+                data: {
+                    table: this.getAttribute('table') || 'trade',
+                    sort: current === (stateCount - 1) ? '' : this.block.headers[columnIndex][0],
+                    asc: state.indexOf('^') > 0,
+                    abs: state.indexOf('|') > 0,
+                    start: this.scrollPositionY,
+                    num: 60
+                }
+            };
+            this.ws.send(JSON.stringify(message));
+        },
+
+        /**
+         * @function
+         * @instance
+         * @description
+         return the column alignment at column x
+         * #### returns: string ['left','center','right']
+         * @param {integer} x - the column index of interest
+         */
+        getColumnAlignment: function(x) {
+            var alignment = typeAlignmentMap[this.block.headers[x + 1][1]];
+            return alignment;
+        },
+
+        connect: function() {
+            this.fetchTableData();
+        },
+        fetchTableData: function() {
+            var self = this;
+            promise.post('/?start=' + (this.scrollPositionY || 0), JSON.stringify(this.arr)).then(function(error, text, xhr) {
+                var d = JSON.parse(text);
+                if (sparse) {
+                    var data = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                    var cols = ['ID'].concat(data.split(''));
+                    for(var k = 0; k < 3; k++) {
+                        for(var i = 0; i < 26; i++) {
+                            cols.push(cols[k+1] + cols[i+1]);
+                        }
+                    }
+                    //text = '{"headers" : ' + JSON.stringify(cols.map(function(i,x) { return [i] }))  + ', "data" :[[0,"abc","abc"],[1,"xyz","dd"]], "rows" : 10000000, "features" : {"sorting": true }}'
+                    var keys = Object.keys(d);
+                    for(var i = 0; i < keys.length; i++) {
+                        var key = keys[i];
+                        arr[key] = d[key];
+                    }
+                    self.block = {
+                        headers: cols.map(function(x) { return [x] }),
+                        rows: 10000000,
+                    }
+                    self.changed();
+                    window.arr = arr;
+                }
+                else {
+                    oldSize = self.block.rows;
+
+                    self.block = d;
+                    self.block.start =  (self.scrollPositionY || 0);
+                    
+                    if (d.rows !== oldSize) {
+                        if (self.changed) {
+                            self.changed();
+                        }
+                    }
+
+                    self.changed();
+                }
+            });
+        },
+        /**
+        * @function
+        * @instance
+        * @description
+        connect to q at newUrl
+        */
+        connectws: function() {
+            var d;
+            var oldSize;
+            var self = this;
+            var tableName = this.getAttribute('table');
+            if (!tableName) {
+                console.log('you must provide a table attribute for the q behavior');
+                return;
+            }
+            if ('WebSocket' in window) {
+                try {
+                    this.ws = new WebSocket(this.url);
+                } catch (e) {
+                    console.log('could not connect to ' + this.url + ', trying to reconnect in a moment...');
+                    return;
+                }
+                console.log('connecting...');
+                this.ws.onopen = function() {
+                    console.log('connected');
+                    self.ws.send(JSON.stringify({
+                        cmd: 'fetchTableData',
+                        data: {
+                            table: tableName,
+                            start: this.scrollPositionY || 0,
+                            num: 60
+                        }
+                    }));
+                };
+                this.ws.onclose = function() {
+                    self.clearData();
+                    console.log('disconnected from ' + this.url + ', trying to reconnect in a moment...');
+                    setTimeout(function() {
+                        //    self.connect();
+                    }, 2000);
+                };
+                this.ws.onmessage = function(e) {
+        console.log(e);
+                    d = JSON.parse(e.data);
+
+                    oldSize = self.block.rows;
+
+                    self.block = d;
+
+                    if (d.rows !== oldSize) {
+                        if (self.changed) {
+                            self.changed();
+                        }
+                    }
+                    self.changed();
+                };
+                this.ws.onerror = function(e) {
+                    self.clearData();
+                    console.error('problem with connection to q at ' + this.url + ', trying again in a moment...', e.data);
+                    setTimeout(function() {
+                        //     self.connect();
+                    }, 2000);
+                };
+            } else {
+                console.error('WebSockets not supported on your browser.');
+            }
+        }
+
+    });
+
+})(); /* jslint ignore:line */
+</script>
+</polymer-element>
+
