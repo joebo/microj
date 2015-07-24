@@ -8,6 +8,8 @@
     <script>
     window.addEventListener('polymer-ready', function() {
 
+        var arr = {};
+
         /*
         var arr = {
             '2:1' : '\'scalar\'',
@@ -27,6 +29,7 @@
             
             arr[x+':'+newy] = "'" + label + "'";
             arr[x+':'+(newy+1)] = text;
+            console.log(text);
         }
 
         addExample('head', '{. A');
@@ -156,8 +159,9 @@
                 var space = line.indexOf(' ');
                 if (space >= 0) {
                     var cell = line.substring(0, space);
-                    var cmd = line.slice(space);
+                    var cmd = line.slice(space+1);
                     arr[cell] = cmd;
+                    console.log(cmd);
                 }
             }
             updateScript();
@@ -179,6 +183,8 @@
             updateScript();
             grid.getBehavior().setData(arr);
         } else {
+            //updateScript();
+            //grid.getBehavior().setData(arr);
             eval();
         }
 
