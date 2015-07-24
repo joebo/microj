@@ -51,6 +51,15 @@
                 formulaBar.focus();
             }      
         });
+        var updateScript = function() {
+            var text = [];
+            var keys = Object.keys(arr);
+            for(var i = 0; i < keys.length; i++ ) {
+                text.push(keys[i] + ' ' + arr[keys[i]]);
+            }
+            document.querySelector('#script').value = text.join('\n') + '\n\n' + JSON.stringify(arr);
+        }
+        
         grid.addFinEventListener('fin-after-cell-edit', function(event) {
             var detail = event.detail;
             if ((detail.newValue||'') != '') {
@@ -58,20 +67,16 @@
             } else {
                 delete arr[detail.gridCell.x + ':' + detail.gridCell.y];
             }
-            var text = [];
-            var keys = Object.keys(arr);
-            for(var i = 0; i < keys.length; i++ ) {
-                text.push(keys[i] + ' ' + arr[keys[i]]);
-            }
-
+            updateScript();
             grid.getBehavior().setData(arr)
-            document.querySelector('#script').value = text.join('\n') + '\n\n' + JSON.stringify(arr);
+
             refreshFormulaBar();
         });
         grid.addFinEventListener('fin-selection-changed', function(event) {
             refreshFormulaBar();
         });
         grid.getBehavior().setData(arr)
+        updateScript();
     });
 
     </script>
