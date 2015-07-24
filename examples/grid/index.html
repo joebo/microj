@@ -95,19 +95,13 @@
         grid.addFinEventListener('fin-selection-changed', function(event) {
             refreshFormulaBar();
         });
-        grid.getBehavior().setData(arr)
-        updateScript();
 
+        
         document.querySelector('#createLink').addEventListener('click', function(e) {
             window.location.hash = btoa(unescape(encodeURIComponent(JSON.stringify(arr))))
             e.preventDefault() 
         });
 
-        if (window.location.hash) {
-            arr = JSON.parse(decodeURIComponent(escape(atob(window.location.hash.slice(1)))));
-            updateScript();
-            grid.getBehavior().setData(arr);
-        }
 
         document.querySelector('#clear').addEventListener('click', function(e) {
             if (!confirm('are you sure you wish to clear?')) {
@@ -119,6 +113,16 @@
             grid.getBehavior().setData(arr);
             e.preventDefault();
         });
+
+        
+        if (window.location.hash) {
+            arr = JSON.parse(decodeURIComponent(escape(atob(window.location.hash.slice(1)))));
+            updateScript();
+            grid.getBehavior().setData(arr);
+        } else {
+            grid.getBehavior().setData(arr)
+            updateScript();
+        }
     });
 
     </script>
