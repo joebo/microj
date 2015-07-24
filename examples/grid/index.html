@@ -24,7 +24,7 @@
             arr[x+':'+newy] = "'" + label + "'";
             arr[x+':'+(newy+1)] = text;
         }
-
+/*
         addExample('head', '{. A');
         addExample('count', '# A');
         addExample('take', '0 1 2 { A');
@@ -32,7 +32,7 @@
         addExample('add 2', '2 + A');
         addExample('multi-dim', 'B=: i. 3 3');
         addExample('multi-string', "3 3 $ 'abc'",4);
-        
+  */      
         var grid = document.querySelector('#json-grid');
         var formulaBar = document.querySelector('#Formula');
         
@@ -76,7 +76,8 @@
             for(var i = 0; i < keys.length; i++ ) {
                 text.push(keys[i] + ' ' + arr[keys[i]]);
             }
-            document.querySelector('#script').value = text.join('\n') + '\n\n' + JSON.stringify(arr);
+            document.querySelector('#script').value = text.join('\n');
+            document.querySelector('#scriptjson').value = JSON.stringify(arr);
         }
         
         grid.addFinEventListener('fin-after-cell-edit', function(event) {
@@ -96,6 +97,28 @@
         });
         grid.getBehavior().setData(arr)
         updateScript();
+
+        document.querySelector('#createLink').addEventListener('click', function(e) {
+            window.location.hash = btoa(unescape(encodeURIComponent(JSON.stringify(arr))))
+            e.preventDefault() 
+        });
+
+        if (window.location.hash) {
+            arr = JSON.parse(decodeURIComponent(escape(atob(window.location.hash.slice(1)))));
+            updateScript();
+            grid.getBehavior().setData(arr);
+        }
+
+        document.querySelector('#clear').addEventListener('click', function(e) {
+            if (!confirm('are you sure you wish to clear?')) {
+                e.preventDefault();
+                return;
+            }
+            arr = {};
+            updateScript();
+            grid.getBehavior().setData(arr);
+            e.preventDefault();
+        });
     });
 
     </script>
@@ -109,9 +132,15 @@
                 <fin-hypergrid-behavior-microj url="ws://localhost:8081" table="trade"></fin-hypergrid-behavior-microj>
                 </fin-hypergrid>
         </div>
-        <div style="float:right">
-                <textarea style="width:200px;height:400px" id="script"></textarea>
-        </div>
+    <div style="float:right">
+    <a id="createLink" href="#createLink">save</a>
+    <a id="clear" href="#clearLink">clear</a>
+    cells<br>
+    <textarea style="width:200px;height:400px" id="script"></textarea>
+    <br>json<br>
+    <textarea style="width:200px;height:100px" id="scriptjson"></textarea>
+
+    </div>
 </body>
 </html>
 
