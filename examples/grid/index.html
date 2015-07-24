@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <html>
-<head>
+    <head>
+    <!-- <script src="http://openfin.github.io/fin-hypergrid/components/webcomponentsjs/webcomponents.js"></script> -->
     <link rel="import" href="fin-hypergrid.min.html">
     <link rel="import" href="fin-hypergrid.microj.html">
+             
     <script>
     window.addEventListener('polymer-ready', function() {
+
+        /*
         var arr = {
             '2:1' : '\'scalar\'',
             '2:2' : '1',
@@ -32,9 +36,14 @@
         addExample('add 2', '2 + A');
         addExample('multi-dim', 'B=: i. 3 3');
         addExample('multi-string', "3 3 $ 'abc'",4);
+        */
 
+        var isEditingFormula = false;
+        var formulaCell = {};
+        
         var grid = document.querySelector('#json-grid');
         var formulaBar = document.querySelector('#Formula');
+        var script = document.querySelector('#script');
         
         var refreshFormulaBar = function() {
             var sel = grid.getSelectionModel().getSelections()[0];
@@ -44,20 +53,33 @@
         }
 
         var updateFormula = function() {
-            var sel = grid.getSelectionModel().getSelections()[0];
-            if (sel == undefined) { return; }
-            var cell = sel.origin;
-
+            //var sel = grid.getSelectionModel().getSelections()[0];
+            //if (sel == undefined) { return; }
+            //var cell = sel.origin;
+            var cell = formulaCell;
+            console.log(cell);
             if (arr[cell.x + ':' + cell.y] != formulaBar.value) {
                 arr[cell.x + ':' + cell.y] = formulaBar.value;
                 grid.getBehavior().setData(arr);
             }
         }
-        formulaBar.addEventListener("blur", updateFormula);
+
+        formulaBar.addEventListener("focus", function() {
+            var cell = grid.getSelectionModel().getSelections()[0].origin;
+            if (!isEditingFormula) { formulaCell = cell; }
+            isEditingFormula = true;
+        });
+
+        formulaBar.addEventListener("blur", function() {
+            //updateFormula();
+        });
 
         formulaBar.addEventListener("keypress", function(e) {
             if (e.keyCode == 13) {
                 updateFormula();
+                grid.takeFocus();
+                isEditingFormula = false;
+                formulaCell = undefined;
             }
         });
         
@@ -67,6 +89,8 @@
                 grid.editAt(grid.getCellEditorAt(cell.x,cell.y), { gridCell: cell });
             }
             if (event.detail.identifier == "F2") {
+                var cell = grid.getSelectionModel().getSelections()[0].origin;
+                formulaCell = cell;
                 formulaBar.focus();
             }      
         });
@@ -92,8 +116,18 @@
 
             refreshFormulaBar();
         });
+        
         grid.addFinEventListener('fin-selection-changed', function(event) {
-            refreshFormulaBar();
+            if (!isEditingFormula) {
+                refreshFormulaBar();
+            }
+            
+            var cell = grid.getSelectionModel().getSelections()[0];
+            if (cell) {
+                var sel = [cell.origin.x, cell.origin.y, cell.extent.x, cell.extent.y];
+                document.querySelector('#Selection').value = sel.join(',');
+            }
+           
         });
 
         
@@ -114,15 +148,41 @@
             e.preventDefault();
         });
 
+        var eval = function() {
+            arr = {};
+            var lines = script.value.split('\n');
+            for(var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var space = line.indexOf(' ');
+                if (space >= 0) {
+                    var cell = line.substring(0, space);
+                    var cmd = line.slice(space);
+                    arr[cell] = cmd;
+                }
+            }
+            updateScript();
+            grid.getBehavior().setData(arr);
+        }
+        document.querySelector('#eval').addEventListener('click', function(e) {
+            eval();
+            e.preventDefault();
+        });
+
+
+        document.querySelector('#AddSelectionToFormula').addEventListener('click', function(e) {
+            formulaBar.value = formulaBar.value + document.querySelector('#Selection').value;
+            formulaBar.focus();
+        });
         
         if (window.location.hash) {
             arr = JSON.parse(decodeURIComponent(escape(atob(window.location.hash.slice(1)))));
             updateScript();
             grid.getBehavior().setData(arr);
         } else {
-            grid.getBehavior().setData(arr)
-            updateScript();
+            eval();
         }
+
+
     });
 
     </script>
@@ -130,7 +190,7 @@
 </head>
     <body style="font-family: arial">
     <b>MicroJ spreadsheet demo.</b> <a href="https://github.com/joebo/microj/tree/master/examples/grid">github</a> <span style="font-size:8pt">Hotkeys (F2 to use formula editor. Enter to start editing)</span><br><br>
-    Cell Formula: <input type="text" id="Formula"><br>
+    Cell Formula: <input type="text" id="Formula"> Selection: <input type="text" id="Selection" style="width:5em" disabled="disabled"><input type="button" value="Add to Formula" id="AddSelectionToFormula"><br>
         <div style="width:80%;float:left">
                 <fin-hypergrid id="json-grid" style="position:absolute;width:80%;height:90%">
                 <fin-hypergrid-behavior-microj url="ws://localhost:8081" table="trade"></fin-hypergrid-behavior-microj>
@@ -139,8 +199,50 @@
     <div style="float:right">
     <a id="createLink" href="#createLink">save</a>
     <a id="clear" href="#clearLink">clear</a>
+    <a id="eval" href="#evalLink">eval</a>
     cells<br>
-    <textarea style="width:200px;height:400px" id="script"></textarea>
+<textarea style="width:200px;height:400px" id="script">
+2:1 'scalar'
+2:2 1
+2:4 'iota - i. 10'
+2:5 A=: i.10
+2:7 'behead'
+2:8 }. A
+2:10 'head'
+2:11 {. A
+2:13 'count'
+2:14 # A
+2:16 'take'
+2:17 0 1 2 { A
+2:19 'square *:'
+2:20 *: A
+2:22 'add 2'
+2:23 2 + A
+2:25 'multi-dim'
+2:26 B=: i. 3 3
+2:30 'multi-string'
+2:31 3 3 $ 'abc'
+19:1 People
+19:2 Fred
+19:3 Bob
+19:4 Ann
+20:2 55
+20:3 50
+20:4 60
+19:5 Sue
+19:6 Bob
+20:5 35
+20:6 50
+19:8 'Average Age'
+19:9 Names
+20:8 (+/ % #) Ages=: OFFSET(20,2,0,4)
+20:9 # Ages
+19:10 'Unique Names'
+20:10 # {. /. ~ Ages
+23:1 'Table Copy'
+23:2 OFFSET(20,2,0,4)
+20:1 Age
+</textarea>
     <br>json<br>
     <textarea style="width:200px;height:100px" id="scriptjson"></textarea>
 

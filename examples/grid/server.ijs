@@ -10,6 +10,7 @@ serverCode =: 0 : 0
 //css_using System.Threading.Tasks
 //css_using System.Net
 //css_using System.Threading
+//css_using System.Text.RegularExpressions
 //css_ref System.Web.Extensions
 
 ThreadStart proc = () => {
@@ -53,22 +54,108 @@ ThreadStart proc = () => {
                              var parts = key.Key.Split(':');
                              var xpos = Convert.ToInt32(parts[0]);
                              var ypos = Convert.ToInt32(parts[1]);
-                             var a = newParser.exec(key.Value.ToString());
-                             Console.WriteLine(a.ToString());
-                             var ct = a.GetCount();
-                             var cols = a.Shape == null ? 1 : a.Shape[a.Shape.Length-1];
 
-                             //hack for string
-                             if (a.Type == typeof(JString)) {
-                                 ct = a.Rank > 1 ? a.Shape[0] : 1;
-                                 cols = 1;
-                             }
-                             var offset = 0;
-                             for(var i = 0; i < ct/cols; i++) {
-                                 for(var k = 0; k < cols; k++) {
-                                     arr[(xpos+k).ToString()+':'+(ypos+i).ToString()] = a.GetString(offset);
-                                     offset++;
+                             var cmd = key.Value.ToString();
+                             /*
+                             var offsetMatches = Regex.Matches(cmd, "OFFSET\\((\\d+),(\\d+),(\\d+),(\\d+\\))");
+                             var anonIdx = 0;
+                             if (offsetMatches.Count > 0) {
+                                 
+                                 foreach(Match match in offsetMatches) {
+                                     Console.WriteLine("processing offset");
+                                     var shape = new long[] { Convert.ToInt32(match.Groups[3].Value), Convert.ToInt32(match.Groups[2].Value) };
+                                     var anon = new A<JString>(shape);
+                                     var anonct = anon.GetCount();
+                                     for(var i = 0; i < anonct; i++) {
+                                         anon.Ravel[i] = new JString { str = i.ToString() };
+                                     }
+                                     newParser.Names["anon" + anonIdx.ToString()] = anon;
                                  }
+                                                            
+                             }
+                             */
+                             try {
+                                 var anonIdx = 0;
+                                 var offsetRx = new Regex("OFFSET\\((\\d+),(\\d+),(\\d+),(\\d+)\\)");
+                                 cmd = offsetRx.Replace(cmd, new MatchEvaluator(match => {
+                                     var shape = new long[] { Convert.ToInt32(match.Groups[4].Value)+1, Convert.ToInt32(match.Groups[3].Value) + 1};
+                                     var xoffset = Convert.ToInt32(match.Groups[1].Value);
+                                     var yoffset = Convert.ToInt32(match.Groups[2].Value);
+                                     string testVal = "";
+                                     double testNum;
+                                     bool isNum = false;
+                                     if (arr.TryGetValue((xoffset).ToString() + ":" + (yoffset).ToString(), out testVal)) {
+                                         if (Double.TryParse(testVal, out testNum)) {
+                                             isNum = true;
+                                         }
+                                     }
+                                     if (isNum) {
+                                         var anon = new A<double>(shape);
+                                         var anonOffset = 0;
+                                         for(var yi = 0; yi < shape[0]; yi++) {
+                                             for(var xi = 0; xi < shape[1]; xi++) {
+                                                 string val = "";
+                                                 if (arr.TryGetValue((xoffset+xi).ToString() + ":" + (yoffset+yi).ToString(), out val)) {
+                                                     anon.Ravel[anonOffset++] = Convert.ToDouble(val);
+                                                 } else {
+                                                     anon.Ravel[anonOffset++] = 0;
+                                                 }
+                                                 
+                                             }
+                                         }
+                                         var newName = "anon" + anonIdx.ToString();
+                                         newParser.Names[newName] = anon;
+                                         return newName;
+                                     }
+                                     else {
+                                         var anon = new A<Box>(shape);
+                                         var anonOffset = 0;
+                                         for(var yi = 0; yi < shape[0]; yi++) {
+                                             for(var xi = 0; xi < shape[1]; xi++) {
+                                                 string val = "";
+                                                 
+                                                 if (arr.TryGetValue((xoffset+xi).ToString() + ":" + (yoffset+yi).ToString(), out val)) {
+
+                                                 }
+                                                 anon.Ravel[anonOffset++] = new Box { val = new A<JString>(0) { Ravel = new JString[] { new JString { str = val } } } };
+                                             }
+                                         }
+                                         var newName = "anon" + anonIdx.ToString();
+                                         newParser.Names[newName] = anon;
+                                         return newName;
+                                     }
+                                     return match.ToString();
+                                 }));
+                                 Console.WriteLine(cmd);
+
+                             
+                                 var a = newParser.exec(cmd);
+                                 
+                                 Console.WriteLine(a.ToString());
+                                 var ct = a.GetCount();
+                                 var cols = a.Shape == null ? 1 : a.Shape[a.Shape.Length-1];
+
+                                 //hack for string
+                                 if (a.Type == typeof(JString)) {
+                                     ct = a.Rank > 1 ? a.Shape[0] : 1;
+                                     cols = 1;
+                                 }
+                                 var offset = 0;
+                                 for(var i = 0; i < ct/cols; i++) {
+                                     for(var k = 0; k < cols; k++) {
+                                         var val = "";
+                                         if (a.Type != typeof(Box)) {
+                                             val = a.GetString(offset);
+                                         } else {
+                                             val = ((A<Box>)a).Ravel[offset].val.GetString(0);
+                                         }
+                                         arr[(xpos+k).ToString()+':'+(ypos+i).ToString()] = val;
+                                         offset++;
+                                     }
+                                 }
+                             }
+                             catch(Exception e) {
+                                 arr[(xpos).ToString()+':'+(ypos).ToString()] = e.ToString().Substring(0,20);
                              }
                          }
                      }
