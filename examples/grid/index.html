@@ -6,21 +6,29 @@
     <script>
     window.addEventListener('polymer-ready', function() {
         var arr = {
-            '1:1' : 'abc',
-            '2:3' : 'xyz',
-            '1:1' : '1'
+            '2:1' : '\'scalar\'',
+            '2:2' : '1',
+            '2:4' : '\'iota - i. 10\'',
+            '2:5' : 'A=: i.10',
+            '2:7' : '\'behead\'',
+            '2:8' : '}. A'
         }
-
+        
         var grid = document.querySelector('#json-grid');
         var formulaBar = document.querySelector('#Formula');
         
         var refreshFormulaBar = function() {
-            var cell = grid.getSelectionModel().getSelections()[0].origin;
+            var sel = grid.getSelectionModel().getSelections()[0];
+            if (sel == undefined) { return; }
+            var cell = sel.origin;
             formulaBar.value = arr[cell.x + ':' + cell.y]||'';
         }
 
         var updateFormula = function() {
-            var cell = grid.getSelectionModel().getSelections()[0].origin;
+            var sel = grid.getSelectionModel().getSelections()[0];
+            if (sel == undefined) { return; }
+            var cell = sel.origin;
+
             if (arr[cell.x + ':' + cell.y] != formulaBar.value) {
                 arr[cell.x + ':' + cell.y] = formulaBar.value;
                 grid.getBehavior().setData(arr);
@@ -45,8 +53,11 @@
         });
         grid.addFinEventListener('fin-after-cell-edit', function(event) {
             var detail = event.detail;
-            console.log(detail);
-            arr[detail.gridCell.x + ':' + detail.gridCell.y] = detail.newValue;
+            if ((detail.newValue||'') != '') {
+                arr[detail.gridCell.x + ':' + detail.gridCell.y] = detail.newValue;
+            } else {
+                delete arr[detail.gridCell.x + ':' + detail.gridCell.y];
+            }
             var text = [];
             var keys = Object.keys(arr);
             for(var i = 0; i < keys.length; i++ ) {
