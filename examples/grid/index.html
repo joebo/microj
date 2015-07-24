@@ -13,16 +13,15 @@
             '2:7' : '\'behead\'',
             '2:8' : '}. A'
         }
-        var addExample = function(label, text,newy) {
+        var addExample = function(label, text,skip) {
             var keys = Object.keys(arr);
             var last = keys[keys.length-1];
             var parts = last.split(':');
             var x = parseInt(parts[0]);
             var y = parseInt(parts[1]);
-            if (newy == undefined) {
-                newy = y + 2;
-            }
-            arr[x+':'+newy] = label;
+            newy = y + (skip||2);
+            
+            arr[x+':'+newy] = "'" + label + "'";
             arr[x+':'+(newy+1)] = text;
         }
 
@@ -32,7 +31,7 @@
         addExample('square *:', '*: A');
         addExample('add 2', '2 + A');
         addExample('multi-dim', 'B=: i. 3 3');
-        
+        addExample('multi-string', "3 3 $ 'abc'",4);
         
         var grid = document.querySelector('#json-grid');
         var formulaBar = document.querySelector('#Formula');

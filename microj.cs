@@ -508,6 +508,7 @@ namespace MicroJ
 
     public class Parser {
 
+        public bool SafeMode = false;
         public Verbs Verbs;
         public Adverbs Adverbs;
         public Conjunctions Conjunctions;

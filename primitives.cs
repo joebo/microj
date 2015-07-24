@@ -1348,6 +1348,8 @@ namespace MicroJ {
         Dictionary<string, Func<AType, Parser, string>> dotnetMethodCache = null;
         public A<JString> calldotnet<T>(A<T> x, A<JString> y) where T : struct {
 
+            if (Parser.SafeMode) { throw new AccessViolationException(); }
+
 #if CSSCRIPT
             if (dotnetMethodCache == null) { dotnetMethodCache = new Dictionary<string, Func<AType, Parser, string>>(); }
             Func<AType, Parser, string> func = null;
@@ -1420,6 +1422,8 @@ namespace MicroJ {
         }
 
         public AType runfile(A<Box> y, Verb verb) {
+
+            if (Parser.SafeMode) { throw new AccessViolationException();  }
             string file = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
             
             if (!File.Exists(file)) {

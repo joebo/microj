@@ -28,15 +28,14 @@ ThreadStart proc = () => {
              var ctx = c as HttpListenerContext;
              try
              {
-                 string rstr = "foo2"; 
+                 string rstr = "hello world"; 
                  var Request = ctx.Request;
                  var url = Request.RawUrl;
-                 //var parts = url.Split('/');
-                 string file = url.Replace("/", "\\");
+                 var pathSep = new string(new char[] { Path.DirectorySeparatorChar });
+                 string file = url.Replace("/", pathSep);
                  rstr = file;
-                 if (file.StartsWith("\\")) { file = "." + file; }
+                 if (file.StartsWith(pathSep)) { file = "." + file; }
                  if (file.Contains("..")) { file = ""; }
-                 //var lastSegment = parts.Last();
                  if (System.IO.File.Exists(file)) {
                      rstr = File.ReadAllText(file);
                  }
@@ -48,6 +47,7 @@ ThreadStart proc = () => {
                      var arr = new Dictionary<string, string>();
                      var input = ser.DeserializeObject(json) as Dictionary<string, object>;
                      var newParser = new Parser();
+                     newParser.SafeMode = true;
                      if (input != null) {
                          foreach(var key in input) {
                              var parts = key.Key.Split(':');
@@ -60,7 +60,7 @@ ThreadStart proc = () => {
 
                              //hack for string
                              if (a.Type == typeof(JString)) {
-                                 ct = 1;
+                                 ct = a.Rank > 1 ? a.Shape[0] : 1;
                                  cols = 1;
                              }
                              var offset = 0;

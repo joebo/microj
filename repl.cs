@@ -52,7 +52,7 @@ namespace App {
                 Debugger.Launch();
             }
 
-            if (args.Length > 0 && jsIdx > -1) {
+            if (args.Length > 0 && jsIdx > -1 && !runRepl) {
                 int times = 1;
 
                 var timeIdx = args.Take(jsIdx).ToList().FindIndex(c => c.Contains("-n"));
