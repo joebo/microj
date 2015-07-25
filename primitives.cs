@@ -239,7 +239,7 @@ namespace MicroJ {
             if (x.Rank == 0) {
                 var copies = x.Ravel[0];
                 var ct = copies * y.Count;
-                var shape = y.Shape != null ? y.Shape : new long[] { 1 };
+                var shape = y.Shape != null ? y.ShapeCopy() : new long[] { 1 };
                 shape[0] = shape[0] * copies;
 
                 var v = new A<T>(ct, shape);
