@@ -162,11 +162,17 @@
                 }
             }));
             */
-
-            if (y < this.block.start || y > this.block.start + 1000) {
-                console.log('fetching');
+            if (!sparse) {
+                if (y < this.block.start || y > this.block.start + 1000) {
+                    console.log('fetching');
+                    this.fetchTableData();
+                }
+            }
+            else if (y < this.block.start || y > this.block.pageRows) {
                 this.fetchTableData();
             }
+
+                
         },
 
         /**
@@ -297,15 +303,21 @@
                         }
                     }
                     //text = '{"headers" : ' + JSON.stringify(cols.map(function(i,x) { return [i] }))  + ', "data" :[[0,"abc","abc"],[1,"xyz","dd"]], "rows" : 10000000, "features" : {"sorting": true }}'
-                    var keys = Object.keys(d);
+                    var keys = Object.keys(d.data);
                     arr = {};
                     for(var i = 0; i < keys.length; i++) {
                         var key = keys[i];
-                        arr[key] = d[key];
+                        arr[key] = d.data[key];
                     }
+
+                    var totalRows = d.totalRows;
+                    if (totalRows < 100) { totalRows = 100; }
+                    
                     self.block = {
                         headers: cols.map(function(x) { return [x] }),
-                        rows: 10000000,
+                        rows: totalRows,
+                        pageRows: d.rowCount,
+                        start: d.start
                     }
                     self.changed();
                     window.arr = arr;

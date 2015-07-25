@@ -18,6 +18,7 @@ ThreadStart proc = () => {
 
     listener.Start();
     var ser = new System.Web.Script.Serialization.JavaScriptSerializer();
+    ser.MaxJsonLength = int.MaxValue;
     
     Console.WriteLine("Webserver running...");
     while (listener.IsListening)
@@ -32,6 +33,12 @@ ThreadStart proc = () => {
                  var pathSep = new string(new char[] { Path.DirectorySeparatorChar });
                  string file = url.Replace("/", pathSep);
                  rstr = file;
+
+                 var MAX_COL = 100;
+                 var PAGE_SIZE = 10000;
+                 var totalRowCount = 0;
+                 var rowCount = 0;
+                 
                  if (file.StartsWith(pathSep)) { file = "." + file; }
                  if (file.Contains("..")) { file = ""; }
                  if (System.IO.File.Exists(file)) {
@@ -42,6 +49,7 @@ ThreadStart proc = () => {
                      using(var sr = new StreamReader(Request.InputStream)) {
                          json = sr.ReadToEnd();
                      }
+                     var start = Convert.ToInt32(Request.QueryString["start"]);
                      var arr = new Dictionary<string, string>();
                      var input = ser.DeserializeObject(json) as Dictionary<string, object>;
                      var newParser = new Parser();
@@ -123,30 +131,37 @@ ThreadStart proc = () => {
                                      ct = a.Rank > 1 ? a.Shape[0] : 1;
                                      cols = 1;
                                  }
-                                 var offset = 0;
-                                 for(var i = 0; i < ct/cols; i++) {
-                                     for(var k = 0; k < cols; k++) {
-                                         var val = "";
-                                         if (a.Type != typeof(Box)) {
-                                             val = a.GetString(offset);
-                                             if (a.Type == typeof(JString)) {
-                                                 //val = "'" + val + "'";
+
+                                 var offset = start;
+                                 var rows = ct/cols;
+
+                                 for(var i = offset; i < rows; i++) {
+                                     for(var k = 0; k < cols && k < MAX_COL; k++) {
+                                         if ((i-start) < PAGE_SIZE) {
+                                             var val = "";
+                                             if (a.Type != typeof(Box)) {
+                                                 val = a.GetString(offset);
+                                                 if (a.Type == typeof(JString)) {
+                                                     //val = "'" + val + "'";
+                                                 }
                                              }
+                                             else {
+                                                 val = ((A<Box>)a).Ravel[offset].val.GetString(0);
+                                             }
+                                             arr[(xpos+k).ToString()+':'+(ypos+i).ToString()] = val;
+                                             if (i > rowCount) { rowCount = offset; }
                                          }
-                                         else {
-                                             val = ((A<Box>)a).Ravel[offset].val.GetString(0);
-                                         }
-                                         arr[(xpos+k).ToString()+':'+(ypos+i).ToString()] = val;
                                          offset++;
                                      }
                                  }
+                                 if (rows > totalRowCount) { totalRowCount = offset; }
                              }
                              catch(Exception e) {
                                  arr[(xpos).ToString()+':'+(ypos).ToString()] = e.ToString().Substring(0,20);
                              }
                          }
                      }
-                     rstr = ser.Serialize(arr);
+                     rstr = ser.Serialize(new {start=start, totalRows=totalRowCount, rowCount=rowCount, data=arr});
                  }
                  byte[] buf = Encoding.UTF8.GetBytes(rstr);
                  ctx.Response.ContentLength64 = buf.Length;
