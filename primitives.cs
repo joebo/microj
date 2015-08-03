@@ -39,7 +39,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~."};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -809,7 +809,14 @@ namespace MicroJ {
             }            
         }
 
-       
+
+        public A<T> nub<T>(A<T> y) where T : struct {            
+            var indices = NubIndex(y);
+            var fromIdx = new A<long>(indices.Count);
+            fromIdx.Ravel = indices.Values.Select(x => x.First()).OrderBy(x=>x).ToArray();
+            return from(fromIdx, y);    
+        }
+
 
         public AType primesm(AType w) {
             return primes(null, w);
@@ -1183,6 +1190,9 @@ namespace MicroJ {
             }
             else if (op == "\":") {
                 return InvokeExpression("tostring", y);
+            }
+            else if (op == "~.") {
+                return InvokeExpression("nub", y);
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 return verbWithRank.MonadicFunc(y);

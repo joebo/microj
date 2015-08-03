@@ -297,6 +297,11 @@ namespace MicroJ
             var sep = "+" + new String('-', rep) + "+";
             return sep + "\n|" + vt + "|\n" + sep;
         }
+
+        //needed for nub
+        public override int GetHashCode() {
+            return ToString().GetHashCode();
+        }
     }
 
     public class A<T> : AType where T : struct {

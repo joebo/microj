@@ -320,3 +320,6 @@ NB. train with adverb
 
 NB. rank2ex
 1 0 1 0 -: ((3 $ 'abc') -:"1 (4 3 $ 'abcxyz')) 
+
+NB. nub
+(~. (1 2 3 1)) -: (1 2 3)
