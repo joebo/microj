@@ -1384,7 +1384,7 @@ namespace MicroJ {
 
         }
 
-        //JCHAR = 2, JFL = 8
+        //BYTE=1, JCHAR = 2, JFL = 8
         //(2;12) (151!:0) 'dates';'c:/temp/dates.bin';
         //(<8) (151!:0) 'tv';'c:/temp/tv.bin';                
         public unsafe AType readmmap(A<Box> x, A<Box> y, Verb verb) {
@@ -1402,12 +1402,22 @@ namespace MicroJ {
                     byte* ptr = (byte*)0;
                     AType val = null;
                     view.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);                                                
-                    if (type == 2) {
+                    if (type == 1) {
                         var rows = size > 0 ? num / size : num;
                         byte[] arr = new byte[num];
                         System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);                        
                         val = new A<Byte>(new long[] { rows, size }) { Ravel = arr };
                     }
+                    else if (type == 2) {
+                        var rows = size > 0 ? num / size : num;
+                        var vals = new JString[rows];
+                        for (var i = 0; i < rows; i++) {
+                            byte[] arr = new byte[size];
+                            System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), (int)(i*size)), arr, 0, (int)size);                        
+                            vals[i] = new JString { str = String.Intern(System.Text.Encoding.UTF8.GetString(arr)) };
+                        }                        
+                        val = new A<JString>(new long[] { rows, size }) { Ravel = vals };
+                    }                  
                     else if (type == 8) {
                         var rows = num / sizeof(double);
                         double[] arr = new double[rows];
@@ -1484,6 +1494,7 @@ namespace MicroJ {
             return z;
         }
 
+        
         public AType Call1(AType method, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
 
