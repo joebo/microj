@@ -152,18 +152,29 @@ namespace MicroJ {
         }
 
         public A<T> math<T>(A<T> x, A<T> y, Func<T, T, T> op) where T : struct {
-            var z = new A<T>(y.Ravel.Length, y.Shape);
+            
             if (x.Rank == 0) {
+                var z = new A<T>(y.Ravel.Length, y.Shape);
                 for (var i = 0; i < y.Ravel.Length; i++) {
                     z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
                 }
+                return z;
+            }
+            else if (y.Rank == 0 && x.Rank > 0) {
+                var z = new A<T>(x.Ravel.Length, x.Shape);
+                for (var i = 0; i < x.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[0]);
+                }
+                return z;
             }
             else {
+                var z = new A<T>(y.Ravel.Length, y.Shape);
                 for (var i = 0; i < y.Ravel.Length; i++) {
                     z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
                 }
+                return z;
             }
-            return z;
+            throw new NotImplementedException();
         }
 
         //dynamic dispatch of math operations -- slowest, around 7x slower
