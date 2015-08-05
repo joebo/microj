@@ -118,6 +118,7 @@ namespace MicroJ
         }
 
 
+        public abstract string GetString(long n, string format);
         public abstract string GetString(long n);
         public abstract int GetHashCode(long n);
         public abstract long GetCount();
@@ -432,6 +433,10 @@ namespace MicroJ
         
         public override string GetString(long n) {
             return Ravel[n].ToString();
+        }
+
+        public override string GetString(long n, string format) {
+            return String.Format(format, Ravel[n]);
         }
 
         public override int GetHashCode(long n) {
