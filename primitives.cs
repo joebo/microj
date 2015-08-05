@@ -39,7 +39,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~."};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",."};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -478,6 +478,21 @@ namespace MicroJ {
                 return (A<T>)(object)v;
             }            
         }
+
+        public A<T> ravelitems<T>(A<T> y) where T : struct {
+            if (y.Rank < 2) {
+                var z = new A<T>(y.Count, y.Shape.Concat(new long[] { 1 }).ToArray());
+                y.Ravel.CopyTo(z.Ravel, 0);
+                return z;
+            }
+            else if (y.Rank == 2) {
+                return y;
+            }
+            else {
+                throw new NotImplementedException("Ravel Items not yet implemented on > 2 rank");
+            }
+        }
+
 
         public A<long> floor<T>(AType y) where T : struct {            
             if (y.GetType() == typeof(A<long>)) {
@@ -1193,6 +1208,9 @@ namespace MicroJ {
             }
             else if (op == "~.") {
                 return InvokeExpression("nub", y);
+            }
+            else if (op == ",.") {
+                return InvokeExpression("ravelitems", y);
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 return verbWithRank.MonadicFunc(y);
