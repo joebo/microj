@@ -568,7 +568,14 @@ namespace MicroJ {
             var xct = Math.Abs(x.Ravel[0]);
             if (y.Shape != null) { newShape = new long[] { xct }.Concat(y.Shape.Skip(1)).ToArray(); }
             var v = new A<T>(newShape);
-            v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
+
+            if (y.GetType() == typeof(A<JString>) && y.Rank < 2) {
+                v.Ravel[0] = (T)(object) new JString { str = ((A<JString>) (object)y).Ravel[0].str.Substring(0, (int)x.Ravel[0]) };
+            }
+            else {
+                v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
+            }
+            
             return v;
         }
 
@@ -1309,8 +1316,22 @@ namespace MicroJ {
             return z;
         }
 
-        public AType rank2ex<T>(AType method, A<T> x, A<T> y)
-            where T : struct {
+        public AType takesubstringfast(A<long> x, A<JString> y) {
+            long[] newShape = null;
+
+            var xct = Math.Abs(x.Ravel[0]);
+            newShape = new long[] { y.Shape[0], xct };
+            var v = new A<JString>(newShape);
+
+            for (var i = 0; i < y.Shape[0]; i++) {
+                v.Ravel[i] = new JString { str = y.Ravel[i].str.Substring(0, (int)x.Ravel[0]) };
+            }
+            return v;
+        }
+
+
+        public AType rank2ex<T, T2>(AType method, A<T> x, A<T2> y)
+            where T : struct where T2 : struct {
             var verb = ((A<Verb>)method).Ravel[0];
             var newRank = Convert.ToInt32(verb.rhs);
 
@@ -1343,13 +1364,13 @@ namespace MicroJ {
             var offset = 0;
 
             for (var i = 0; i < vs.Length; i++) {
-                var newY = new A<T>(subShapeCt, subShape);
+                var newY = new A<T2>(subShapeCt, subShape);
                 for (var k = 0; k < newY.Count; k++) {
                     if (!isString || newRank > 0) {
                         newY.Ravel[k] = y.Ravel[offset];
                     }
                     else {
-                        newY.Ravel[k] = (T)(object)y.GetCharJString(offset);
+                        newY.Ravel[k] = (T2)(object)y.GetCharJString(offset);
                     }
                     offset++;
                 }

@@ -1,1 +1,1 @@
-smoutput=: (150!:0)&'Console.WriteLine(v.ToString());return "";'
+smoutput=: (150!:0)&'Console.WriteLine(v.ToString());return new MicroJ.A<MicroJ.JString>(0);'
