@@ -1355,27 +1355,25 @@ namespace MicroJ {
         //(3 2 $ 1)  (150!:0) 'return v.ToString();'
         //'' (150!:0) 'System.Diagnostics.Debugger.Break();'
         //should the code be x or y?
-        Dictionary<string, Func<AType, Parser, string>> dotnetMethodCache = null;
-        public A<JString> calldotnet<T>(A<T> x, A<JString> y) where T : struct {
+        Dictionary<string, Func<AType, Parser, AType>> dotnetMethodCache = null;
+        public AType calldotnet<T>(A<T> x, A<JString> y) where T : struct {
 
             if (Parser.SafeMode) { throw new AccessViolationException(); }
 
 #if CSSCRIPT
-            if (dotnetMethodCache == null) { dotnetMethodCache = new Dictionary<string, Func<AType, Parser, string>>(); }
-            Func<AType, Parser, string> func = null;
+            if (dotnetMethodCache == null) { dotnetMethodCache = new Dictionary<string, Func<AType, Parser, AType>>(); }
+            Func<AType, Parser, AType> func = null;
             if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
                 var code = y.Ravel[0].str;
                 var lines = code.Split('\n');
                 var usings = String.Join("\n", lines.Where(t => t.StartsWith("//css_using ")).Select(t => "using " + t.Replace("//css_using ", "") + ";").ToArray());
                 var refs = lines.Where(t => t.StartsWith("//css_ref ")).SelectMany(t => t.Replace("//css_ref ", "").Split(',')).Select(t => t.Trim()).ToArray();
-                var codecs = usings + "\n" + "string func (MicroJ.AType v, MicroJ.Parser parser) { " + code + " }";
-                func = CSScript.LoadDelegate<Func<AType, Parser, string>>(codecs, null, false, refs);
+                var codecs = usings + "\n" + "MicroJ.AType func (MicroJ.AType v, MicroJ.Parser parser) { " + code + " }";
+                func = CSScript.LoadDelegate<Func<AType, Parser, AType>>(codecs, null, false, refs);
                 dotnetMethodCache[y.Ravel[0].str] = func;
             }
             var ret = func(x, Parser);
-            var v = new A<JString>(0);
-            v.Ravel[0] = new JString { str = ret };
-            return v;
+            return ret;
 #else
             var v = new A<JString>(0);
             v.Ravel[0] = new JString { str = "microj must be compiled with csscript support" };
@@ -1594,17 +1592,26 @@ namespace MicroJ {
             var verb = ((A<Verb>)method).Ravel[0];
             if (verb.conj == "!:" && verb.op == "150") {
                 if (x.GetType() == typeof(A<JString>)) {
-                    return (A<JString>)calldotnet((A<JString>)x, (A<JString>)y);
+                    return calldotnet((A<JString>)x, (A<JString>)y);
                 }
                 else if (x.GetType() == typeof(A<long>)) {
-                    return (A<JString>)calldotnet((A<long>)x, (A<JString>)y);
+                    return calldotnet((A<long>)x, (A<JString>)y);
+                }
+                else if (x.GetType() == typeof(A<double>)) {
+                    return calldotnet((A<double>)x, (A<JString>)y);
+                }
+                else if (x.GetType() == typeof(A<Box>)) {
+                    return calldotnet((A<Box>)x, (A<JString>)y);
                 }
             }
             else if (verb.conj == "\"") {
                 if (verb.childVerb != null && ((Verb)verb.childVerb).op == "-:" && x.Type == typeof(Byte) && y.Type == typeof(Byte)) {
                     return Verbs.InvokeExpression("matchfast", x, y, 1, this, method);
                 }
-                return Verbs.InvokeExpression("rank2ex", x, y, 1, this,method);
+                if (verb.childVerb != null && ((Verb)verb.childVerb).op == "{." && x.Type == typeof(long) && y.Type == typeof(JString)) {
+                    return takesubstringfast((A<long>)x, (A<JString>)y);
+                }
+                return Verbs.InvokeExpression("rank2ex", x, y, 2, this,method);
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "0") {
                 return readmmap((A<Box>)x, (A<Box>)y, verb);
