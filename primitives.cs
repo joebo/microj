@@ -1045,6 +1045,9 @@ namespace MicroJ {
                     else if (y.GetType() == typeof(A<JString>)) {
                         return reshape_str((A<long>)x, (A<JString>)y);
                     }
+                    else {
+                        return InvokeExpression("reshape", x, y, 1);
+                    }
                 }
             }
             else if (op == "=") {
