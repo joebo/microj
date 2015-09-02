@@ -39,7 +39,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:"};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -572,6 +572,15 @@ namespace MicroJ {
             return v;
         }
 
+        public A<T> curtail<T>(A<T> y) where T : struct {
+            long[] newShape = y.ShapeCopy();
+            newShape[0] = newShape[0] - 1;
+            var v = new A<T>(newShape);
+            v.Ravel = y.Copy(v.Count > 0 ? v.Count : 1);
+            return v;
+        }
+
+
         public A<T> take<T>(A<long> x, A<T> y) where T : struct {
             long[] newShape = null;
             
@@ -951,8 +960,13 @@ namespace MicroJ {
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
             var verbs = (A<Verb>)method;
-            
 
+            if (verb.childVerb != null) {
+                var v = verb.childVerb as A<Verb>;
+                if (v != null) {
+                    return Call2(v, x, y);
+                }
+            }
             if (verb.adverb != null) {
                 return Adverbs.Call2(method, x, y);
             }
@@ -965,10 +979,14 @@ namespace MicroJ {
                 if (v.rhs != null && v.op == null && v.childAdverb == null) {
                     z1 = AType.MakeA(v.rhs, null);
                 }
+                else if (v.op == "[:") {
+                    var m3 = Call2(verbs.ToAtom(2),x, y);
+                    var m2 = Call1(verbs.ToAtom(1), m3);
+                    return m2;
+                }
                 else {
                     z1 = Call2(verbs.ToAtom(0), x, y);
-                }
-                
+                }                
                 var z3 = Call2(verbs.ToAtom(2), x, y);
                 var z2 = Call2(verbs.ToAtom(1), z1, z3);
                 return z2;
@@ -1158,6 +1176,15 @@ namespace MicroJ {
         //candidate for code generation
         public AType Call1(AType method, AType y) {
             var verbs = (A<Verb>)method;
+            var verb = verbs.Ravel[0];
+
+            if (verb.childVerb != null) {
+                var v = verb.childVerb as A<Verb>;
+                if (v != null) {
+                    return Call1(v, y);
+                }
+            }
+
             if (verbs.GetCount()  == 3) {
                 AType z1 = null;
                 //support noun in left tine
@@ -1173,7 +1200,6 @@ namespace MicroJ {
                 var z2 = Call2(verbs.ToAtom(1), z1, z3);
                 return z2;
             } 
-            var verb = ((A<Verb>)method).Ravel[0];
 
             if (verb.adverb != null) { // || verb.childVerb   != null && ((Verb)verb.childVerb).adverb != null) {
                 return Adverbs.Call1(method, y);
@@ -1209,6 +1235,9 @@ namespace MicroJ {
             }
             else if (op == "}.") {
                 return InvokeExpression("behead", y);
+            }
+            else if (op == "}:") {
+                return InvokeExpression("curtail", y);
             }
             else if (op == "<") {
                 return box(y);

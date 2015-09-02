@@ -769,9 +769,24 @@ namespace MicroJ
                         else {
                             z.Ravel[0] = new Verb { rhs = v1.word };
                         }
+
+                        var av2 = ((A<Verb>)v2.val);
+                        if (av2.Count > 1) {
+                            z.Ravel[1].childVerb = av2;
+                        }
+                        else {
+                            z.Ravel[1] = av2.Ravel[0];
+                        }
                         
-                        z.Ravel[1] = ((A<Verb>)v2.val).Ravel[0];
-                        z.Ravel[2] = ((A<Verb>)v3.val).Ravel[0];
+                        
+                        var av3 = ((A<Verb>)v3.val);
+                        if (av3.Count > 1) {
+                            z.Ravel[2].childVerb = av3;
+                        }
+                        else {
+                            z.Ravel[2] = av3.Ravel[0];
+                        }
+                        
                         stack.Push(new Token { val = z });
                         stack.Push(p1);
                     }
