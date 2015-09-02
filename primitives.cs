@@ -1201,14 +1201,14 @@ namespace MicroJ {
         }
 
         public AType runExplicit(string def, AType y) {
-            var lines = def.Split('\n');
+            var lines = def.Split('\n').Select(x=>x.Trim(new char[] { ' ', '\t' })).Where(x=>x.Length > 0 && !x.StartsWith("NB.")).ToArray();
             var parser = Conjunctions.Parser;
             parser.LocalNames = new Dictionary<string, AType>();
 
             parser.LocalNames["y"] = y;
             AType ret = null;
             for (var i = 0; i < lines.Length; i++) {
-                var line = lines[i].Trim(new char[] { ' ', '\t'});
+                var line = lines[i];
                 try {
                     if (line.StartsWith("NB.") || line.Length == 0) continue;
                     if (line.StartsWith("exit")) break;
@@ -1227,7 +1227,7 @@ namespace MicroJ {
                         var test = line.Replace("do.", "").Replace("while.", "");
                         var endIdx = 0;
                         for (var k = (i + 1); k < lines.Length; k++) {
-                            if (lines[k].Trim(new char[] { ' ', '\t' }).StartsWith("end.")) {
+                            if (lines[k].StartsWith("end.")) {
                                 endIdx = k;
                                 break;
                             }
@@ -1239,10 +1239,7 @@ namespace MicroJ {
                             t = parser.parse(test);
                             if (t.ToString() != "1") break;
                             for (var k = i + 1; k < endIdx; k++) {
-                                var l = lines[k].Trim(new char[] { ' ', '\t' });
-                                if (l.Length > 0) {
-                                    ret = parser.parse(l);
-                                }                                
+                                ret = parser.parse(lines[k]);
                             }                            
                         }
                         i = endIdx;
@@ -1253,7 +1250,7 @@ namespace MicroJ {
                         t = parser.parse(test);
                         var endIdx = 0;
                         for (var k = (i + 1); k < lines.Length; k++) {
-                            if (lines[k].Trim(new char[] { ' ', '\t' }).StartsWith("end.")) {
+                            if (lines[k].StartsWith("end.")) {
                                 endIdx = k;
                                 break;
                             }
@@ -1263,10 +1260,7 @@ namespace MicroJ {
                         var rep = t.GetCount();
                         for(var n = 0 ; n < rep; n++) {
                             for (var k = i + 1; k < endIdx; k++) {
-                                var l = lines[k].Trim(new char[] { ' ', '\t' });
-                                if (l.Length > 0) {
-                                    ret = parser.parse(l);
-                                }
+                                ret = parser.parse(lines[k]);
                             }
                         }
                         i = endIdx;
