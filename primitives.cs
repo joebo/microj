@@ -8,6 +8,7 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 using System.IO;
+using System.Numerics;
 
 #if CSSCRIPT
 using CSScriptLibrary;
@@ -1014,6 +1015,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a + b);
                 }
+                else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
+                    return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a + b);
+                }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a + b);
                 }
@@ -1029,6 +1033,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a - b);
                 }
+                else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
+                    return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a - b);
+                }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a - b);
                 }
@@ -1043,8 +1050,28 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a * b);
                 }
+                else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
+                    return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a * b);
+                }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a * b);
+                }
+            }
+            else if (op == "<") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)x, (A<long>)y, (a, b) => a < b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)x, (A<double>)y, (a, b) => a < b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a < b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
+                    return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a < b ? 1 : 0);
+                }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixed(x, y, (a, b) => a < b ? 1 : 0);
                 }
             }
             else if (op == "<.") {
@@ -1173,10 +1200,98 @@ namespace MicroJ {
             throw new NotImplementedException(op + " on x:" + x + " y:" + y + " type: " + y.GetType());
         }
 
+        public AType runExplicit(string def, AType y) {
+            var lines = def.Split('\n');
+            var parser = Conjunctions.Parser;
+            parser.LocalNames = new Dictionary<string, AType>();
+
+            parser.LocalNames["y"] = y;
+            AType ret = null;
+            for (var i = 0; i < lines.Length; i++) {
+                var line = lines[i].Trim(new char[] { ' ', '\t'});
+                try {
+                    if (line.StartsWith("NB.") || line.Length == 0) continue;
+                    if (line.StartsWith("exit")) break;
+                    if (line.StartsWith("!B")) {
+                        Debugger.Launch();
+                        Debugger.Break();
+                        line = line.Substring(2, line.Length - 2);
+                    }
+                    
+                    parser.ReadLine = () => {
+                        i++;
+                        return lines[i];
+                    };
+
+                    if (line.StartsWith("while")) {
+                        var test = line.Replace("do.", "").Replace("while.", "");
+                        var endIdx = 0;
+                        for (var k = (i + 1); k < lines.Length; k++) {
+                            if (lines[k].Trim(new char[] { ' ', '\t' }).StartsWith("end.")) {
+                                endIdx = k;
+                                break;
+                            }
+                        }
+                        if (endIdx == 0) { throw new ApplicationException("end not found");  }
+
+                        AType t = null;
+                        while (true) {
+                            t = parser.parse(test);
+                            if (t.ToString() != "1") break;
+                            for (var k = i + 1; k < endIdx; k++) {
+                                var l = lines[k].Trim(new char[] { ' ', '\t' });
+                                if (l.Length > 0) {
+                                    ret = parser.parse(l);
+                                }                                
+                            }                            
+                        }
+                        i = endIdx;
+                    }
+                    else if (line.StartsWith("for")) {
+                        var test = line.Substring(line.IndexOf(".") + 1).Replace("do.", "");
+                        AType t = null;
+                        t = parser.parse(test);
+                        var endIdx = 0;
+                        for (var k = (i + 1); k < lines.Length; k++) {
+                            if (lines[k].Trim(new char[] { ' ', '\t' }).StartsWith("end.")) {
+                                endIdx = k;
+                                break;
+                            }
+                        }
+                        if (endIdx == 0) { throw new ApplicationException("end not found"); }
+
+                        var rep = t.GetCount();
+                        for(var n = 0 ; n < rep; n++) {
+                            for (var k = i + 1; k < endIdx; k++) {
+                                var l = lines[k].Trim(new char[] { ' ', '\t' });
+                                if (l.Length > 0) {
+                                    ret = parser.parse(l);
+                                }
+                            }
+                        }
+                        i = endIdx;
+                    }
+                    else {
+                        ret = parser.parse(line);
+                    }
+                    
+                    
+                }
+                catch (Exception e) {
+                    Console.WriteLine(line + "\n" + e);
+                }
+            }
+            return ret;
+        }
+
         //candidate for code generation
         public AType Call1(AType method, AType y) {
             var verbs = (A<Verb>)method;
             var verb = verbs.Ravel[0];
+
+            if (verb.explicitDef != null) {
+                return runExplicit(verb.explicitDef, y);
+            }
 
             if (verb.childVerb != null) {
                 var v = verb.childVerb as A<Verb>;
@@ -1711,6 +1826,13 @@ namespace MicroJ {
                     return v;
                 }
             }
+            else if (verb.conj == ":" && verb.op == "3") {
+                if (verb.rhs == "0") {
+                    var v = new A<Verb>(0);
+                    v.Ravel[0] = new Verb { explicitDef = y.ToString() };
+                    return v;
+                }
+            }
             else if (verb.conj == "!:" && verb.op == "0") {
                 return runfile((A<Box>) y,verb);
             }
@@ -1719,6 +1841,16 @@ namespace MicroJ {
                 var z = new A<Byte>(str.Length);
                 z.Ravel = System.Text.UTF8Encoding.UTF8.GetBytes(str);
                 return z;
+            }
+            else if (verb.conj == "!:" && verb.op == "3" && verb.rhs == "101") {
+                if (y.GetType() == typeof(A<long>)) {
+                    return new A<BigInteger>(1) { Ravel = new BigInteger[] { new BigInteger(y.GetLong(0)) } };
+                }
+                else if (y.GetType() == typeof(A<JString>)) {
+                    return new A<BigInteger>(1) { Ravel = new BigInteger[] { BigInteger.Parse(y.GetString(0)) } };
+                }
+                
+                
             }
             else if (verb.conj == "!:" && verb.op == "6" && verb.rhs == "2") {
                 return timeit((A<JString>)y);
@@ -1753,7 +1885,7 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "0") {
                 return readmmap((A<Box>)x, (A<Box>)y, verb);
-            }
+            }            
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 

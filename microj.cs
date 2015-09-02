@@ -188,7 +188,7 @@ namespace MicroJ
             throw new NotImplementedException();
         }
 
-        public static AType MakeA(string word, Dictionary<string, AType> names) {
+        public static AType MakeA(string word, Dictionary<string, AType> names, Dictionary<string, AType> locals = null) {
             int val;
             double vald;
 
@@ -199,6 +199,10 @@ namespace MicroJ
             if (names != null && names.ContainsKey(word)) {
                 return names[word];
             }
+            if (locals != null && locals.ContainsKey(word)) {
+                return locals[word];
+            }
+
             else if (word.StartsWith("'")) {
                 var str = word.Substring(1, word.Length - 2);
                 var a = new A<JString>(1);
@@ -258,6 +262,8 @@ namespace MicroJ
         public string rhs;
         public object childVerb;
         public string childAdverb;
+        public string explicitDef;
+
         public override string ToString() {
             string str = "";
             if (op != null) str+=op;
@@ -267,6 +273,9 @@ namespace MicroJ
 
             if (childVerb != null) {
                 str = str + childVerb.ToString();
+            }
+            if (explicitDef != null) {
+                str = explicitDef;
             }
             return str;
         }
@@ -526,6 +535,7 @@ namespace MicroJ
         public Func<string> ReadLine = null;
         
         public Dictionary<string, AType> Names;
+        public Dictionary<string, AType> LocalNames;
 
         //needed for state in calldotnet procedures
         public Dictionary<string, object> Globals;
@@ -633,7 +643,7 @@ namespace MicroJ
             const string MARKER = "`";
             cmd = MARKER + " " + cmd;
 
-            Func<Token, bool> isEdge = token => token.word == MARKER || token.word == "=:" || token.word == "(";
+            Func<Token, bool> isEdge = token => token.word == MARKER || token.word == "=:" || token.word == "=."|| token.word == "(";
             Func<Token, bool> isVerb = token => ((token.val != null && token.val.GetType() == typeof(A<Verb>))); //|| (token.word != null && verbs.ContainsKey(token.word));
             Func<Token, bool> isAdverb = token => token.word != null && Adverbs.Words.Contains(token.word);
             Func<Token, bool> isConj = token => token.word != null && Conjunctions.Words.Contains(token.word);
@@ -794,7 +804,13 @@ namespace MicroJ
                         var name = stack.Pop();
                         var copula = stack.Pop();
                         var rhs = stack.Pop();
-                        Names[name.word] = rhs.val;
+                        if (copula.word == "=:" || LocalNames == null) {
+                            Names[name.word] = rhs.val;
+                        }
+                        else {
+                            LocalNames[name.word] = rhs.val;
+                        }
+                        
                         stack.Push(rhs);
                     }
                     else if (step == 8) { //paren
@@ -809,7 +825,7 @@ namespace MicroJ
                         var newWord = queue.Dequeue();
 
                         //try to parse word before putting on stack
-                        var val = AType.MakeA(newWord.word, Names);
+                        var val = AType.MakeA(newWord.word, Names, LocalNames);
                         var token = new Token();
                         if (val.GetType() == typeof(A<Undefined>)) {
                             token.word = newWord.word;

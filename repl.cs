@@ -94,6 +94,7 @@ namespace App {
 
                 var files = new List<string>();
                 if (File.Exists("stdlib.ijs")) { files.Add("stdlib.ijs"); }
+                if (File.Exists("..\\stdlib.ijs")) { files.Add("..\\stdlib.ijs"); }
                 if (args.Length > 0) { files.Add(args[0]); }
 
                 bool testMode = argList.FindIndex(c => c.Contains("-t")) > -1;
