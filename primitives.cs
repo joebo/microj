@@ -153,7 +153,12 @@ namespace MicroJ {
         }
 
         public A<T> math<T>(A<T> x, A<T> y, Func<T, T, T> op) where T : struct {
-            
+
+            if (x.Rank == 0 && y.Rank == 0) {
+                var z = new A<T>(0);
+                z.Ravel[0] = op(x.Ravel[0], y.Ravel[0]);
+                return z;
+            }
             if (x.Rank == 0) {
                 var z = new A<T>(y.Ravel.Length, y.Shape);
                 for (var i = 0; i < y.Ravel.Length; i++) {
@@ -1200,6 +1205,38 @@ namespace MicroJ {
             throw new NotImplementedException(op + " on x:" + x + " y:" + y + " type: " + y.GetType());
         }
 
+        //crude code gen
+        public string codeGenHotSpot(string[] lines) {
+            StringBuilder sb = new StringBuilder();
+
+            /* example
+            using MicroJ;
+            using System.Numerics;
+            void func(MicroJ.Parser parser, System.Collections.Generic.Dictionary<string, AType> names) {
+                names[""tmp""] = names[""x1""];
+                names[""x1""] = names[""x2""];
+                names[""x2""] = parser.Verbs.math((A<BigInteger>)names[""tmp""], (A<BigInteger>)names[""x1""], (a, b) => a + b);
+            }
+             */
+         
+            sb.AppendLine("using MicroJ;");
+            sb.AppendLine("using System.Numerics;");
+            sb.AppendLine("void func(MicroJ.Parser parser, System.Collections.Generic.Dictionary<string, AType> names) {");
+            foreach (var line in lines) {
+                var parts = line.Split(' ').Select(x=>x.Trim()).Where(x=>!String.IsNullOrEmpty(x)).ToArray();
+                if (line.Contains("=.")) {
+                    if (!line.Contains("+")) {
+                        sb.AppendLine("names[\"" + parts[0] + "\"] = names[\"" + parts[2] + "\"];");
+                    }
+                    else if (line.Contains("+") && line.Contains("type:BigInteger")) {
+                        sb.AppendLine("names[\"" + parts[0] + "\"] = parser.Verbs.math((A<BigInteger>)names[\"" + parts[2] + "\"], (A<BigInteger>) names[\"" + parts[4] + "\"],(a, b) => a + b);");
+                    }
+                }
+            }
+            sb.AppendLine("}");
+            return sb.ToString();
+         
+        }
         public AType runExplicit(string def, AType y) {
             var lines = def.Split('\n').Select(x=>x.Trim(new char[] { ' ', '\t' })).Where(x=>x.Length > 0 && !x.StartsWith("NB.")).ToArray();
             var parser = Conjunctions.Parser;
@@ -1258,11 +1295,22 @@ namespace MicroJ {
                         if (endIdx == 0) { throw new ApplicationException("end not found"); }
 
                         var rep = t.GetCount();
-                        for(var n = 0 ; n < rep; n++) {
-                            for (var k = i + 1; k < endIdx; k++) {
-                                ret = parser.parse(lines[k]);
+                        var names = parser.LocalNames;
+                        if (line.Contains("!hotspot") && rep > 1000) {
+                            var code = codeGenHotSpot(lines.Skip(i).Take(endIdx-1).ToArray());
+                            var func = CSScript.LoadDelegate<Action<Parser, Dictionary<string, AType>>>(code, null, false, "System.Collections.Generic", "System.Numerics");
+                            for (var n = 0; n < rep; n++) {
+                                func(Conjunctions.Parser, names);    
                             }
                         }
+                        else {
+                            for (var n = 0; n < rep; n++) {
+                                for (var k = i + 1; k < endIdx; k++) {
+                                    ret = parser.parse(lines[k]);
+                                }
+                            }
+                        }
+                        
                         i = endIdx;
                     }
                     else {
