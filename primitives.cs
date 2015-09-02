@@ -919,6 +919,34 @@ namespace MicroJ {
             else throw new NotImplementedException();
         }
 
+        public A<T> stitch<T>(A<T> x, A<T> y) where T : struct {            
+            if (x.Rank == 0 && y.Rank == 0) {                
+                long[] newShape = new long[] { 2 };
+                A<T> z = new A<T>(newShape);
+                z.Ravel[0] = x.Ravel[0];
+                z.Ravel[1] = y.Ravel[0];
+                return z;
+            }
+            else {
+                var xshape = x.ShapeProduct(1);
+                var yshape = y.ShapeProduct(1);
+                long[] newShape = new long[] { x.Shape[0], xshape + yshape };
+                A<T> z = new A<T>(newShape);
+                var xoffset = 0;
+                var yoffset = 0;
+                var zoffset = 0;
+                for (var i = 0; i < newShape[0];i++) {
+                    for (var k = 0; k < xshape; k++) {
+                        z.Ravel[zoffset++] = x.Ravel[xoffset++];
+                    }
+                    for (var k = 0; k < yshape; k++) {
+                        z.Ravel[zoffset++] = y.Ravel[yoffset++];
+                    }
+                }
+                return z;
+                
+            }
+        }
 
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
@@ -1111,6 +1139,9 @@ namespace MicroJ {
             }
             else if (op == ";") {
                 return InvokeExpression("link", x, y, 2);
+            }
+            else if (op == ",.") {
+                return InvokeExpression("stitch", x, y, 1);                
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
