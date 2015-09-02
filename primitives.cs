@@ -930,7 +930,17 @@ namespace MicroJ {
             }
 
             if (verbs.GetCount() > 1) {
-                var z1 = Call2(verbs.ToAtom(0), x, y);
+                
+                AType z1 = null;
+                //support noun in left tine
+                Verb v = verbs.ToAtom(0).Ravel[0];
+                if (v.rhs != null && v.op == null && v.childAdverb == null) {
+                    z1 = AType.MakeA(v.rhs, null);
+                }
+                else {
+                    z1 = Call2(verbs.ToAtom(0), x, y);
+                }
+                
                 var z3 = Call2(verbs.ToAtom(2), x, y);
                 var z2 = Call2(verbs.ToAtom(1), z1, z3);
                 return z2;
