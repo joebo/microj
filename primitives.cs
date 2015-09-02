@@ -39,7 +39,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",."};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]"};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -945,7 +945,10 @@ namespace MicroJ {
 
             VerbWithRank verbWithRank = null;
 
-            if (op == "+") {
+            if (op == "]") {
+                return y;
+            }
+            else if (op == "+") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a + b);
                 }
@@ -1112,7 +1115,16 @@ namespace MicroJ {
         public AType Call1(AType method, AType y) {
             var verbs = (A<Verb>)method;
             if (verbs.GetCount()  == 3) {
-                var z1 = Call1(verbs.ToAtom(0), y);
+                AType z1 = null;
+                //support noun in left tine
+                Verb v = verbs.ToAtom(0).Ravel[0];
+                if (v.rhs != null && v.op == null && v.childAdverb == null) {
+                    z1 = AType.MakeA(v.rhs, null);
+                }
+                else {
+                    z1 = Call1(verbs.ToAtom(0), y);
+                }
+                
                 var z3 = Call1(verbs.ToAtom(2), y);
                 var z2 = Call2(verbs.ToAtom(1), z1, z3);
                 return z2;
@@ -1131,7 +1143,10 @@ namespace MicroJ {
             var op = verb.op;
             VerbWithRank verbWithRank = null;
 
-            if (op == "i.") {
+            if (op == "]") {
+                return y;
+            }
+            else if (op == "i.") {
                 if (y.GetType() == typeof(A<int>)) {
                     return iota((A<int>)y);
                 }

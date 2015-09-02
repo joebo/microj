@@ -667,6 +667,7 @@ namespace MicroJ
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isAdverb(w3) && true) { step = 3; } //adverb
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isConj(w3) && (isNoun(w2) || isVerb(w2))) { step = 4; } //conjunction
                 else if (isEdgeOrNotConj(w1) && isVerb(w2) && isVerb(w3) && isVerb(w4) ) { step = 5; } //fork
+                else if (isEdgeOrNotConj(w1) && isNoun(w2) && isVerb(w3) && isVerb(w4)) { step = 5; } //fork
                 else if ((isNoun(w1) || isName(w1)) && (w2.word == "=:" || w2.word == "=.") && true && true) { step = 7; }
                 else if (w1.word == "(" && (isNoun(w2) || isVerb(w2)) && w3.word == ")" && true) { step = 8; }
 
@@ -761,7 +762,14 @@ namespace MicroJ
                         var v2 = stack.Pop();
                         var v3 = stack.Pop();
                         var z = new A<Verb>(3);
-                        z.Ravel[0] = ((A<Verb>)v1.val).Ravel[0];
+
+                        if (!isNoun(v1)) {
+                            z.Ravel[0] = ((A<Verb>)v1.val).Ravel[0];
+                        }
+                        else {
+                            z.Ravel[0] = new Verb { rhs = v1.word };
+                        }
+                        
                         z.Ravel[1] = ((A<Verb>)v2.val).Ravel[0];
                         z.Ravel[2] = ((A<Verb>)v3.val).Ravel[0];
                         stack.Push(new Token { val = z });
