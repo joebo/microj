@@ -98,7 +98,7 @@ NB. 0 conjunction
 NB. explicit verb
 NB. 'abc' -: (3 : '1+1') ''
 (_1 p: 10 20 50 100) -: 4 8 15 25                    NB. Primes less than
-NB. Not working  (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime arguments)
+(_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime arguments)
 
 (0 p: i. 5) -: 1 1 0 0 1                             NB. is not prime
 (1 p: 2 3 17 79 199 3581) -: 1 1 1 1 1 1             NB. is prime (true)

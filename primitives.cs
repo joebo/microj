@@ -878,7 +878,7 @@ namespace MicroJ {
             Func<long, long[]> fls = null;
             long[] frame = null;
             if (a == null) fl = Primes.GetNthPrime;
-            else if (xv == -1) fl = (l) => Primes.Pi((float)l);
+            else if (xv == -1) fl = (l) => Primes.Pi((float)(l-0.5f));
             else if (xv == 0) fb = (l) => !Primes.IsPrime(l);
             else if (xv == 1) fb = Primes.IsPrime;
             else if (xv == 2) {
@@ -2199,14 +2199,20 @@ namespace MicroJ {
         }
 
         public static long Pi(float n) {
-            if (n <= 1)
+            if (n < 2)
                 return 0;
             if (n < 3)
                 return 1;
+            if (n < 5)
+                return 2;
+            if (n < 7)
+                return 3;
+            if (n < 11)
+                return 4;
             long c = Pi((float)Math.Pow(n, 1.0f / 3));
 
             long mu = Pi((float)Math.Sqrt(n)) - c;
-            return (long)(phi(n, c) + c * (mu + 1) + (mu * mu - mu) * 0.5f - 1 - SumPi(n, c, mu));
+            return (phi(n, c) + (long)(c * (mu + 1) + (mu * mu - mu) * 0.5f) - 1 - SumPi(n, c, mu));
         }
 
         private static long SumPi(float m, long n, long mu) {
