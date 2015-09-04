@@ -103,7 +103,7 @@ using (var csv = new CsvReader(new StreamReader(fileName), true)) {
 		var sv = String.Intern(csv[i]);
 		strings[columnName].Add(sv);
 	    }
-	    else if (columnType == 3) {
+	    else if (columnType == 2) {
 		if (!doubles.ContainsKey(columnName)) {
 		    doubles[columnName] = new List<double>();
 		}
