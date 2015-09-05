@@ -598,6 +598,30 @@ namespace MicroJ {
             if (y.GetType() == typeof(A<JString>) && y.Rank < 2) {
                 v.Ravel[0] = (T)(object) new JString { str = ((A<JString>) (object)y).Ravel[0].str.Substring(0, (int)x.Ravel[0]) };
             }
+            else if (y.GetType() == typeof(A<JTable>)) {
+                var yt = y as A<JTable>;
+                var take = xct;
+                var offset = 0L;
+                var xv = x.Ravel[0];
+                if (xv < 0) {
+                    var rowCt = yt.Ravel[0].Rows[0].val.Shape[0];
+                    offset = xv +  rowCt;
+                    take = rowCt - offset;
+                }
+                else {
+                    take = xct;
+                }
+                var tv = new A<JTable>(yt.Count) {
+                    Ravel = new JTable[] { new JTable {
+                        Rows = yt.Ravel[0].Rows,
+                        Columns = yt.Ravel[0].Columns,
+                        take = take,
+                        offset = offset,
+                        indices = yt.Ravel[0].indices
+                    }}                    
+                };
+                return (A<T>) (object) tv;
+            }
             else {
                 v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
             }
@@ -761,13 +785,33 @@ namespace MicroJ {
         }
 
         public A<T> sortup<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
-            var indices = gradeup(x);
-            return from(indices, y);
+            if (y.GetType() == typeof(A<JTable>)) {
+                var yt = (y as A<JTable>).First();
+                var indices = InvokeExpression("gradeup", yt.Rows[yt.GetColIndex(x)].val);
+                var z = new A<JTable>(1) { Ravel = new JTable[] { yt.Clone() } };
+                z.Ravel[0].indices = (indices as A<long>).Ravel;
+                return (A<T>) (object) z;
+            }
+            else {
+                var indices = gradeup(x);
+                return from(indices, y);
+            }
+            
         }
 
         public A<T> sortdown<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
-            var indices = gradedown(x);
-            return from(indices, y);
+            if (y.GetType() == typeof(A<JTable>)) {
+                var yt = (y as A<JTable>).First();
+                var indices = InvokeExpression("gradedown", yt.Rows[yt.GetColIndex(x)].val);
+                var z = new A<JTable>(1) { Ravel = new JTable[] { yt.Clone() } };
+                z.Ravel[0].indices = (indices as A<long>).Ravel;
+                return (A<T>)(object)z;
+            }
+            else {
+                var indices = gradedown(x);
+                return from(indices, y);
+            }
+            
         }
 
         public AType raze<T>(A<Box> y) where T : struct {
@@ -1891,9 +1935,21 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<JString>)) {
                     return new A<BigInteger>(1) { Ravel = new BigInteger[] { BigInteger.Parse(y.GetString(0)) } };
                 }
-                
+            }
+            else if (verb.conj == "!:" && verb.op == "3" && verb.rhs == "102") {
+                if (y.GetType() == typeof(A<Box>)) {
+                    var yb = y as A<Box>;
+                    var table = new A<JTable>(1);
+                    table.Ravel[0] = new JTable {
+                        Columns = (yb.Ravel[0].val as A<Box>).Ravel.Select(x=>((A<JString>)x.val).Ravel[0].str).ToArray(),
+                        Rows = yb.Ravel.Skip(1).ToArray()
+                    };
+
+                    return table;
+                }
                 
             }
+
             else if (verb.conj == "!:" && verb.op == "6" && verb.rhs == "2") {
                 return timeit((A<JString>)y);
             }

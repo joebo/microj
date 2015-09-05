@@ -24,7 +24,8 @@ readcsvCode =: 0 : 0
 //css_using LumenWorks.Framework.IO.Csv
 //css_using System.Text.RegularExpressions
     
-var y = v as MicroJ.A<Box>;
+    var y = v as MicroJ.A<Box>;
+
 string fileName = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
 string tableName = ((A<JString>)y.Ravel[1].val).Ravel[0].str;
 
@@ -100,7 +101,7 @@ using (var csv = new CsvReader(new StreamReader(fileName), true)) {
 		if (!strings.ContainsKey(columnName)) {
 		    strings[columnName] = new List<string>();
 		}
-		var sv = String.Intern(csv[i]);
+		var sv = csv[i];
 		strings[columnName].Add(sv);
 	    }
 	    else if (columnType == 2) {
@@ -124,7 +125,7 @@ using (var csv = new CsvReader(new StreamReader(fileName), true)) {
     }
 
     Func<string, string> createName = s => {
-         return tableName + "_" + Regex.Replace(s, @"[^A-Za-z]+", "");
+         return Regex.Replace(s, @"[^A-Za-z]+", "") + "_" + tableName + "_";
     };
 
     
@@ -142,7 +143,7 @@ using (var csv = new CsvReader(new StreamReader(fileName), true)) {
     }
     foreach(var col in strings.Keys) {
         var max = strings[col].Select(x=>x.Length).Max();
-        var jname = new MicroJ.A<JString>(rowCount, new long[] { rowCount, max }) { Ravel = strings[col].Select(x=>new MicroJ.JString { str = x }).ToArray() };
+        var jname = new MicroJ.A<JString>(rowCount, new long[] { rowCount, max }) { Ravel = strings[col].Select(x=>new MicroJ.JString { str = String.Intern(x.PadRight(max)) }).ToArray() };
         var newName = createName(col);
         newNames.Add(newName);
         parser.Names[newName] = jname;
@@ -164,3 +165,5 @@ NB. parameter: box of filename;tablename
 NB. example: readcsv 'abc.csv';'abc'
 readcsv  =: (150!:0) & readcsvCode
 
+
+flip =: (3!:102)

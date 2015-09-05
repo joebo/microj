@@ -288,9 +288,6 @@ namespace MicroJ
             //todo: determine if this is a good idea, needed for tests for now
             return str.Replace("\\n", "\n");
         }
-
-
-
         public int CompareTo(object obj) {
             return str.CompareTo(((JString)obj).str);
         }
@@ -314,6 +311,73 @@ namespace MicroJ
         }
     }
 
+    public struct JTable {
+        public string[] Columns;
+        public Box[] Rows;
+        public long offset;
+        public long take;
+        public long[] indices;
+
+        public int GetColIndex(AType y) {
+            int colIdx = -1;
+            if (y.GetType() == typeof(A<JString>)) {
+                colIdx = Array.IndexOf(Columns, y.GetString(0));
+            }
+            else {
+                colIdx = (int) (y as A<long>).Ravel[0];
+            }
+            return colIdx;
+        }
+        public JTable Clone() {
+            return new JTable {
+                Columns = Columns,
+                Rows = Rows,
+                offset = offset,
+                take = take,
+                indices = indices
+            };
+        }
+        public override string ToString() {
+            var ct = Rows[0].val.GetCount();
+            if (take == 0) {
+                take = ct;
+            }
+            var newShape = new long[] {take+1 , Columns.Length};
+            var formatter = new Formatter(newShape, "");
+            foreach (var col in Columns) {
+                int rep = col.Length;
+                var sep = "+" + new String('-', rep) + "+";
+                var valStr = sep + "\n|" + col + "|\n" + sep;
+
+                formatter.Add(valStr);
+            }
+            
+            for (var i = offset; i < (offset+take) && i < ct; i++) {
+                for (var k = 0; k < Columns.Length; k++) {
+                    var val = Rows[k].val;
+
+                    string vt = null;
+                    if (indices == null) {
+                        vt = val.GetString(i);
+                    }
+                    else {
+                        vt = val.GetString(indices[i]);
+                    }
+                    var rep = 1;
+                    
+                    if (val.Shape != null && val.Shape.Length > 0) {
+                        rep = (int)val.Shape[val.Shape.Length - 1];
+                    }
+                    var sep = "+" + new String('-', rep) + "+";
+                    var valStr = sep + "\n|" + vt + "|\n" + sep;
+
+                    formatter.Add(valStr);
+                }
+                    
+            }
+            return formatter.ToString();
+        }
+    }
     public class A<T> : AType where T : struct {
 
         public T[] Ravel;
@@ -322,6 +386,8 @@ namespace MicroJ
         public long Count { get { return Ravel == null ? 1 : Ravel.Length; } }
 
         public static Func<T, T, T> AddFunc;
+
+        public T First() { return Ravel[0];  }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public A<T> ToAtom(long n) {
