@@ -680,6 +680,26 @@ namespace MicroJ {
             return v;
         }
 
+        public A<JTable> fromtable<T, T2>(A<T> x, A<T2> y) where T : struct where T2 : struct {            
+            if (x.Rank > 1) { throw new NotImplementedException("Rank > 0 not implemented on from"); }
+            var yt = (y as A<JTable>).First();
+            
+            if (x.GetType() == typeof(A<Box>)) {
+                var v = yt.Clone();
+                var idx = (x as A<Box>).Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
+                v.Columns = v.Columns.Where((xv, i) => idx.Contains(i)).ToArray();
+                v.Rows = v.Rows.Where((xv, i) => idx.Contains(i)).ToArray();
+                return v.WrapA();
+            }
+            else if (x.GetType() == typeof(A<long>) && (x.Rank == 1 || x.Rank == 0)) {
+                var rowIndices = (x as A<long>).Ravel;
+                var v = yt.Clone();
+                v.indices = rowIndices;
+                return v.WrapA();
+            }
+            throw new NotImplementedException();
+        }
+
         //return indices of nub
         public Dictionary<long, List<long>> NubIndex<T>(A<T> x)  where T : struct {
             var frame = x.Shape.Skip(1).ToArray();
@@ -1199,7 +1219,12 @@ namespace MicroJ {
                 return InvokeExpression("drop", x, y, 1);
             }
             else if (op == "{") {
-                return InvokeExpression("from", x, y, 1);
+                if (y.GetType() != typeof(A<JTable>)) {
+                    return InvokeExpression("from", x, y, 1);
+                } else {
+                    return InvokeExpression("fromtable", x, y, 2);
+                }
+                
             }
             else if (op == "-:") {
                 //temporary

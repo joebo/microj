@@ -318,6 +318,9 @@ namespace MicroJ
         public long take;
         public long[] indices;
 
+        public A<JTable> WrapA() {
+            return new A<JTable>(1) { Ravel = new JTable[] { this } }; 
+        }
         public int GetColIndex(AType y) {
             int colIdx = -1;
             if (y.GetType() == typeof(A<JString>)) {
@@ -339,6 +342,10 @@ namespace MicroJ
         }
         public override string ToString() {
             var ct = Rows[0].val.GetCount();
+            if (indices != null) {
+                ct = indices.Length;
+            }
+            
             if (take == 0) {
                 take = ct;
             }
@@ -351,7 +358,7 @@ namespace MicroJ
 
                 formatter.Add(valStr);
             }
-            
+
             for (var i = offset; i < (offset+take) && i < ct; i++) {
                 for (var k = 0; k < Columns.Length; k++) {
                     var val = Rows[k].val;
