@@ -361,9 +361,6 @@ NB.  curtail
 
 
 NB. table type
-
-
-
 NB. tables - flipping dictionary into a table
 (flip ('abc';'xyx');(i.3);(1+i.3)) -: 0 : 0
 +---+---+
@@ -424,7 +421,7 @@ NB. tables - sort by column name
 
 
 NB. tables - select column
-((<'abc') { (3!:102) ('abc';'xyz');(1,2);(2,3)) -: 0 : 0
+((<'abc') { flip ('abc';'xyz');(1,2);(2,3)) -: 0 : 0
 +---+
 |abc|
 |---|
@@ -508,3 +505,8 @@ NB. behead a table with multiple columns
 |0 1 2 3 4|100 101 102 103 104|
 +---------+-------------------+
 )
+
+
+
+NB. sort
+ (('a';'c';'b') /: 0 2 1) -: ('a';'b';'c')

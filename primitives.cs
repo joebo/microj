@@ -839,25 +839,25 @@ namespace MicroJ {
             return z;
         }
 
-        public A<T> sortup<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
-            if (y.GetType() == typeof(A<JTable>)) {
-                var yt = (y as A<JTable>).First();
-                var indices = InvokeExpression("gradeup", yt.Rows[yt.GetColIndex(x)].val) as A<long>;
-                var z = new A<JTable>(1) { Ravel = new JTable[] { yt.Clone() } };
-                if (yt.indices != null) {
-                    var ixHash = new HashSet<long>();
-                    ixHash.UnionWith(yt.indices);
-                    indices.Ravel = indices.Ravel.Where(xv => ixHash.Contains(xv)).ToArray();
-                }
-                
-                z.Ravel[0].indices = indices.Ravel;
-                return (A<T>) (object) z;
+        public A<T> sortTable<T2, T>(A<T2> x, A<T> y, string gradeFunc)
+            where T : struct
+            where T2 : struct {
+            var yt = (y as A<JTable>).First();
+            var indices = InvokeExpression(gradeFunc, yt.Rows[yt.GetColIndex(x)].val) as A<long>;
+            var z = new A<JTable>(1) { Ravel = new JTable[] { yt.Clone() } };
+            if (yt.indices != null) {
+                var ixHash = new HashSet<long>();
+                ixHash.UnionWith(yt.indices);
+                indices.Ravel = indices.Ravel.Where(xv => ixHash.Contains(xv)).ToArray();
             }
-            else {
-                var indices = gradeup(x);
-                return from(indices, y);
-            }
-            
+
+            z.Ravel[0].indices = indices.Ravel;
+            return (A<T>)(object)z;
+        }
+
+        public A<T2> sortup<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
+            var indices = gradeup(y);
+            return from(indices, x);            
         }
 
         public A<T> sortdown<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
@@ -1358,10 +1358,21 @@ namespace MicroJ {
                 return z;
             }
             else if (op == "/:") {
-                return InvokeExpression("sortup", x, y, 2);
+                if (y.GetType() != typeof(A<JTable>)) {
+                    return InvokeExpression("sortup", x, y, 2);
+                }
+                else {
+                    return sortTable((A<JString>)x, (A<JTable>)y, "gradeup");
+                }
+                
             }
             else if (op == "\\:") {
-                return InvokeExpression("sortdown", x, y, 2);
+                if (y.GetType() != typeof(A<JTable>)) {
+                    return InvokeExpression("sortdown", x, y, 2);
+                }
+                else {
+                    return sortTable((A<JString>)x, (A<JTable>)y, "gradedown");
+                }                
             }
             else if (op == ";") {
                 if (x.GetType() != typeof(A<JTable>)) {

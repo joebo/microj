@@ -943,7 +943,7 @@ namespace MicroJ
     }
        
     //todo could use some cleanup... primarily interested in getting tests to pass for now
-    class Formatter {
+    public class Formatter {
         public string[][][] Table;
         public long[] shape;
         long tableIdx = 0;
