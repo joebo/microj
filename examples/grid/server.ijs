@@ -192,7 +192,7 @@ thread.Start();
 
 parser.Globals["HttpListenerThread"] = thread;
 
-return "";
+return new A<long>(0);
 
 )
 

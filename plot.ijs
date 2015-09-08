@@ -6,7 +6,7 @@ plotCode=: 0 : 0
 //css_using System.Windows.Forms
 //css_using OxyPlot
 //css_using System.Threading
-
+//css_using MicroJ
 //css_ref System.Runtime, System.Windows.Forms, System.Drawing, System.Collections
 //css_ref OxyPlot, OxyPlot.WindowsForms
 
@@ -48,6 +48,6 @@ chart.Model = model;
 new Thread(() => System.Windows.Forms.Application.Run(w)).Start();
 
 
-return "";
+return new A<long>(0);
 )
 plot =: (150!:0) & plotCode
