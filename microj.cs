@@ -122,9 +122,10 @@ namespace MicroJ
         public abstract string GetString(long n);
         public abstract int GetHashCode(long n);
         public abstract long GetCount();
-        public abstract bool SliceEquals(long offseta, long offsetb, long count);
+        public abstract bool SliceEquals(long offseta, long offsetb, long count);        
         public abstract AType Merge(long[] newShape, AType[] vs);
         public abstract long[] GradeUp();
+        
 
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
@@ -196,13 +197,14 @@ namespace MicroJ
                 word = word.Replace("_", "-");
             }
 
-            if (names != null && names.ContainsKey(word)) {
-                return names[word];
-            }
             if (locals != null && locals.ContainsKey(word)) {
                 return locals[word];
             }
 
+            if (names != null && names.ContainsKey(word)) {
+                return names[word];
+            }
+            
             else if (word.StartsWith("'")) {
                 var str = word.Substring(1, word.Length - 2);
                 var a = new A<JString>(1);
@@ -331,6 +333,7 @@ namespace MicroJ
             }
             return colIdx;
         }
+
         public JTable Clone() {
             return new JTable {
                 Columns = Columns.Select(x=>x).ToArray(),
@@ -457,7 +460,7 @@ namespace MicroJ
             return true;
         }
 
-
+        
         //creates a new value from an array of values
         public override AType Merge(long[] newShape, AType[] vs) {
             var v = new A<T>(newShape);
@@ -708,8 +711,16 @@ namespace MicroJ
             return word.All(x => char.IsDigit(x) || char.IsLetter(x) || x == '_');
         }
 
-        public AType exec(string cmd) {
-            return parse(cmd);
+        public AType exec(string cmd, Dictionary<string, AType> locals = null) {
+            var prevNames = LocalNames;
+            try {
+                if (locals != null) { LocalNames = locals; }
+                return parse(cmd);
+            }
+            finally {
+                LocalNames = prevNames;
+            }
+            
         }
 
         public AType parse(string cmd) {

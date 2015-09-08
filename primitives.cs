@@ -697,6 +697,25 @@ namespace MicroJ {
                 v.indices = rowIndices;
                 return v.WrapA();
             }
+            else if (x.GetType() == typeof(A<JString>) && x.Rank < 2) {
+                var locals = new Dictionary<string, AType>();
+                var yv = (y as A<JTable>).First();
+                for (var i = 0; i < yv.Columns.Length; i++) {
+                    locals[yv.Columns[i]] = yv.Rows[i].val;
+                }
+                var expression = (x as A<JString>).First().str;
+                var expressionResult = Conjunctions.Parser.exec(expression, locals) as A<long>;
+
+                var v = yt.Clone();
+                var indices = new List<long>();
+                for (var i = 0; i < expressionResult.Count; i++) {
+                    if (expressionResult.Ravel[i] == 1) {
+                        indices.Add(i);
+                    }
+                }
+                v.indices = indices.ToArray();
+                return v.WrapA();
+            }
             throw new NotImplementedException();
         }
 
@@ -807,9 +826,15 @@ namespace MicroJ {
         public A<T> sortup<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
             if (y.GetType() == typeof(A<JTable>)) {
                 var yt = (y as A<JTable>).First();
-                var indices = InvokeExpression("gradeup", yt.Rows[yt.GetColIndex(x)].val);
+                var indices = InvokeExpression("gradeup", yt.Rows[yt.GetColIndex(x)].val) as A<long>;
                 var z = new A<JTable>(1) { Ravel = new JTable[] { yt.Clone() } };
-                z.Ravel[0].indices = (indices as A<long>).Ravel;
+                if (yt.indices != null) {
+                    var ixHash = new HashSet<long>();
+                    ixHash.UnionWith(yt.indices);
+                    indices.Ravel = indices.Ravel.Where(xv => ixHash.Contains(xv)).ToArray();
+                }
+                
+                z.Ravel[0].indices = indices.Ravel;
                 return (A<T>) (object) z;
             }
             else {
@@ -822,8 +847,13 @@ namespace MicroJ {
         public A<T> sortdown<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
             if (y.GetType() == typeof(A<JTable>)) {
                 var yt = (y as A<JTable>).First();
-                var indices = InvokeExpression("gradedown", yt.Rows[yt.GetColIndex(x)].val);
+                var indices = InvokeExpression("gradedown", yt.Rows[yt.GetColIndex(x)].val) as A<long>; ;
                 var z = new A<JTable>(1) { Ravel = new JTable[] { yt.Clone() } };
+                if (yt.indices != null) {
+                    var ixHash = new HashSet<long>();
+                    ixHash.UnionWith(yt.indices);
+                    indices.Ravel = indices.Ravel.Where(xv => ixHash.Contains(xv)).ToArray();
+                }
                 z.Ravel[0].indices = (indices as A<long>).Ravel;
                 return (A<T>)(object)z;
             }
@@ -933,6 +963,36 @@ namespace MicroJ {
             var found = matches.Where(v=>v.yi>=0).Select(v=>v.yi).ToArray();
             z.Columns = z.Columns.Concat(yv.Columns.Where((v,i)=>!found.Contains(i))).ToArray();
             z.Rows = z.Rows.Concat(yv.Rows.Where((v, i) => !found.Contains(i))).ToArray();
+
+            return z.WrapA();
+        }
+
+        //links a table with a boxed set of columns and row expressions
+        //example: (flip ('a';'b');((1,2);(3,5)));((<'c');'a+b'))) -: 0 : 0
+        public A<JTable> linktableExpression(A<JTable> x, A<Box> y) {
+            var xv = x.First();
+            var z = xv.Clone();
+            
+            var columns = (y.Ravel[0].val as A<Box>).Ravel.Select(v => ((A<JString>)v.val).Ravel[0].str).ToArray();
+            var expressions = (y.Ravel[1].val as A<JString>).Ravel.Select(v => v.str).ToArray();
+            //var matches = xv.Columns.Select((v, i) => new { xv = xv, xi = i, yi = Array.IndexOf(columns, v) }).ToArray();
+
+            var matches = columns.Select((v, i) => new { col = v, colIdx = i, yi = Array.IndexOf(xv.Columns, v) }).ToArray();
+
+            foreach(var match in matches) {
+                var yt = new JTable {
+                    Columns = new string[] { match.col }
+                };
+                var locals = new Dictionary<string, AType>();
+                for (var i = 0; i < z.Columns.Length; i++) {
+                    locals[z.Columns[i]] = z.Rows[i].val;
+                }                
+                var expressionResult = Conjunctions.Parser.exec(expressions[match.colIdx], locals);
+                yt.Rows = new Box[] { new Box { val = expressionResult } };
+                var zt = linktable(z.WrapA(), yt.WrapA());
+                z = zt.Ravel[0];
+                //z.Rows[match.xi] = yv.Rows[match.yi];
+            }
 
             return z.WrapA();
         }
@@ -1157,6 +1217,23 @@ namespace MicroJ {
                     return mathmixed(x, y, (a, b) => a < b ? 1 : 0);
                 }
             }
+            else if (op == ">") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)x, (A<long>)y, (a, b) => a > b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)x, (A<double>)y, (a, b) => a > b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a > b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
+                    return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a > b ? 1 : 0);
+                }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixed(x, y, (a, b) => a > b ? 1 : 0);
+                }
+            }
             else if (op == "<.") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a < b ? a : b);
@@ -1274,8 +1351,11 @@ namespace MicroJ {
                 if (x.GetType() != typeof(A<JTable>)) {
                     return InvokeExpression("link", x, y, 2);
                 }
-                else {
+                else if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<JTable>)){
                     return linktable((A<JTable>)x, (A<JTable>)y);                    
+                }
+                else if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<Box>)) {
+                    return linktableExpression((A<JTable>)x, (A<Box>)y);
                 }                
             }
             else if (op == ",.") {
