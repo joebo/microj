@@ -578,6 +578,21 @@ namespace MicroJ {
             return v;
         }
 
+
+        public AType beheadTable(A<JTable> y) {
+            var yv = y.First();
+            if (yv.Columns.Length > 1) {
+                var v = new A<Box>(yv.Columns.Length);
+                v.Ravel = yv.Rows.Select(x => x).ToArray();
+                return v;
+            }
+            else {
+                return yv.Rows[0].val;
+            }            
+        }
+
+
+        
         public A<T> curtail<T>(A<T> y) where T : struct {
             long[] newShape = y.ShapeCopy();
             newShape[0] = newShape[0] - 1;
@@ -631,6 +646,7 @@ namespace MicroJ {
 
 
         public A<T> drop<T>(A<long> x, A<T> y) where T : struct {
+
             long[] newShape = null;
 
             if (x.Rank > 0) { throw new NotImplementedException("Rank > 0 not implemented on drop"); }
@@ -644,7 +660,7 @@ namespace MicroJ {
             v.Ravel = y.Copy(v.Count, skip: skip, ascending: x.Ravel[0] >= 0);
             return v;
         }
-
+        
         public A<T> from<T>(A<long> x, A<T> y) where T : struct {
             long[] newShape = null;
 
@@ -1559,7 +1575,13 @@ namespace MicroJ {
                 return InvokeExpression("head", y);
             }
             else if (op == "}.") {
-                return InvokeExpression("behead", y);
+                if (y.GetType() != typeof(A<JTable>)) {
+                    return InvokeExpression("behead", y);
+                }
+                else {
+                    return beheadTable((A<JTable>)y);
+                }
+                
             }
             else if (op == "}:") {
                 return InvokeExpression("curtail", y);

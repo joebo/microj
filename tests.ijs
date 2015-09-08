@@ -498,3 +498,13 @@ NB. table - filter and sort
 +----+----+
 )
 
+NB. behead a table with a single column
+(+/ }. (flip (<'a');(i.10))) -: 45
+
+NB. behead a table with multiple columns
+
+(}. (flip ('a';'b');(i. 5);(100+ i.5))) -: 0 : 0
++---------+-------------------+
+|0 1 2 3 4|100 101 102 103 104|
++---------+-------------------+
+)
