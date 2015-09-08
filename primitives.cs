@@ -906,7 +906,7 @@ namespace MicroJ {
         }
 
         public A<Box> link<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
-            if (y.GetType() != typeof(A<Box>)) {
+          if (y.GetType() != typeof(A<Box>)) {
                 var z = new A<Box>(2);
                 z.Ravel[0] = new Box { val = x };            
                 z.Ravel[1] = new Box { val = y };
@@ -921,7 +921,21 @@ namespace MicroJ {
             }            
         }
 
+        public A<JTable> linktable(A<JTable> x, A<JTable> y) {
+            var xv = x.First();
+            var yv = y.First();
 
+            var matches = xv.Columns.Select((v, i) => new { xv = xv, xi = i, yi = Array.IndexOf(yv.Columns, v) });
+            var z = xv.Clone();
+            foreach (var match in matches.Where(v=>v.yi >= 0)) {
+                z.Rows[match.xi] = yv.Rows[match.yi];
+            }
+            var found = matches.Where(v=>v.yi>=0).Select(v=>v.yi).ToArray();
+            z.Columns = z.Columns.Concat(yv.Columns.Where((v,i)=>!found.Contains(i))).ToArray();
+            z.Rows = z.Rows.Concat(yv.Rows.Where((v, i) => !found.Contains(i))).ToArray();
+
+            return z.WrapA();
+        }
         public A<T> nub<T>(A<T> y) where T : struct {            
             var indices = NubIndex(y);
             var fromIdx = new A<long>(indices.Count);
@@ -1257,7 +1271,12 @@ namespace MicroJ {
                 return InvokeExpression("sortdown", x, y, 2);
             }
             else if (op == ";") {
-                return InvokeExpression("link", x, y, 2);
+                if (x.GetType() != typeof(A<JTable>)) {
+                    return InvokeExpression("link", x, y, 2);
+                }
+                else {
+                    return linktable((A<JTable>)x, (A<JTable>)y);                    
+                }                
             }
             else if (op == ",.") {
                 return InvokeExpression("stitch", x, y, 1);                

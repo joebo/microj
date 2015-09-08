@@ -333,11 +333,11 @@ namespace MicroJ
         }
         public JTable Clone() {
             return new JTable {
-                Columns = Columns,
-                Rows = Rows,
+                Columns = Columns.Select(x=>x).ToArray(),
+                Rows = Rows.Select(x=>x).ToArray(),
                 offset = offset,
                 take = take,
-                indices = indices
+                indices = indices == null ? null : indices.Select(x=>x).ToArray()
             };
         }
         public override string ToString() {

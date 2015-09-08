@@ -364,7 +364,7 @@ NB. table type
 
 
 
-NB. flipping dictionary into a table
+NB. tables - flipping dictionary into a table
 (flip ('abc';'xyx');(i.3);(1+i.3)) -: 0 : 0
 +---+---+
 |abc|xyx|
@@ -377,7 +377,7 @@ NB. flipping dictionary into a table
 +---+---+
 )
 
-NB. subsetting a table
+NB. tables - subsetting a table
 (2 {. flip ('abc';'xyx');(i.3);(1+i.3)) -: 0 : 0
 +---+---+
 |abc|xyx|
@@ -388,7 +388,7 @@ NB. subsetting a table
 +---+---+
 )
 
-NB. taking the last row of a table
+NB. tables - taking the last row of a table
 (_1 {. flip ('abc';'xyx');(i.3);(1+i.3)) -: 0 : 0
 +---+---+
 |abc|xyx|
@@ -409,7 +409,7 @@ NB. taking the last row of a table
 +---+---+
 )
 
-NB. sort by column name
+NB. tables - sort by column name
 ('xyx' /: flip ('abc';'xyx');(2 1 3);(1+i.3)) -: 0 : 0
 +---+---+
 |abc|xyx|
@@ -423,7 +423,7 @@ NB. sort by column name
 )
 
 
-NB. select column
+NB. tables - select column
 ((<'abc') { (3!:102) ('abc';'xyz');(1,2);(2,3)) -: 0 : 0
 +---+
 |abc|
@@ -434,11 +434,44 @@ NB. select column
 +---+
 )
 
-NB. select column and row
-(0 { (<'abc') { (3!:102) ('abc';'xyz');(1,2);(2,3)) -: 0 : 0
+NB. tables - select column and row
+(0 { (<'abc') { flip ('abc';'xyz');(1,2);(2,3)) -: 0 : 0
 +---+
 |abc|
 |---|
 |1  |
 +---+
+)
+
+NB. tables - update a column
+((flip (<'abc');(1,2));(flip (<'abc');(3,4))) -: 0 : 0
++---+
+|abc|
+|---|
+|3  |
+|---|
+|4  |
++---+
+)
+
+NB. tables - add a column
+((flip (<'abc');(1,2));(flip (<'xyz');(3,4))) -: 0 : 0
++---+---+
+|abc|xyz|
+|---+---|
+|1  |3  |
+|---+---|
+|2  |4  |
++---+---+
+)
+
+NB. tables - add a calculated column
+(flip ('a';'b');((1,2);(3,5)));((<'c');'a+b'))) -: 0 : 0
++--+--+--+
+|a |b |c |
+|--+--+--|
+|1 |3 |4 |
+|--+--+--|
+|2 |5 |7 |
++--+--+--+
 )
