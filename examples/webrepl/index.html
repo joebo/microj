@@ -1,0 +1,71 @@
+<html>
+  <head>
+    <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.11.3/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/black-tie/jquery-ui.css"></link>
+    <script>
+    $(function() {
+        var inputLines = [];
+        $('#Input').keypress(function(e) {
+            if (e.keyCode == 13) {
+                $('#Run').click();
+            }
+        });
+
+        $('#Run').click(function() {
+            inputLines.push($('#Input').val());
+            console.log(inputLines);
+            $('#Input').val('');
+            $.ajax({
+                url: '/',
+                data: JSON.stringify(inputLines),
+                type: 'POST',
+                dataType: 'json',
+                contentType : 'application/json',
+                complete: function(ret) {
+                    console.log(ret);
+                    $('#Output').val(ret.responseText);
+                }
+            });
+        });
+
+        $('#Multiline').click(function() {
+            $('<div><textarea id="History" style="width:750px;height:300px"></textarea></div>').dialog({
+                width: 800,
+                height: 500,
+                title: 'Multi-line editor',
+                open: function() {
+                    $(this).find('#History').val(inputLines.join('\n'));
+                },
+                buttons: {
+                    'Close' : function() { $(this).dialog('close') },
+                    'Run' : function() {
+                        inputLines = $(this).find('#History').val().split('\n');
+                        $(this).dialog('close');
+                        $('#Run').click();
+                    },
+                }
+            });
+        });
+
+        $('#Save').click(function() {
+            window.location.hash = btoa(unescape(encodeURIComponent(JSON.stringify(inputLines))))
+        });
+
+        if (window.location.hash) {
+            inputLines = JSON.parse(decodeURIComponent(escape(atob(window.location.hash.slice(1)))));
+            $('#Run').click();
+        }
+
+
+    });
+     </script>
+  </head>
+  <body>
+    <textarea id="Output" style="height:80%;width:95%;"></textarea>
+    <input type="text" style="width:80%" id="Input"><input type="button" value="Run" id="Run"><span style="font-size:8pt"> (or hit enter)</span>
+    <input type="button" value="Mutli-line" id="Multiline">
+    <input type="button" value="Save" id="Save">
+  </body>
+  </html>
+                
