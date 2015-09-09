@@ -125,6 +125,8 @@ namespace MicroJ
         public abstract bool SliceEquals(long offseta, long offsetb, long count);        
         public abstract AType Merge(long[] newShape, AType[] vs);
         public abstract long[] GradeUp();
+        public abstract void SetVal(long n, object val);
+        public abstract object GetVal(long n);
         
 
         public long GetLong(int n) {
@@ -263,6 +265,7 @@ namespace MicroJ
         public string conj;
         public string rhs;
         public object childVerb;
+        public object childNoun;
         public string childAdverb;
         public string explicitDef;
 
@@ -319,6 +322,7 @@ namespace MicroJ
         public long offset;
         public long take;
         public long[] indices;
+        public Dictionary<string, string> ColumnExpressions;
 
         public A<JTable> WrapA() {
             return new A<JTable>(1) { Ravel = new JTable[] { this } }; 
@@ -331,6 +335,9 @@ namespace MicroJ
             else {
                 colIdx = (int) (y as A<long>).Ravel[0];
             }
+            if (colIdx == -1) {
+                throw new ArgumentException("Column " + y + " not found");
+            }
             return colIdx;
         }
 
@@ -340,7 +347,8 @@ namespace MicroJ
                 Rows = Rows.Select(x=>x).ToArray(),
                 offset = offset,
                 take = take,
-                indices = indices == null ? null : indices.Select(x=>x).ToArray()
+                indices = indices == null ? null : indices.Select(x=>x).ToArray(),
+                ColumnExpressions = ColumnExpressions
             };
         }
         public override string ToString() {
@@ -362,7 +370,7 @@ namespace MicroJ
                 formatter.Add(valStr);
             }
 
-            for (var i = offset; i < (offset+take) && i < ct; i++) {
+            for (var i = offset; i < (offset+take) && i < ct && i < Parser.OUTPUT_MAX_ROWS; i++) {
                 for (var k = 0; k < Columns.Length; k++) {
                     var val = Rows[k].val;
 
@@ -457,7 +465,13 @@ namespace MicroJ
             return true;
         }
 
-        
+        public override void SetVal(long n, object val) {
+            Ravel[n] = (T)val;
+        }
+
+        public override object GetVal(long n) {
+            return Ravel[n];
+        }
         //creates a new value from an array of values
         public override AType Merge(long[] newShape, AType[] vs) {
             var v = new A<T>(newShape);
@@ -600,6 +614,7 @@ namespace MicroJ
 
     public class Parser {
 
+        public static int OUTPUT_MAX_ROWS = 10000;
         public bool SafeMode = false;
         public Verbs Verbs;
         public Adverbs Adverbs;
@@ -797,28 +812,36 @@ namespace MicroJ
                         var op = stack.Pop();
                         var adv = stack.Pop();
 
-                        var verbs = ((A<Verb>)op.val);
-                        if (verbs.Count == 1) {
-                            var z = new A<Verb>(0);                        
-                            var v =  ((A<Verb>)op.val).Ravel[0];
-                            if (v.adverb != null) {
-                                v.childAdverb = v.adverb;
+                        var vop = op.val as A<Verb>;
+
+                        if (vop != null) {
+                            var verbs = ((A<Verb>)op.val);
+
+                            //single verb argument
+                            if (verbs.Count == 1) {
+                                var z = new A<Verb>(0);
+                                var v = ((A<Verb>)op.val).Ravel[0];
+                                if (v.adverb != null) {
+                                    v.childAdverb = v.adverb;
+                                }
+                                z.Ravel[0] = v;
+                                z.Ravel[0].adverb = adv.word;
+                                stack.Push(new Token { val = z });
                             }
-                            z.Ravel[0] = v;
-                            z.Ravel[0].adverb = adv.word;
-                            stack.Push(new Token { val = z });
+                            else { //train
+                                var z = new A<Verb>(verbs.Count + 1);
+                                for (var k = 0; k < verbs.Count; k++) {
+                                    z.Ravel[k + 1] = verbs.Ravel[k];
+                                }
+                                z.Ravel[0].adverb = adv.word;
+                                stack.Push(new Token { val = z });
+                            }
                         }
                         else {
-                            var z = new A<Verb>(verbs.Count+1);
-                            for (var k = 0; k < verbs.Count; k++) {
-                                z.Ravel[k + 1] = verbs.Ravel[k];
-                            }                            
-                            z.Ravel[0].adverb = adv.word;
-                            stack.Push(new Token { val = z });                            
+                            var z = new A<Verb>(0);
+                            z.Ravel[0] = new Verb { childNoun = op.val, adverb = adv.word };
+                            stack.Push(new Token { val = z});
                         }
-
-                        
-                        
                         stack.Push(p1);
                     }
                     else if (step == 4) { //conjunction
@@ -1015,8 +1038,8 @@ namespace MicroJ
 
             
             var columnPadding = new long[columnLength];
-            for (var t = 0L; t < tableLength; t++) {
-                for (var r = 0L; r < rowLength; r++) {
+            for (var t = 0L; t < tableLength ; t++) {
+                for (var r = 0L; r < rowLength && r < Parser.OUTPUT_MAX_ROWS; r++) {
                     for (var c = 0L; c < columnLength; c++) {
                         if (Table[t][r][c] == null) continue;
                         var len = Table[t][r][c].Split('\n').Max(x => x.Length);
@@ -1030,7 +1053,7 @@ namespace MicroJ
             bool boxed = Table[0][0][0].StartsWith("+");
             for (var t = 0L; t < tableLength; t++) {
                 string headerLine = "";
-                for (var r = 0L; r < rowLength; r++) {
+                for (var r = 0L; r < rowLength && r < Parser.OUTPUT_MAX_ROWS; r++) {
                     var lines = Table[t][r].Where(x=>x!=null).Select(x => x.Split('\n')).ToList();
                     var maxLines = lines.Max(x => x.Length);
 

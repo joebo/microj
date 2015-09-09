@@ -510,3 +510,30 @@ NB. behead a table with multiple columns
 
 NB. sort
  (('a';'c';'b') /: 0 2 1) -: ('a';'b';'c')
+
+
+NB. table amend, first column as key
+ (1 ('v';'b') } flip ('k';'v');(> 'a';'b';'c');(0 0 0)) -: 0 : 0
++-+-+
+|k|v|
+|-+-|
+|a|0|
+|-+-|
+|b|1|
+|-+-|
+|c|0|
++-+-+
+)
+
+NB. table amend, arbitrary key
+(3 ('v';0;'v')  } (1 ('v';'b') } flip ('k';'v');(> 'a';'b';'c');(0 0 0))) -: 0 : 0
++-+-+
+|k|v|
+|-+-|
+|a|3|
+|-+-|
+|b|1|
+|-+-|
+|c|3|
++-+-+
+)

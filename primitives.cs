@@ -991,6 +991,7 @@ namespace MicroJ {
             
             var columns = (y.Ravel[0].val as A<Box>).Ravel.Select(v => ((A<JString>)v.val).Ravel[0].str).ToArray();
             var expressions = (y.Ravel[1].val as A<JString>).Ravel.Select(v => v.str).ToArray();
+
             //var matches = xv.Columns.Select((v, i) => new { xv = xv, xi = i, yi = Array.IndexOf(columns, v) }).ToArray();
 
             var matches = columns.Select((v, i) => new { col = v, colIdx = i, yi = Array.IndexOf(xv.Columns, v) }).ToArray();
@@ -1009,8 +1010,11 @@ namespace MicroJ {
                 z = zt.Ravel[0];
                 //z.Rows[match.xi] = yv.Rows[match.yi];
             }
-
-            return z.WrapA();
+            z.ColumnExpressions = new Dictionary<string, string>();
+            for (var k = 0; k < columns.Length; k++) {
+                z.ColumnExpressions[columns[k]] = expressions[k];
+            }
+                return z.WrapA();
         }
         public A<T> nub<T>(A<T> y) where T : struct {            
             var indices = NubIndex(y);
@@ -1163,6 +1167,9 @@ namespace MicroJ {
 
             if (op == "]") {
                 return y;
+            }
+            else if (op == "[") {
+                return x;
             }
             else if (op == "+") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
@@ -2146,7 +2153,7 @@ namespace MicroJ {
 
     }
     public class Adverbs {
-        public static readonly string[] Words = new[] { "/", "/.", "~" };
+        public static readonly string[] Words = new[] { "/", "/.", "~", "}" };
         public Verbs Verbs;
         public Conjunctions Conjunctions;
 
@@ -2271,6 +2278,56 @@ namespace MicroJ {
             }
             return v;
         }
+
+        public A<JTable> amendTable(AType noun, AType newVal, A<JTable> y) {
+            var yt = y.First();
+            if (noun.GetType() != typeof(A<Box>)) {
+                throw new DomainException();
+            }
+            var yb = (noun as A<Box>);
+            var idx = yt.GetColIndex(yb.Ravel[0].val);
+            
+            var keyIdx = 0;
+            if (yb.Count == 3) {
+                keyIdx = yt.GetColIndex(yb.Ravel[2].val);
+            }
+
+            var keys = new Dictionary<string, List<long>>();
+
+            for(var i = 0; i < yt.Rows[0].val.GetCount(); i++) {
+                var keyVal = yt.Rows[keyIdx].val.GetString(i);
+                List<long> keyIndices = null;
+                if (!keys.TryGetValue(keyVal, out keyIndices)) {
+                    keyIndices = new List<long>();
+                    keys[keyVal] = keyIndices;
+                }
+                keyIndices.Add(i);
+            }
+            for(var i = 0; i < newVal.GetCount(); i++) {
+                List<long> keyIndices = null;
+                var checkVal = yb.Ravel[1].val.GetString(i);
+                var newValx = newVal.GetVal(i);
+                if (keys.TryGetValue(checkVal, out keyIndices)) {
+                    for(var k = 0; k < keyIndices.Count; k++) {
+                        yt.Rows[idx].val.SetVal(keyIndices[k], newValx);
+                    }
+                }
+            }
+
+            if (yt.ColumnExpressions != null) {
+                foreach (var kv in yt.ColumnExpressions) {
+                    var locals = new Dictionary<string, AType>();
+                    for (var i = 0; i < yt.Columns.Length; i++) {
+                        locals[yt.Columns[i]] = yt.Rows[i].val;
+                    }
+                    var expressionResult = Conjunctions.Parser.exec(kv.Value, locals);
+                    int colIdx = Array.IndexOf(yt.Columns, kv.Key);
+                    yt.Rows[colIdx] = new Box { val = expressionResult };
+                }
+            }
+            
+            return yt.WrapA();
+        }
         public AType Call1(AType method, AType y) {
             var verbs = ((A<Verb>)method);
             var verb = ((A<Verb>)method).Ravel[0];
@@ -2365,8 +2422,12 @@ namespace MicroJ {
             }
             else if (adverb == "/.") {
                 return Verbs.InvokeExpression("key", x, y, 2, this, newVerb);
-            } 
-            
+            }
+            else if (adverb == "}") {
+                if (y.GetType() == typeof(A<JTable>)) {
+                    return amendTable((AType)verb.childNoun, x, (A<JTable>)y);
+                }
+            }
             throw new NotImplementedException("ADV: " + adverb + " on x:" + x + " y:" + y + " type: " + y.GetType());
         }
 
