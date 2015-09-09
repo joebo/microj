@@ -127,7 +127,7 @@ namespace MicroJ
         public abstract long[] GradeUp();
         public abstract void SetVal(long n, object val);
         public abstract object GetVal(long n);
-        
+        public abstract AType FromIndices(long[] indices);
 
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
@@ -309,7 +309,7 @@ namespace MicroJ
             var sep = "+" + new String('-', rep) + "+";
             return sep + "\n|" + vt + "|\n" + sep;
         }
-
+        
         //needed for nub
         public override int GetHashCode() {
             return ToString().GetHashCode();
@@ -323,6 +323,7 @@ namespace MicroJ
         public long take;
         public long[] indices;
         public Dictionary<string, string> ColumnExpressions;
+        public Dictionary<string, string> FooterExpressions;
 
         public A<JTable> WrapA() {
             return new A<JTable>(1) { Ravel = new JTable[] { this } }; 
@@ -348,7 +349,8 @@ namespace MicroJ
                 offset = offset,
                 take = take,
                 indices = indices == null ? null : indices.Select(x=>x).ToArray(),
-                ColumnExpressions = ColumnExpressions
+                ColumnExpressions = ColumnExpressions,
+                FooterExpressions = FooterExpressions
             };
         }
         public override string ToString() {
@@ -360,7 +362,12 @@ namespace MicroJ
             if (take == 0) {
                 take = ct;
             }
-            var newShape = new long[] {take+1 , Columns.Length};
+            var footer = FooterExpressions == null ? 0 : 1;
+            if (footer != 0 && (indices != null || offset != 0 || take != ct)) {
+                footer++;
+            }
+
+            var newShape = new long[] {take+1+footer , Columns.Length};
             var formatter = new Formatter(newShape, "");
             foreach (var col in Columns) {
                 int rep = col.Length;
@@ -370,7 +377,9 @@ namespace MicroJ
                 formatter.Add(valStr);
             }
 
+            var newIndices = new List<long>();
             for (var i = offset; i < (offset+take) && i < ct && i < Parser.OUTPUT_MAX_ROWS; i++) {
+                newIndices.Add(i);
                 for (var k = 0; k < Columns.Length; k++) {
                     var val = Rows[k].val;
 
@@ -381,6 +390,7 @@ namespace MicroJ
                     else {
                         vt = val.GetString(indices[i]);
                     }
+                    
                     var rep = 1;
                     
                     var sep = "+" + new String('-', rep) + "+";
@@ -389,6 +399,34 @@ namespace MicroJ
                     formatter.Add(valStr);
                 }
                     
+            }
+            if (FooterExpressions != null) {
+                var locals = new Dictionary<string, AType>();
+                var self = this;
+                Action<bool> buildFooter = (filtered) => {
+                    for (var i = 0; i < self.Columns.Length; i++) {
+                        if (!filtered || (self.indices == null && self.take == ct && self.offset == 0)) {
+                            locals[self.Columns[i]] = self.Rows[i].val;
+                        }
+                        else {
+                            locals[self.Columns[i]] = self.Rows[i].val.FromIndices(newIndices.ToArray());
+                        }
+                    }
+                    foreach (var col in self.Columns) {
+                        string val = "";
+                        if (self.FooterExpressions.ContainsKey(col)) {
+                            var expressionResult = new Parser().exec(self.FooterExpressions[col], locals);
+                            val = expressionResult.ToString();
+                        }
+
+                        //int rep = col.Length;
+                        //var sep = "+" + new String('-', rep) + "+";
+                        var valStr = "+-+\n|" + val + "|\n+-+";
+                        formatter.Add(valStr);
+                    }
+                };
+                buildFooter(true);
+                if (footer == 2) { buildFooter(false); }
             }
             return formatter.ToString();
         }
@@ -471,6 +509,14 @@ namespace MicroJ
 
         public override object GetVal(long n) {
             return Ravel[n];
+        }
+
+        public override AType FromIndices(long[] indices) {
+            A<T> v = new A<T>(indices.Length);
+            for(var i = 0; i < indices.Length;i++) {
+                v.Ravel[i] = Ravel[indices[i]];
+            }
+            return v;
         }
         //creates a new value from an array of values
         public override AType Merge(long[] newShape, AType[] vs) {

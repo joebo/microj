@@ -614,6 +614,7 @@ namespace MicroJ {
                 v.Ravel[0] = (T)(object) new JString { str = ((A<JString>) (object)y).Ravel[0].str.Substring(0, (int)x.Ravel[0]) };
             }
             else if (y.GetType() == typeof(A<JTable>)) {
+                //todo: move to own
                 var yt = y as A<JTable>;
                 var take = xct;
                 var offset = 0L;
@@ -626,16 +627,10 @@ namespace MicroJ {
                 else {
                     take = xct;
                 }
-                var tv = new A<JTable>(yt.Count) {
-                    Ravel = new JTable[] { new JTable {
-                        Rows = yt.Ravel[0].Rows,
-                        Columns = yt.Ravel[0].Columns,
-                        take = take,
-                        offset = offset,
-                        indices = yt.Ravel[0].indices
-                    }}                    
-                };
-                return (A<T>) (object) tv;
+                var zt = yt.First().Clone();
+                zt.take = take;
+                zt.offset = offset;
+                return (A<T>)(object) zt.WrapA();                
             }
             else {
                 v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
@@ -2239,6 +2234,124 @@ namespace MicroJ {
             return v;
         }
 
+        public AType keyTable<T2, T>(AType op, A<T2> x, A<T> y) where T : struct where T2 : struct {
+            var yt = (y as A<JTable>).First();
+            var rowCt = yt.Rows[0].val.GetCount();
+            var keyIndices = new Dictionary<string, List<long>>();
+            var colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
+            for (var i = 0; i < rowCt; i++) {
+                string key = "";
+                for (var k = 0; k < colIdx.Length; k++) {
+                    key = key + yt.Rows[colIdx[k]].val.GetString(i);
+                }
+                List<long> match = null;
+                if (!keyIndices.TryGetValue(key, out match)) {
+                    match = new List<long>();
+                    keyIndices[key] = match;
+                }
+                match.Add(i);
+            }
+            var keyCt = keyIndices.Count;
+
+            var vop = op as A<Verb>;
+            //key itself using footer expressions or #
+            if (op.ToString() == "]") {
+                var colCt = yt.Columns.Length;
+
+                var rows = new Box[colCt];
+
+                var t = new JTable {
+                    Columns = yt.Columns,
+                    Rows = rows,
+                };
+
+                
+
+                for (var k = 0; k < colCt; k++) {
+                    if (colIdx.Contains(k)) {
+                        var vals = keyIndices.Keys.Select(xv => new JString { str = yt.Rows[k].val.GetString(keyIndices[xv].First()) }).ToArray();
+                        var maxLen = vals.Select(xv => xv.str.Length).Max();
+                        rows[k] = new Box {
+                            val = new A<JString>(new long[] { keyCt, maxLen }) { Ravel = vals }
+                        };
+                    }
+                    else {
+                        if (yt.FooterExpressions != null && yt.FooterExpressions.ContainsKey(yt.Columns[k])) {
+
+                            var parser = new Parser();
+                            var groupRows = new List<AType>();
+                            foreach (var kv in keyIndices) {
+                                var locals = new Dictionary<string, AType>();
+                                for (var i = 0; i < yt.Columns.Length; i++) {
+                                    locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
+                                }
+                                var expressionResult = new Parser().exec(yt.FooterExpressions[yt.Columns[k]], locals);
+                                groupRows.Add(expressionResult);
+                            }
+                            var at = groupRows[0].Merge(new long[] { keyCt }, groupRows.ToArray());
+                            rows[k] = new Box {
+                                val = at
+                            };
+                        }
+                        else {
+                            var cts = keyIndices.Select(xv => (long)xv.Value.Count()).ToArray();
+                            rows[k] = new Box {
+                                val = new A<long>(new long[] { keyCt }) { Ravel = cts }
+                            };
+                        }
+                    }
+                }
+                return t.WrapA();
+            }
+            else if (vop != null && vop.Ravel[0].childNoun != null) {
+                var noun = vop.Ravel[0].childNoun as A<Box>;
+
+                var colCt = noun.Count + colIdx.Length;
+
+                var rows = new Box[colCt];
+                var expressions = noun.Ravel.Select(xv=>xv.val.ToString()).ToArray();
+                var cols = yt.Columns.Where((xv, i) => colIdx.Contains(i)).ToArray().Concat(expressions).ToArray();
+                var t = new JTable {
+                    Columns = cols,
+                    Rows = rows,
+                };
+                var colOffset = 0;
+                for (var k = 0; k < colIdx.Length; k++) {
+                    var vals = keyIndices.Keys.Select(xv => new JString { str = yt.Rows[k].val.GetString(keyIndices[xv].First()) }).ToArray();
+                    var maxLen = vals.Select(xv => xv.str.Length).Max();
+                    rows[colOffset++] = new Box {
+                        val = new A<JString>(new long[] { keyCt, maxLen }) { Ravel = vals }
+                    };
+                }
+                for(var k = 0; k < noun.Count;k++) {
+                    var parser = new Parser();
+                    var groupRows = new List<AType>();
+                    foreach (var kv in keyIndices) {
+                        var locals = new Dictionary<string, AType>();
+                        for (var i = 0; i < yt.Columns.Length; i++) {
+                            locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
+                        }
+                        var expressionResult = new Parser().exec(expressions[k], locals);
+                        groupRows.Add(expressionResult);
+                    }
+
+                    var newShape = new long[] { keyCt };
+                    if (groupRows[0].GetType() == typeof(A<JString>)) {
+                        //todo: dumb for now
+                        newShape = new long[] { keyCt, 1 };
+                    }
+                    var at = groupRows[0].Merge(newShape, groupRows.ToArray());
+                    rows[colOffset++] = new Box {
+                        val = at
+                    };                    
+                }
+                return t.WrapA();
+            }
+            else {
+                throw new DomainException();
+            }
+            //var indices = Verbs.NubIndex<T2>(x);
+        }
         public AType key<T2, T>(AType op, A<T2> x, A<T> y) where T : struct where T2 : struct {
             var indices = Verbs.NubIndex<T2>(x);
 
@@ -2281,7 +2394,20 @@ namespace MicroJ {
 
         public A<JTable> amendTable(AType noun, AType newVal, A<JTable> y) {
             var yt = y.First();
-            if (noun.GetType() != typeof(A<Box>)) {
+
+            var yl = noun as A<long>;
+            if (yl != null && yl.Ravel[0] == -1) {
+                //yt.FooterExpressions = noun;
+                var xb = (newVal as A<Box>);
+                yt.FooterExpressions = new Dictionary<string, string>();
+                var frameCt = xb.Rank > 1 ? xb.Shape[xb.Shape.Length - 1] : 1;
+                var frameOffset = xb.Rank > 1 ? frameCt : 1;
+                for (var i = 0; i < frameCt; i++) {
+                    yt.FooterExpressions[xb.Ravel[i].val.ToString()] = xb.Ravel[(i + frameOffset)].val.ToString();
+                }
+                return yt.WrapA();
+            }
+            else if (noun.GetType() != typeof(A<Box>)) {
                 throw new DomainException();
             }
             var yb = (noun as A<Box>);
@@ -2404,6 +2530,9 @@ namespace MicroJ {
             if (verb.childAdverb != null) {
                 newVerb.Ravel[0].adverb = verb.childAdverb;
             }
+            if (verb.childNoun != null) {
+                newVerb.Ravel[0].childNoun = verb.childNoun;
+            }
 
             newVerb.Ravel[0].conj = verb.conj;
             newVerb.Ravel[0].rhs = verb.rhs;
@@ -2421,7 +2550,13 @@ namespace MicroJ {
                 return table(newVerb, (A<long>)x, (A<long>)y);
             }
             else if (adverb == "/.") {
-                return Verbs.InvokeExpression("key", x, y, 2, this, newVerb);
+                if (y.GetType() == typeof(A<JTable>)) {
+                    return Verbs.InvokeExpression("keyTable", x, y, 2, this, newVerb);
+                }
+                else {
+                    return Verbs.InvokeExpression("key", x, y, 2, this, newVerb);
+                }
+                
             }
             else if (adverb == "}") {
                 if (y.GetType() == typeof(A<JTable>)) {
