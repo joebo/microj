@@ -418,14 +418,16 @@ namespace MicroJ {
 
         public A<bool> equals<T, T2>(A<T> x, A<T2> y) where T : struct where T2 : struct {
             //todo handle application errors without exceptions
-            if (x.Count != y.Count) { throw new ArgumentException("Length Error"); }
 
-            var z = new A<bool>(y.Count);
-            for (var i = 0; i < y.Count; i++) {
+            var maxCt = y.Count > x.Count ? y.Count : x.Count;
+            var z = new A<bool>(maxCt);
+            for (var i = 0; i < maxCt; i++) {
                 //todo: need a faster way to compare equality, this was failing on double to long comparisons
                 //x.Ravel[i].Equals(y.Ravel[i]);
-                z.Ravel[i] = x.StringConverter(x.Ravel[i]) == y.StringConverter(y.Ravel[i]);
+                z.Ravel[i] = x.StringConverter(x.Ravel[i < x.Count ? i : 0]) == y.StringConverter(y.Ravel[i < y.Count ?  i : 0]);
             }
+            
+            
             return z;
         }
 
@@ -715,12 +717,15 @@ namespace MicroJ {
                     locals[yv.Columns[i]] = yv.Rows[i].val;
                 }
                 var expression = (x as A<JString>).First().str;
-                var expressionResult = Conjunctions.Parser.exec(expression, locals) as A<long>;
+                var expressionResult = Conjunctions.Parser.exec(expression, locals);
+
+                var expressionResultl = expressionResult as A<long>;
+                var expressionResultb =  expressionResult as A<bool>;
 
                 var v = yt.Clone();
                 var indices = new List<long>();
-                for (var i = 0; i < expressionResult.Count; i++) {
-                    if (expressionResult.Ravel[i] == 1) {
+                for (var i = 0; i < expressionResult.GetCount(); i++) {
+                    if ((expressionResultl != null && expressionResultl.Ravel[i] == 1) || (expressionResultb != null && expressionResultb.Ravel[i])) {
                         indices.Add(i);
                     }
                 }
