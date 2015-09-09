@@ -375,9 +375,6 @@ namespace MicroJ
                     }
                     var rep = 1;
                     
-                    if (val.Shape != null && val.Shape.Length > 0) {
-                        rep = (int)val.Shape[val.Shape.Length - 1];
-                    }
                     var sep = "+" + new String('-', rep) + "+";
                     var valStr = sep + "\n|" + vt + "|\n" + sep;
 
