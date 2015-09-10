@@ -227,7 +227,8 @@ namespace MicroJ {
 
         public A<long> tally(AType y) {
             var v = new A<long>(0);
-            if (y.Rank == 0) { v.Ravel[0] = 1; }
+            if (y.GetType() == typeof(A<JTable>)) { v.Ravel[0] = (y as A<JTable>).First().RowCount;  }
+            else if (y.Rank == 0) { v.Ravel[0] = 1; }
             else { v.Ravel[0] = y.Shape[0]; }
             return v;
         }
@@ -2322,11 +2323,29 @@ namespace MicroJ {
                 };
                 var colOffset = 0;
                 for (var k = 0; k < colIdx.Length; k++) {
+                    /*
                     var vals = keyIndices.Keys.Select(xv => new JString { str = yt.Rows[k].val.GetString(keyIndices[xv].First()) }).ToArray();
                     var maxLen = vals.Select(xv => xv.str.Length).Max();
                     rows[colOffset++] = new Box {
                         val = new A<JString>(new long[] { keyCt, maxLen }) { Ravel = vals }
                     };
+                    */
+                    var groupRows = new List<AType>();
+                    foreach (var kv in keyIndices) {
+                        groupRows.Add((AType)yt.Rows[k].val.FromIndices(new long[] { kv.Value.First() }));
+                    }
+
+                    var newShape = new long[] { keyCt };
+                    if (groupRows[0].GetType() == typeof(A<JString>)) {
+                        //todo: dumb for now
+                        newShape = new long[] { keyCt, 1 };
+                    }
+                    var at = groupRows[0].Merge(newShape, groupRows.ToArray());
+                    rows[colOffset++] = new Box {
+                        val = at
+                    };                  
+
+                    
                 }
                 for(var k = 0; k < noun.Count;k++) {
                     var parser = new Parser();
@@ -2416,7 +2435,7 @@ namespace MicroJ {
                 throw new DomainException();
             }
             var yb = (noun as A<Box>);
-            var idx = yt.GetColIndex(yb.Ravel[0].val);
+            var idx = Array.IndexOf(yt.Columns, yb.Ravel[0].val.ToString());
             
             var keyIdx = 0;
             if (yb.Count == 3) {
@@ -2425,6 +2444,7 @@ namespace MicroJ {
 
             var keys = new Dictionary<string, List<long>>();
 
+            //group for keys
             for(var i = 0; i < yt.Rows[0].val.GetCount(); i++) {
                 var keyVal = yt.Rows[keyIdx].val.GetString(i);
                 List<long> keyIndices = null;
@@ -2434,17 +2454,50 @@ namespace MicroJ {
                 }
                 keyIndices.Add(i);
             }
-            for(var i = 0; i < newVal.GetCount(); i++) {
-                List<long> keyIndices = null;
-                var checkVal = yb.Ravel[1].val.GetString(i);
-                var newValx = newVal.GetVal(i);
-                if (keys.TryGetValue(checkVal, out keyIndices)) {
-                    for(var k = 0; k < keyIndices.Count; k++) {
-                        yt.Rows[idx].val.SetVal(keyIndices[k], newValx);
+
+            if (newVal.GetType() != typeof(A<JTable>)) {
+                for (var i = 0; i < newVal.GetCount(); i++) {
+                    List<long> keyIndices = null;
+                    var checkVal = yb.Ravel[1].val.GetString(i);
+                    var newValx = newVal.GetVal(i);
+                    if (keys.TryGetValue(checkVal, out keyIndices)) {
+                        for (var k = 0; k < keyIndices.Count; k++) {
+                            yt.Rows[idx].val.SetVal(keyIndices[k], newValx);
+                        }
                     }
                 }
             }
+            else { //join two tables
+                var xt = (newVal as A<JTable>).First();
+                string keyColumn = yb.Count == 1 ? yb.Ravel[0].val.ToString() : yb.Ravel[1].val.ToString();
+                var joinKeyIdx = Array.IndexOf(xt.Columns, keyColumn);
+                var joinKeys = new Dictionary<string, long>();
+                for (var i = 0; i < xt.RowCount; i++) {
+                    var keyVal = xt.Rows[joinKeyIdx].val.GetString(i);
+                    joinKeys[keyVal] = i;
+                }
+                var newCols = xt.Columns.Where(xv => xv != keyColumn).ToArray();
+                var newRows = new Box[newCols.Length];
+                for (var i = 0; i < newCols.Length; i++) {
+                    var xtIdx = Array.IndexOf(xt.Columns, newCols[i]);
+                    var indices = new long[yt.RowCount];
+                    foreach(var kv in keys) {
+                        long newIdx;
+                        if (!joinKeys.TryGetValue(kv.Key, out newIdx)) {
+                            newIdx = -1;
+                        }
+                        foreach (var n in kv.Value) {
+                            indices[n] = newIdx;
+                        }
 
+                    }
+                    newRows[i] = xt.Rows[xtIdx].val.FromIndices(indices).Box();
+                    //newRows[i] = new A<long>(yt.RowCount).Box();
+                }
+                var newT = new JTable { Columns = newCols, Rows = newRows };
+                yt = Verbs.linktable(yt.WrapA(), newT.WrapA()).First();
+            }
+            
             if (yt.ColumnExpressions != null) {
                 foreach (var kv in yt.ColumnExpressions) {
                     var locals = new Dictionary<string, AType>();

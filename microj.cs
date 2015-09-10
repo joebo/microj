@@ -255,6 +255,11 @@ namespace MicroJ
             }
             return new A<Undefined>(0);
         }
+
+        public Box Box() {
+            return new Box { val = this };
+        }
+        
     }
 
     public struct Undefined { }
@@ -314,6 +319,7 @@ namespace MicroJ
         public override int GetHashCode() {
             return ToString().GetHashCode();
         }
+        
     }
 
     public struct JTable {
@@ -325,6 +331,9 @@ namespace MicroJ
         public Dictionary<string, string> ColumnExpressions;
         public Dictionary<string, string> FooterExpressions;
 
+        public long RowCount {
+            get { return Rows[0].val.GetCount(); }
+        }
         public A<JTable> WrapA() {
             return new A<JTable>(1) { Ravel = new JTable[] { this } }; 
         }
@@ -520,7 +529,14 @@ namespace MicroJ
         public override AType FromIndices(long[] indices) {
             A<T> v = new A<T>(indices.Length);
             for(var i = 0; i < indices.Length;i++) {
-                v.Ravel[i] = Ravel[indices[i]];
+                var idx = indices[i];
+                if (idx != -1) {
+                    v.Ravel[i] = Ravel[indices[i]];
+                }
+                else {
+                    v.Ravel[i] = default(T);
+                }
+                
             }
             return v;
         }
@@ -664,6 +680,18 @@ namespace MicroJ
         }
     }
 
+    public class AHelper {
+
+        public static Dictionary<string, string> ToOptions(A<Box> xb) {
+            var options = new Dictionary<string, string>();
+            var ct = xb.Rank > 1 ? xb.Shape[xb.Shape.Length - 1] : 1;
+            var offset = xb.Rank > 1 ? ct : 1;
+            for (var i = 0; i < ct; i++) {
+                options[xb.Ravel[i].val.ToString()] = xb.Ravel[(i + offset)].val.ToString();
+            }
+            return options;
+        }
+    }
     public class Parser {
 
         public static int OUTPUT_MAX_ROWS = 10000;

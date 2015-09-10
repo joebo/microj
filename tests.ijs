@@ -600,3 +600,37 @@ NB. table key with expressions
 |b|4   |a    |
 +-+----+-----+
 )
+
+NB. amend with table
+
+1 [ ages=. (1+i. 120)
+1 [ ageBin =. 10 # 10 20 30 40 50 60 70 80 90 100 110 120
+1 [ ageBinTable =. flip ('age';'ageBin');ages;ageBin
+1 [ ageTable =. flip (<'age');(1 35 85)
+
+ageBinTable (<'age') } ageTable -: 0 : 0
++---+------+
+|age|ageBin|
+|---+------|
+|1  |10    |
+|---+------|
+|35 |40    |
+|---+------|
+|85 |90    |
++---+------+
+)
+
+NB. amend with table, missing values
+1 [ ages=. (120#1)
+1 [ ageBinTable =. flip ('age';'ageBin');ages;ageBin
+ageBinTable (<'age') } ageTable -: 0 : 0
++---+------+
+|age|ageBin|
+|---+------|
+|1  |120   |
+|---+------|
+|35 |0     |
+|---+------|
+|85 |0     |
++---+------+
+)
