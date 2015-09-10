@@ -379,7 +379,13 @@ namespace MicroJ
 
             var newIndices = new List<long>();
             for (var i = offset; i < (offset+take) && i < ct && i < Parser.OUTPUT_MAX_ROWS; i++) {
-                newIndices.Add(i);
+                if (indices == null) {
+                    newIndices.Add(i);
+                }
+                else {
+                    newIndices.Add(indices[i]);
+                }
+                
                 for (var k = 0; k < Columns.Length; k++) {
                     var val = Rows[k].val;
 
