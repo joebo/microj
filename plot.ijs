@@ -18,12 +18,17 @@ plotCode=: 0 : 0
 */
 
 var model = new PlotModel();
-model.Title = "LineSeries with default style";
+//model.Title = "LineSeries with default style";
 var lineSeries1 = new OxyPlot.Series.LineSeries();
 lineSeries1.Title = "LineSeries 1";
 
 for(var i = 0; i < v.GetCount(); i++ ) {
-lineSeries1.Points.Add(new DataPoint(v.GetLong(i),v.GetLong(i+1)));
+if (v.Shape.Rank == 2) {
+lineSeries1.Points.Add(new DataPoint(Double.Parse(v.GetString(i)),Double.Parse(v.GetString(i+1))));
+}
+else {
+lineSeries1.Points.Add(new DataPoint(i,Double.Parse(v.GetString(i+1))));
+}
 i+=1;
 }
 model.Series.Add(lineSeries1);
