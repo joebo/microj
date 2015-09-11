@@ -301,6 +301,9 @@ namespace MicroJ
         public int CompareTo(object obj) {
             return str.CompareTo(((JString)obj).str);
         }
+        public AType WrapA() {
+            return new A<JString>(new long[] { 1, str.Length }) { Ravel = new JString[] { this } };
+        }
     }
 
     public struct Box {
@@ -332,7 +335,14 @@ namespace MicroJ
         public Dictionary<string, string> FooterExpressions;
 
         public long RowCount {
-            get { return Rows[0].val.GetCount(); }
+            get {
+                if (indices == null) {
+                    return Rows[0].val.GetCount();
+                }
+                else {
+                    return indices.Length;
+                }
+            }
         }
         public A<JTable> WrapA() {
             return new A<JTable>(1) { Ravel = new JTable[] { this } }; 
@@ -418,13 +428,16 @@ namespace MicroJ
             if (FooterExpressions != null) {
                 var locals = new Dictionary<string, AType>();
                 var self = this;
+                
                 Action<bool> buildFooter = (filtered) => {
                     for (var i = 0; i < self.Columns.Length; i++) {
                         if (!filtered || (self.indices == null && self.take == ct && self.offset == 0)) {
                             locals[self.Columns[i]] = self.Rows[i].val;
+                            locals["_C" + i] = locals[self.Columns[i]];
                         }
                         else {
                             locals[self.Columns[i]] = self.Rows[i].val.FromIndices(newIndices.ToArray());
+                            locals["_C" + i] = locals[self.Columns[i]];
                         }
                     }
                     foreach (var col in self.Columns) {
@@ -534,7 +547,14 @@ namespace MicroJ
                     v.Ravel[i] = Ravel[indices[i]];
                 }
                 else {
-                    v.Ravel[i] = default(T);
+                    //todo speed up
+                    if (typeof(T) == typeof(JString)) {
+                        v.Ravel[i] = (T) (object) new JString { str = "" };
+                    }
+                    else {
+                        v.Ravel[i] = default(T);
+                    }
+                    
                 }
                 
             }

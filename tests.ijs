@@ -463,7 +463,7 @@ NB. tables - add a column
 )
 
 NB. tables - add a calculated column
-((flip ('a';'b');(1,2);(3,5));(<'c');'a + b') -: 0 : 0
+((flip ('a';'b');(1,2);(3,5));('c';'a + b')) -: 0 : 0
 +-+-+-+
 |a|b|c|
 |-+-+-|
@@ -574,6 +574,16 @@ NB. table - key without expressions
 |b|5|
 +-+-+
 )
+
+NB. table - key filtered table
+((<'k') ] /. ('k= ''a'' ' { flip ('k';'v');( 10 1 $ 'ab');(i.10))) -: 0 : 0
++-+-+
+|k|v|
+|-+-|
+|a|5|
++-+-+
+)
+
 
 NB. table key with footer expression
 (('k';'k2') ] /. (('v';'+/ v') _1 } flip ('k';'k2';'v');(5 1 $ 'ab');(> 'a';'a';'a';'b';'b');(5$5))) -: 0 : 0

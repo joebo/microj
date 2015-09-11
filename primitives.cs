@@ -586,11 +586,21 @@ namespace MicroJ {
             var yv = y.First();
             if (yv.Columns.Length > 1) {
                 var v = new A<Box>(yv.Columns.Length);
-                v.Ravel = yv.Rows.Select(x => x).ToArray();
+                if (yv.indices == null) {
+                    v.Ravel = yv.Rows.Select(x => x).ToArray();
+                }
+                else {
+                    v.Ravel = yv.Rows.Where((x,i) => yv.indices.Contains(i)).ToArray();
+                }
                 return v;
             }
             else {
-                return yv.Rows[0].val;
+                if (yv.indices == null) {
+                    return yv.Rows[0].val;
+                }
+                else {
+                    return yv.Rows[0].val.FromIndices(yv.indices);                    
+                }
             }            
         }
 
@@ -989,9 +999,12 @@ namespace MicroJ {
         public A<JTable> linktableExpression(A<JTable> x, A<Box> y) {
             var xv = x.First();
             var z = xv.Clone();
-            
-            var columns = (y.Ravel[0].val as A<Box>).Ravel.Select(v => ((A<JString>)v.val).Ravel[0].str).ToArray();
-            var expressions = (y.Ravel[1].val as A<JString>).Ravel.Select(v => v.str).ToArray();
+
+            var newColumns = AHelper.ToOptions(y);
+            //var columns = (y.Ravel[0].val as A<Box>).Ravel.Select(v => ((A<JString>)v.val).Ravel[0].str).ToArray();
+            //var expressions = (y.Ravel[1].val as A<JString>).Ravel.Select(v => v.str).ToArray();
+            var columns = newColumns.Keys.ToArray();
+            var expressions = newColumns.Values.ToArray();
 
             //var matches = xv.Columns.Select((v, i) => new { xv = xv, xi = i, yi = Array.IndexOf(columns, v) }).ToArray();
 
@@ -1789,7 +1802,7 @@ namespace MicroJ {
             var v = new A<JString>(newShape);
 
             for (var i = 0; i < y.Shape[0]; i++) {
-                v.Ravel[i] = new JString { str = y.Ravel[i].str.Substring(0, (int)x.Ravel[0]) };
+                v.Ravel[i] = new JString { str = String.Intern(y.Ravel[i].str.Substring(0, (int)x.Ravel[0])) };
             }
             return v;
         }
@@ -2087,6 +2100,27 @@ namespace MicroJ {
             else if (verb.conj == "!:" && verb.op == "0") {
                 return runfile((A<Box>) y,verb);
             }
+            else if (verb.conj == "!:" && verb.op == "4" && verb.rhs == "1") {
+                //names       
+                var type = (y as A<long>).First();
+                var vals = Parser.Names.Where(xv=>{
+                    var isVerb = xv.Value.GetType() == typeof(A<Verb>);
+                    if (type == 0) {
+                        return !isVerb;
+                    } else {
+                        return isVerb;
+                    }
+                }).Select(xv => new JString { str = xv.Key }.WrapA()).Select(xv => xv.Box()).ToArray();
+                if (vals.Length > 0)     {
+                    var z = new A<Box>(vals.Length);
+                    z.Ravel = vals;
+                    return z;
+                }
+                else {
+                    return new JString { str = "" }.WrapA();
+                }
+                
+            }
             else if (verb.conj == "!:" && verb.op == "3" && verb.rhs == "100") {
                 var str = y.ToString();
                 var z = new A<Byte>(str.Length);
@@ -2242,20 +2276,22 @@ namespace MicroJ {
 
         public AType keyTable<T2, T>(AType op, A<T2> x, A<T> y) where T : struct where T2 : struct {
             var yt = (y as A<JTable>).First();
-            var rowCt = yt.Rows[0].val.GetCount();
+            var rowCt = yt.RowCount;
+
             var keyIndices = new Dictionary<string, List<long>>();
             var colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
             for (var i = 0; i < rowCt; i++) {
+                var rowIdx = yt.indices == null ? i : yt.indices[i];
                 string key = "";
                 for (var k = 0; k < colIdx.Length; k++) {
-                    key = key + yt.Rows[colIdx[k]].val.GetString(i);
+                    key = key + yt.Rows[colIdx[k]].val.GetString(rowIdx);
                 }
                 List<long> match = null;
                 if (!keyIndices.TryGetValue(key, out match)) {
                     match = new List<long>();
                     keyIndices[key] = match;
                 }
-                match.Add(i);
+                match.Add(rowIdx);
             }
             var keyCt = keyIndices.Count;
 
@@ -2284,14 +2320,23 @@ namespace MicroJ {
                     else {
                         if (yt.FooterExpressions != null && yt.FooterExpressions.ContainsKey(yt.Columns[k])) {
 
+                            
                             var parser = new Parser();
+                            parser.Names = Conjunctions.Parser.Names;
+
+                            var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
+
                             var groupRows = new List<AType>();
+                            var groupCt = 0;
                             foreach (var kv in keyIndices) {
                                 var locals = new Dictionary<string, AType>();
+                                locals["_N"] = rowCtA;
+                                locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
+                                locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } }; 
                                 for (var i = 0; i < yt.Columns.Length; i++) {
                                     locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
                                 }
-                                var expressionResult = new Parser().exec(yt.FooterExpressions[yt.Columns[k]], locals);
+                                var expressionResult = parser.exec(yt.FooterExpressions[yt.Columns[k]], locals);
                                 groupRows.Add(expressionResult);
                             }
                             var at = groupRows[0].Merge(new long[] { keyCt }, groupRows.ToArray());
@@ -2331,8 +2376,9 @@ namespace MicroJ {
                     };
                     */
                     var groupRows = new List<AType>();
+
                     foreach (var kv in keyIndices) {
-                        groupRows.Add((AType)yt.Rows[k].val.FromIndices(new long[] { kv.Value.First() }));
+                        groupRows.Add((AType)yt.Rows[colIdx[k]].val.FromIndices(new long[] { kv.Value.First() }));
                     }
 
                     var newShape = new long[] { keyCt };
@@ -2349,13 +2395,22 @@ namespace MicroJ {
                 }
                 for(var k = 0; k < noun.Count;k++) {
                     var parser = new Parser();
+                    parser.Names = Conjunctions.Parser.Names;
+
                     var groupRows = new List<AType>();
                     foreach (var kv in keyIndices) {
+
+                        var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
+
                         var locals = new Dictionary<string, AType>();
+                        long groupCt = 0;
+                        locals["_N"] = rowCtA;
+                        locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } }; 
+                        locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
                         for (var i = 0; i < yt.Columns.Length; i++) {
                             locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
                         }
-                        var expressionResult = new Parser().exec(expressions[k], locals);
+                        var expressionResult = parser.exec(expressions[k], locals);
                         groupRows.Add(expressionResult);
                     }
 
@@ -2438,8 +2493,14 @@ namespace MicroJ {
             var idx = Array.IndexOf(yt.Columns, yb.Ravel[0].val.ToString());
             
             var keyIdx = 0;
-            if (yb.Count == 3) {
-                keyIdx = yt.GetColIndex(yb.Ravel[2].val);
+
+            if (newVal.GetType() != typeof(A<JTable>)) {
+                if (yb.Count == 3) {
+                    keyIdx = yt.GetColIndex(yb.Ravel[2].val);
+                }
+            }
+            else {
+                keyIdx = yt.GetColIndex(yb.Ravel[0].val);
             }
 
             var keys = new Dictionary<string, List<long>>();

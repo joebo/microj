@@ -37,6 +37,7 @@ bool keepLeadingZero = optionsDict.ContainsKey("KeepLeadingZero");
 var newNames = new List<string>();
 
 var limit = optionsDict.ContainsKey("limit") ? Int64.Parse(optionsDict["limit"]) : Int64.MaxValue;
+var delimiter = !optionsDict.ContainsKey("delimiter") ? ',' : Char.Parse(optionsDict["delimiter"].Replace("\\t", "\t"));
 HashSet<string> keepColumns = null;
 if (optionsDict.ContainsKey("cols")) {
     keepColumns = new HashSet<string>();
@@ -48,7 +49,7 @@ var iLine = 0;
 var types = new int[500];
 string[] headers = null;
 int fieldCount = 0;
-using (var csv = new CsvReader(new StreamReader(fileName), true)) {
+using (var csv = new CsvReader(new StreamReader(fileName), true, delimiter)) {
     headers = csv.GetFieldHeaders();
     fieldCount = csv.FieldCount;
     var total = 0;
@@ -88,7 +89,7 @@ using (var csv = new CsvReader(new StreamReader(fileName), true)) {
 var finalColumnNames = new List<string>();
 var boxedRows = new List<Box>();
 
-using (var csv = new CsvReader(new StreamReader(fileName), true)) {
+using (var csv = new CsvReader(new StreamReader(fileName), true, delimiter)) {
     csv.Columns = new List<LumenWorks.Framework.IO.Csv.Column>();
     for(var k = 0; k < fieldCount; k++) {
         Type t = null;
@@ -119,7 +120,10 @@ using (var csv = new CsvReader(new StreamReader(fileName), true)) {
                 if (!longs.ContainsKey(columnName)) {
                     longs[columnName] = new List<long>();
                 }
-                long lv = (long) Int64.Parse(csv[i] != "" ? csv[i] : "0");
+                long lv;
+                if (!Int64.TryParse(csv[i] != "" ? csv[i] : "0", out lv)) {
+                    Console.WriteLine("bad data: " + csv[i]);
+                }
                 longs[columnName].Add(lv);
             }
             else if (columnType == 1) {
