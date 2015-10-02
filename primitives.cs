@@ -725,6 +725,9 @@ namespace MicroJ {
             else if (x.GetType() == typeof(A<JString>) && x.Rank < 2) {
                 var locals = new Dictionary<string, AType>();
                 var yv = (y as A<JTable>).First();
+                foreach (var kv in Conjunctions.Parser.LocalNames) {
+                    locals[kv.Key] = kv.Value;
+                }
                 for (var i = 0; i < yv.Columns.Length; i++) {
                     locals[yv.Columns[i]] = yv.Rows[i].val;
                 }
@@ -1016,6 +1019,11 @@ namespace MicroJ {
                     Columns = new string[] { match.col }
                 };
                 var locals = new Dictionary<string, AType>();
+
+                foreach (var kv in Conjunctions.Parser.LocalNames) {
+                    locals[kv.Key] = kv.Value;
+                }
+
                 for (var i = 0; i < z.Columns.Length; i++) {
                     locals[z.Columns[i]] = z.Rows[i].val;
                 }                
@@ -2475,8 +2483,13 @@ namespace MicroJ {
                 }
             }
             else {
-                //no columns to key by
-                keyIndices[""] = null;
+                //no columns to key by, but need to respect indices in case its filtered
+                var indices = new List<long>();
+                for (var i = 0; i < rowCt; i++) {
+                    var rowIdx = yt.indices == null ? i : yt.indices[i];
+                    indices.Add(rowIdx);
+                }
+                keyIndices[""] = indices;
             }
             
             var keyCt = keyIndices.Count;
@@ -2516,6 +2529,11 @@ namespace MicroJ {
                             var groupCt = 0;
                             foreach (var kv in keyIndices) {
                                 var locals = new Dictionary<string, AType>();
+
+                                foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                                    locals[kvx.Key] = kvx.Value;
+                                }
+
                                 locals["_N"] = rowCtA;
                                 locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
                                 locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } }; 
@@ -2586,19 +2604,17 @@ namespace MicroJ {
                         var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
 
                         var locals = new Dictionary<string, AType>();
+                        
+                        foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                            locals[kvx.Key] = kvx.Value;
+                        }
+
                         long groupCt = 0;
                         locals["_N"] = rowCtA;
-                        locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value != null ? kv.Value.Count : 1 } };
+                        locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } };
                         locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
                         for (var i = 0; i < yt.Columns.Length; i++) {
-                            if (kv.Value != null) {
-                                locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
-                            }
-                            else {
-                                //all rows
-                                locals[yt.Columns[i]] = yt.Rows[i].val;
-                            }
-                            
+                            locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
                         }
                         var expressionResult = parser.exec(expressions[k], locals);
                         groupRows.Add(expressionResult);
@@ -2752,6 +2768,10 @@ namespace MicroJ {
             if (yt.ColumnExpressions != null) {
                 foreach (var kv in yt.ColumnExpressions) {
                     var locals = new Dictionary<string, AType>();
+
+                    foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                        locals[kvx.Key] = kvx.Value;
+                    }
                     for (var i = 0; i < yt.Columns.Length; i++) {
                         locals[yt.Columns[i]] = yt.Rows[i].val;
                     }
