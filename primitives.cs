@@ -15,6 +15,7 @@ using CSScriptLibrary;
 #endif
 
 using System.IO.MemoryMappedFiles;
+using System.Text.RegularExpressions;
 
 namespace MicroJ {
    
