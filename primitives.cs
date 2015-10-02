@@ -2454,25 +2454,37 @@ namespace MicroJ {
             var rowCt = yt.RowCount;
 
             var keyIndices = new Dictionary<string, List<long>>();
-            var colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
-            for (var i = 0; i < rowCt; i++) {
-                var rowIdx = yt.indices == null ? i : yt.indices[i];
-                string key = "";
-                for (var k = 0; k < colIdx.Length; k++) {
-                    key = key + yt.Rows[colIdx[k]].val.GetString(rowIdx);
+
+            int[] colIdx = null;
+            //specify columns to key by
+            if (x != null) {
+                colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
+                for (var i = 0; i < rowCt; i++) {
+                    var rowIdx = yt.indices == null ? i : yt.indices[i];
+                    string key = "";
+                    for (var k = 0; k < colIdx.Length; k++) {
+                        key = key + yt.Rows[colIdx[k]].val.GetString(rowIdx);
+                    }
+                    List<long> match = null;
+                    if (!keyIndices.TryGetValue(key, out match)) {
+                        match = new List<long>();
+                        keyIndices[key] = match;
+                    }
+                    match.Add(rowIdx);
                 }
-                List<long> match = null;
-                if (!keyIndices.TryGetValue(key, out match)) {
-                    match = new List<long>();
-                    keyIndices[key] = match;
-                }
-                match.Add(rowIdx);
             }
+            else {
+                //no columns to key by
+                keyIndices[""] = null;
+            }
+            
             var keyCt = keyIndices.Count;
 
             var vop = op as A<Verb>;
+
             //key itself using footer expressions or #
             if (op.ToString() == "]") {
+                if (colIdx == null) { throw new DomainException();  }
                 var colCt = yt.Columns.Length;
 
                 var rows = new Box[colCt];
@@ -2494,8 +2506,6 @@ namespace MicroJ {
                     }
                     else {
                         if (yt.FooterExpressions != null && yt.FooterExpressions.ContainsKey(yt.Columns[k])) {
-
-                            
                             var parser = new Parser();
                             parser.Names = Conjunctions.Parser.Names;
 
@@ -2530,26 +2540,21 @@ namespace MicroJ {
                 return t.WrapA();
             }
             else if (vop != null && vop.Ravel[0].childNoun != null) {
+                
                 var noun = vop.Ravel[0].childNoun as A<Box>;
 
-                var colCt = noun.Count + colIdx.Length;
+                var colCt = noun.Count + ((colIdx != null) ?  colIdx.Length : 0);
 
                 var rows = new Box[colCt];
                 var expressions = noun.Ravel.Select(xv=>xv.val.ToString()).ToArray();
-                var cols = yt.Columns.Where((xv, i) => colIdx.Contains(i)).ToArray().Concat(expressions).ToArray();
+                var cols = colIdx != null ? yt.Columns.Where((xv, i) => colIdx.Contains(i)).ToArray().Concat(expressions).ToArray() : expressions;
                 var t = new JTable {
                     Columns = cols,
                     Rows = rows,
                 };
                 var colOffset = 0;
-                for (var k = 0; k < colIdx.Length; k++) {
-                    /*
-                    var vals = keyIndices.Keys.Select(xv => new JString { str = yt.Rows[k].val.GetString(keyIndices[xv].First()) }).ToArray();
-                    var maxLen = vals.Select(xv => xv.str.Length).Max();
-                    rows[colOffset++] = new Box {
-                        val = new A<JString>(new long[] { keyCt, maxLen }) { Ravel = vals }
-                    };
-                    */
+
+                for (var k = 0; colIdx != null && k < colIdx.Length; k++) {
                     var groupRows = new List<AType>();
 
                     foreach (var kv in keyIndices) {
@@ -2565,14 +2570,16 @@ namespace MicroJ {
                     rows[colOffset++] = new Box {
                         val = at
                     };                  
-
-                    
                 }
+
+                
+
                 for(var k = 0; k < noun.Count;k++) {
                     var parser = new Parser();
                     parser.Names = Conjunctions.Parser.Names;
 
                     var groupRows = new List<AType>();
+
                     foreach (var kv in keyIndices) {
 
                         var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
@@ -2580,10 +2587,17 @@ namespace MicroJ {
                         var locals = new Dictionary<string, AType>();
                         long groupCt = 0;
                         locals["_N"] = rowCtA;
-                        locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } }; 
+                        locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value != null ? kv.Value.Count : 1 } };
                         locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
                         for (var i = 0; i < yt.Columns.Length; i++) {
-                            locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
+                            if (kv.Value != null) {
+                                locals[yt.Columns[i]] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
+                            }
+                            else {
+                                //all rows
+                                locals[yt.Columns[i]] = yt.Rows[i].val;
+                            }
+                            
                         }
                         var expressionResult = parser.exec(expressions[k], locals);
                         groupRows.Add(expressionResult);
@@ -2802,8 +2816,12 @@ namespace MicroJ {
             }
             else if (adverb == "~") {
                 return Verbs.InvokeExpression("reflex", y, y, 1, this, newVerb);
-            } 
-            
+            }
+            else if (adverb == "/.") {
+                if (y.GetType() == typeof(A<JTable>)) {
+                    return keyTable(method, (A<JString>)null, (A<JTable>) y);
+                }
+            }
             throw new NotImplementedException(adverb + " on y:" + y + " type: " + y.GetType());
         }
 
