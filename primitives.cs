@@ -1233,6 +1233,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
                     return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a * b);
                 }
+                else if (x.GetType() == typeof(A<bool>) && y.GetType() == typeof(A<bool>)) {
+                    return math((A<bool>)x, (A<bool>)y, (a, b) => ((a?1:0) * (b?1:0)) == 1 ? true : false);
+                }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a * b);
                 }
