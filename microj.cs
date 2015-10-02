@@ -781,12 +781,13 @@ namespace MicroJ
             Func<char, bool> isSymbolPrefix = c => c != '.' && symbolPrefixes.Contains(c);
             Func<char, bool> isDigit = c => char.IsDigit(c) || c == '_';
             bool inQuote = false;
-
+            bool inDouble = false;
             for (var ci = 0; ci < w.Length; ci++ ) {
                 var c = w[ci];
                 if (!inQuote && c == '\'') { emit(); currentWord.Append(c); inQuote = true; }
                 else if (inQuote && c == '\'' && (ci < w.Length-1 && w[ci+1] != '\'' && w[ci-1] != '\'')) { currentWord.Append(c); emit(); inQuote = !inQuote; }
-                else if (inQuote) { if (ci >= w.Length -1 || !(c == '\'' && w[ci-1] == '\'')) { currentWord.Append(c); }  }
+                //else if (inQuote) { /*if (ci >= w.Length -1 || !(c == '\'' && w[ci-1] == '\'')) {*/ currentWord.Append(c); /*}*/  }
+                else if (inQuote) { if (ci >= w.Length - 1 || !(c == '\'' && w[ci - 1] == '\'') || inDouble) { currentWord.Append(c); inDouble = false; } else { inDouble = true; } }
                 else {
 
                     if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
