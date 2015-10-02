@@ -1959,6 +1959,173 @@ namespace MicroJ {
             return z;
         }
 
+
+        //basic csv reading implementation. see readcsv in stdlib.ijs for a more robust example
+        public AType readcsv(A<Box> xb, A<Box> y) {
+
+            int TYPE_INT = 3, TYPE_DOUBLE = 2, TYPE_STR = 1;
+
+            string fileName = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
+            string tableName = ((A<JString>)y.Ravel[1].val).Ravel[0].str;
+            var optionsDict = new Dictionary<string, string>();
+            if (y.Ravel.Length >= 3) {
+                optionsDict = AHelper.ToOptions((A<Box>)y.Ravel[2].val);
+            }
+            if (xb != null) {
+                optionsDict = AHelper.ToOptions(xb);
+            }
+            bool keepLeadingZero = optionsDict.ContainsKey("KeepLeadingZero");
+
+            var newNames = new List<string>();
+
+            var limit = optionsDict.ContainsKey("limit") ? Int64.Parse(optionsDict["limit"]) : Int64.MaxValue;
+            var delimiter = !optionsDict.ContainsKey("delimiter") ? ',' : Char.Parse(optionsDict["delimiter"].Replace("\\t", "\t"));
+            HashSet<string> keepColumns = null;
+            if (optionsDict.ContainsKey("cols")) {
+                keepColumns = new HashSet<string>();
+                keepColumns.UnionWith(optionsDict["cols"].Split(','));
+            }
+
+            bool noPad = optionsDict.ContainsKey("nopad");
+            
+
+            var iLine = 0;
+            var types = new int[500];
+            string[] headers = null;
+            int fieldCount = 0;
+            //using (var csv = new CsvReader(new StreamReader(fileName), true, delimiter)) {
+            var headerLine = File.ReadLines(fileName).First();
+            headers = headerLine.Split(delimiter);
+            fieldCount = headers.Length;
+
+            foreach(var line in File.ReadLines(fileName).Skip(1)) {
+                var csv = line.Split(delimiter);
+                if (iLine++ > 10000 && iLine > limit) { break; }
+                for (var k = 0; k < fieldCount; k++) {
+                    int n = 0;
+                    double d = 0;
+                    if (csv[k] == "") continue;
+                    if ((types[k] == 0 || types[k] == 3) && Int32.TryParse(csv[k], out n)) {
+                        if (!csv[k].StartsWith("0") || (keepLeadingZero && csv[k].Length > 1)) {
+                            types[k] = TYPE_INT;
+                        }
+                        else {
+                            types[k] = TYPE_STR;
+                        }
+                    }
+                    else if ((types[k] == 0 || types[k] == 2) && Double.TryParse(csv[k], out d)) {
+                        types[k] = TYPE_DOUBLE;
+                    }
+                    else {
+                        types[k] = TYPE_STR;
+                    }
+                }
+            }
+
+            /*
+            for (int i = 0; i < fieldCount; i++) {
+                Console.WriteLine(string.Format("{0} = {1}; Type={2}",
+                                                headers[i], csv[i], types[i]));
+            }
+            */
+
+            
+
+            var finalColumnNames = new List<string>();
+            var boxedRows = new List<Box>();
+
+            var strings = new Dictionary<string, List<string>>();
+            var longs = new Dictionary<string, List<long>>();
+            var doubles = new Dictionary<string, List<double>>();
+            var rowCount = 0;
+
+            foreach (var line in File.ReadLines(fileName).Skip(1)) {
+                var csv = line.Split(delimiter);
+
+                if (rowCount >= limit) { break; }
+
+                rowCount++;
+
+                for (int i = 0; i < fieldCount; i++) {
+                    var columnType = types[i];
+                    var columnName = headers[i];
+
+                    if (keepColumns != null && !keepColumns.Contains(columnName)) { continue; }
+
+                    if (columnType == TYPE_INT) {
+                        if (!longs.ContainsKey(columnName)) {
+                            longs[columnName] = new List<long>();
+                        }
+                        long lv;
+                        if (!Int64.TryParse(csv[i] != "" ? csv[i] : "0", out lv)) {
+                            Console.WriteLine("bad data: " + csv[i]);
+                        }
+                        longs[columnName].Add(lv);
+                    }
+                    else if (columnType == TYPE_STR) {
+                        if (!strings.ContainsKey(columnName)) {
+                            strings[columnName] = new List<string>();
+                        }
+                        var sv = csv[i];
+                        strings[columnName].Add(sv);
+                    }
+                    else if (columnType == TYPE_DOUBLE) {
+                        if (!doubles.ContainsKey(columnName)) {
+                            doubles[columnName] = new List<double>();
+                        }
+                        double dv = Double.Parse(csv[i] != "" ? csv[i] : "0");
+                        doubles[columnName].Add(dv);
+
+                    }
+                    /*
+                        else if (columnType == "System.DateTime") {
+                        if (!strings.ContainsKey(columnName)) {
+                        strings[columnName] = new List<string>();
+                        }
+                        DateTime dv = (DateTime) (reader.IsDBNull(i) ? DateTime.MinValue : reader.GetDateTime(i));
+                        strings[columnName].Add(dv.ToString("yyyy-MM-dd"));
+                        }
+                    */
+                }
+            }
+
+            Func<string, string> createName = s => {
+                return Regex.Replace(s, @"[^A-Za-z]+", "") + "_" + tableName + "_";
+            };
+
+
+            foreach (var col in longs.Keys) {
+                var jname = new MicroJ.A<long>(rowCount) { Ravel = longs[col].ToArray() };
+                var newName = createName(col);
+                newNames.Add(newName);
+                Parser.Names[newName] = jname;
+                finalColumnNames.Add(col);
+                boxedRows.Add(new Box { val = jname });
+            }
+            foreach (var col in doubles.Keys) {
+                var jname = new MicroJ.A<double>(rowCount) { Ravel = doubles[col].ToArray() };
+                var newName = createName(col);
+                newNames.Add(newName);
+                Parser.Names[newName] = jname;
+                finalColumnNames.Add(col);
+                boxedRows.Add(new Box { val = jname });
+            }
+            foreach (var col in strings.Keys) {
+                var max = strings[col].Select(x => x.Length).Max();
+                var jname = new MicroJ.A<JString>(rowCount, new long[] { rowCount, max }) { Ravel = strings[col].Select(x => new MicroJ.JString { str = String.Intern( !noPad ? x.PadRight(max) : x) }).ToArray() };
+                var newName = createName(col);
+                newNames.Add(newName);
+                Parser.Names[newName] = jname;
+                finalColumnNames.Add(col);
+                boxedRows.Add(new Box { val = jname });
+            }                
+            
+            //return new MicroJ.A<MicroJ.JString>(new long[] { newNames.Count, 100 }) { Ravel = newNames.Select(x=>new MicroJ.JString { str = x }).ToArray() };
+            return new JTable {
+                Columns = finalColumnNames.ToArray(),
+                Rows = boxedRows.ToArray()
+            }.WrapA();
+        }
         public AType runfile(A<Box> y, Verb verb) {
 
             if (Parser.SafeMode) { throw new AccessViolationException();  }
@@ -2150,10 +2317,12 @@ namespace MicroJ {
                     return table;
                 }
                 
-            }
-
+            }            
             else if (verb.conj == "!:" && verb.op == "6" && verb.rhs == "2") {
                 return timeit((A<JString>)y);
+            }
+            else if (verb.conj == "!:" && verb.op == "150" && verb.rhs == "1") {
+                return readcsv(null, (A<Box>)y);
             }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
@@ -2185,7 +2354,10 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "0") {
                 return readmmap((A<Box>)x, (A<Box>)y, verb);
-            }            
+            }
+            else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "1") {
+                return readcsv((A<Box>)x, (A<Box>)y);
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
