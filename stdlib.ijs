@@ -202,6 +202,7 @@ NB. reads a csv file delimited by comma and writes names to global namespace for
 NB. auto-detects type from first 1000 rows   
 NB. parameter: box of filename;tablename
 NB. example: readcsv 'abc.csv';'abc'
+NB. readcsv 'abc.txt';'abc';<(('delimiter';'\t'),.('limit';10))
 readcsv  =: (150!:0) & readcsvCode
 
 
