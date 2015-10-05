@@ -728,8 +728,10 @@ namespace MicroJ {
             else if (x.GetType() == typeof(A<JString>) && x.Rank < 2) {
                 var locals = new Dictionary<string, AType>();
                 var yv = (y as A<JTable>).First();
-                foreach (var kv in Conjunctions.Parser.LocalNames) {
-                    locals[kv.Key] = kv.Value;
+                if (Conjunctions.Parser.LocalNames != null) {
+                    foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                        locals[kvx.Key] = kvx.Value;
+                    }
                 }
                 for (var i = 0; i < yv.Columns.Length; i++) {
                     locals[yv.Columns[i]] = yv.Rows[i].val;
@@ -1023,8 +1025,10 @@ namespace MicroJ {
                 };
                 var locals = new Dictionary<string, AType>();
 
-                foreach (var kv in Conjunctions.Parser.LocalNames) {
-                    locals[kv.Key] = kv.Value;
+                if (Conjunctions.Parser.LocalNames != null) {
+                    foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                        locals[kvx.Key] = kvx.Value;
+                    }
                 }
 
                 for (var i = 0; i < z.Columns.Length; i++) {
@@ -2533,9 +2537,12 @@ namespace MicroJ {
                             foreach (var kv in keyIndices) {
                                 var locals = new Dictionary<string, AType>();
 
-                                foreach (var kvx in Conjunctions.Parser.LocalNames) {
-                                    locals[kvx.Key] = kvx.Value;
+                                if (Conjunctions.Parser.LocalNames != null) {
+                                    foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                                        locals[kvx.Key] = kvx.Value;
+                                    }
                                 }
+                                
 
                                 locals["_N"] = rowCtA;
                                 locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
@@ -2607,9 +2614,11 @@ namespace MicroJ {
                         var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
 
                         var locals = new Dictionary<string, AType>();
-                        
-                        foreach (var kvx in Conjunctions.Parser.LocalNames) {
-                            locals[kvx.Key] = kvx.Value;
+
+                        if (Conjunctions.Parser.LocalNames != null) {
+                            foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                                locals[kvx.Key] = kvx.Value;
+                            }
                         }
 
                         long groupCt = 0;
@@ -2772,9 +2781,12 @@ namespace MicroJ {
                 foreach (var kv in yt.ColumnExpressions) {
                     var locals = new Dictionary<string, AType>();
 
-                    foreach (var kvx in Conjunctions.Parser.LocalNames) {
-                        locals[kvx.Key] = kvx.Value;
+                    if (Conjunctions.Parser.LocalNames != null) {
+                        foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                            locals[kvx.Key] = kvx.Value;
+                        }
                     }
+
                     for (var i = 0; i < yt.Columns.Length; i++) {
                         locals[yt.Columns[i]] = yt.Rows[i].val;
                     }
