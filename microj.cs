@@ -127,6 +127,7 @@ namespace MicroJ
         public abstract long[] GradeUp();
         public abstract void SetVal(long n, object val);
         public abstract object GetVal(long n);
+        public abstract AType GetValA(long n);
         public abstract AType FromIndices(long[] indices);
 
         public long GetLong(int n) {
@@ -537,6 +538,10 @@ namespace MicroJ
 
         public override object GetVal(long n) {
             return Ravel[n];
+        }
+
+        public override AType GetValA(long n) {
+            return new A<T>(0) { Ravel = new T[] { Ravel[n] } };
         }
 
         public override AType FromIndices(long[] indices) {
@@ -1009,12 +1014,25 @@ namespace MicroJ
                         var name = stack.Pop();
                         var copula = stack.Pop();
                         var rhs = stack.Pop();
+
+                        var names = name.word.Split(' ');
+                        if (names.Length > 1 && rhs.val.GetCount() != names.Length) {
+                            throw new ApplicationException("invalid length");
+                        }
+                        Dictionary<string, AType> nameRef = null;
                         if (copula.word == "=:" || LocalNames == null) {
-                            Names[name.word] = rhs.val;
+                            nameRef = Names;
+                        } else {
+                            nameRef = LocalNames;
                         }
-                        else {
-                            LocalNames[name.word] = rhs.val;
+                        if (names.Length == 1) {
+                            nameRef[name.word] = rhs.val;
+                        } else {
+                            for(var k = 0; k < names.Length; k++) {
+                                nameRef[names[k].Replace("'", "")] = rhs.val.GetValA(k);
+                            }
                         }
+                            
                         
                         stack.Push(rhs);
                     }
