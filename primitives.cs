@@ -2282,6 +2282,9 @@ namespace MicroJ {
                     v.Ravel[0] = new Verb { explicitDef = y.ToString() };
                     return v;
                 }
+                else {
+                    return Verbs.runExplicit(verb.rhs.TrimStart('\'').TrimEnd('\''), y);
+                }
             }
             else if (verb.conj == "!:" && verb.op == "0") {
                 return runfile((A<Box>) y,verb);
@@ -2339,7 +2342,7 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "150" && verb.rhs == "1") {
                 return readcsv(null, (A<Box>)y);
-            }
+            }            
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
