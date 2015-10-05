@@ -242,6 +242,9 @@ namespace MicroJ {
         }
 
         public AType unbox(A<Box> y) {
+            if (y.Shape == null) {
+                return y.Ravel[0].val;
+            }
             var newShape = y.ShapeCopy();
             var shape = y.Ravel[0].val.Shape;
             if (shape == null) {
