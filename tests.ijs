@@ -644,3 +644,9 @@ ageBinTable (<'age') } ageTable -: 0 : 0
 |85 |0     |
 +---+------+
 )
+
+NB. unbox a single element
+(> (<'foo')) -: 'foo'
+
+NB. multiple assignments
+( a + b [ 'a b' =: 1 2) -: 3
