@@ -1473,6 +1473,10 @@ namespace MicroJ {
          
         }
         public AType runExplicit(string def, AType y) {
+
+            //normalize def so if/elseif/else start on its own line to simplify parsing
+            def = def.Replace("if.", "\nif.").Replace("elseif.", "\nelseif.").Replace("else.", "\nelse.");
+
             var lines = def.Split('\n').Select(x=>x.Trim(new char[] { ' ', '\t' })).Where(x=>x.Length > 0 && !x.StartsWith("NB.")).ToArray();
             var parser = Conjunctions.Parser;
             parser.LocalNames = new Dictionary<string, AType>();
@@ -1495,7 +1499,42 @@ namespace MicroJ {
                         return lines[i];
                     };
 
-                    if (line.StartsWith("while")) {
+                    if (line.StartsWith("if.")) {
+                        var endIdx = -1;
+                        for (var k = i; k < lines.Length; k++) {
+                            if (lines[k].Contains("end.")) {
+                                endIdx = k;
+                                break;
+                            }
+                        }
+                        if (endIdx == -1) { throw new ApplicationException("end not found"); }
+                        AType t = null;
+                        for (var k = i; k <= endIdx; k++) {
+                            line = lines[k];
+                            var origLine = line;
+                            //dangling end. after else.
+                            if (line.StartsWith("end.")) { continue; }
+                            if (line.StartsWith("if.") || line.StartsWith("elseif.")) {                                
+                                line = line.Replace("if.", "").Replace("elseif.", "").Replace("return.", "");
+                                var doIdx = line.IndexOf("do.");
+                                var test = line.Substring(0, doIdx);                                
+                                t = parser.parse(test);
+                                if (t.ToString() == "1") {
+                                    line = line.Substring(doIdx + "do.".Length + 1);
+                                    ret = parser.parse(line);
+                                    if (origLine.Contains("return.")) { return ret; }
+                                    break;
+                                }
+                            }
+                            else if (line.StartsWith("else.")) {
+                                line = line.Replace("else.", "").Replace("end.", "").Replace("return.", "");                                
+                                ret = parser.parse(line);
+                                if (origLine.Contains("return.")) { return ret; }
+                            }
+                        }
+                        i = endIdx;
+                    }
+                    else if (line.StartsWith("while")) {
                         var test = line.Replace("do.", "").Replace("while.", "");
                         var endIdx = 0;
                         for (var k = (i + 1); k < lines.Length; k++) {

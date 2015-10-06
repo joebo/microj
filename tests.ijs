@@ -650,3 +650,34 @@ NB. unbox a single element
 
 NB. multiple assignments
 ( a + b [ 'a b' =: 1 2) -: 3
+
+
+NB. if control structure
+((3 : 'if. y > 1 do. 1 else. 0 end.') 2) -: 1
+((3 : 'if. y > 2 do. 1 else. 100 end.') 2) -: 100
+((3 : 'if. y < 2 do. ''a'' elseif. y < 100 do. ''b'' else. ''c'' end.') 50) -: 'b'
+
+NB. if in explicit
+
+iftest =: 3 : 0
+if. y < 2 do. 'a'
+elseif. y < 100 do. 'b'
+else. 'c'
+end.
+)
+
+(iftest 1) -: 'a'
+(iftest 50) -: 'b'
+(iftest 101) -: 'c'
+
+NB. iftest immediate
+iftest =: 3 : 0
+if. y < 2 do. 'a' return.
+elseif. y < 100 do. 'b' return. end.
+elseif. y > 100 do. 'c' end.
+'NO'
+)
+
+(iftest 1) -: 'a'
+(iftest 50) -: 'b'
+(iftest 200) -: 'NO'
