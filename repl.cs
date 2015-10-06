@@ -125,7 +125,7 @@ namespace App {
                             };
                             
                             var ret = repl.parse(line).ToString();
-                            if (testMode && ret != "1") {
+                            if (testMode && ret != "1" && !line.EndsWith("3 : 0")) {
                                 var eqIdx = line.IndexOf("=");
                                 var rerun = "";
                                 if (eqIdx > -1) {
