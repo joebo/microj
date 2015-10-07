@@ -714,10 +714,24 @@ namespace MicroJ {
             
             if (x.GetType() == typeof(A<Box>)) {
                 var v = yt.Clone();
-                var idx = (x as A<Box>).Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
-                v.Columns = v.Columns.Where((xv, i) => idx.Contains(i)).ToArray();
-                v.Rows = v.Rows.Where((xv, i) => idx.Contains(i)).ToArray();
-                return v.WrapA();
+                var xb = x as A<Box>;
+                if (yt.UniqueKeys != null) {
+                    long idx;
+                    if (yt.UniqueKeys.TryGetValue(xb.Ravel[0].val.ToString(), out idx)) {
+                        v.indices = new long[] { idx };
+                    }
+                    else {
+                        v.indices = new long[0];
+                    }
+                    return v.WrapA();
+                    
+                }
+                else {
+                    var idx = (x as A<Box>).Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
+                    v.Columns = v.Columns.Where((xv, i) => idx.Contains(i)).ToArray();
+                    v.Rows = v.Rows.Where((xv, i) => idx.Contains(i)).ToArray();
+                    return v.WrapA();
+                }                
             }
             else if (x.GetType() == typeof(A<long>) && (x.Rank == 1 || x.Rank == 0)) {
                 var rowIndices = (x as A<long>).Ravel;
@@ -2731,6 +2745,22 @@ namespace MicroJ {
             return v;
         }
 
+        public A<JTable> setTableProps(AType noun, A<JTable> y) {
+            if (noun.GetType() != typeof(A<Box>)) {
+                throw new DomainException();
+            }
+            var yt = y.First();
+            var options = AHelper.ToOptions(noun as A<Box>);
+            if (options.ContainsKey("ukey")) {
+                yt.UniqueKeys = new Dictionary<string, long>();
+                var colIdx = yt.GetColIndex(new JString { str = options["ukey"] }.WrapA());
+                for (var i = 0; i < yt.RowCount; i++) {
+                    var rowIdx = yt.indices == null ? i : yt.indices[i];
+                    yt.UniqueKeys[yt.Rows[colIdx].val.GetString(rowIdx)] = rowIdx;
+                }
+            }
+            return yt.WrapA();
+        }
         public A<JTable> amendTable(AType noun, AType newVal, A<JTable> y) {
             var yt = y.First();
 
@@ -2898,6 +2928,11 @@ namespace MicroJ {
             else if (adverb == "/.") {
                 if (y.GetType() == typeof(A<JTable>)) {
                     return keyTable(method, (A<JString>)null, (A<JTable>) y);
+                }
+            }
+            else if (adverb == "}") {
+                if (y.GetType() == typeof(A<JTable>)) {
+                    return setTableProps((AType)verb.childNoun, (A<JTable>)y);
                 }
             }
             throw new NotImplementedException(adverb + " on y:" + y + " type: " + y.GetType());
