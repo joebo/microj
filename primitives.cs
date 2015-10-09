@@ -2075,17 +2075,22 @@ namespace MicroJ {
                     double d = 0;
                     if (csv[k] == "") continue;
                     if ((types[k] == 0 || types[k] == 3) && Int32.TryParse(csv[k], out n)) {
-                        if (!csv[k].StartsWith("0") || (keepLeadingZero && csv[k].Length > 1)) {
-                            types[k] = TYPE_INT;
+                        if (csv[k].StartsWith("0") && keepLeadingZero && csv[k].Length > 1) {
+                            types[k] = TYPE_STR;                            
                         }
                         else {
-                            types[k] = TYPE_STR;
+                            types[k] = TYPE_INT;
                         }
                     }
-                    else if ((types[k] == 0 || types[k] == 2) && Double.TryParse(csv[k], out d)) {
+                    else if ((types[k] == 0 || types[k] == TYPE_DOUBLE || types[k] == TYPE_INT) && Double.TryParse(csv[k], out d)) {
                         types[k] = TYPE_DOUBLE;
                     }
                     else {
+#if DEBUG
+                        if (types[k] != TYPE_STR && types[k] != 0) {
+                            Debug.WriteLine("Promoting " + headers[k] + " to string " + csv[k]);
+                        }
+#endif
                         types[k] = TYPE_STR;
                     }
                 }
