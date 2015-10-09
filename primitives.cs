@@ -41,7 +41,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I."};
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -149,9 +149,6 @@ namespace MicroJ {
             return z;
         }
 
-        public T Add<T, T2>(T a, T2 b) {
-            return (T)((dynamic)a + ((T)(dynamic)b));
-        }
 
         public A<T> math<T>(A<T> x, A<T> y, Func<T, T, T> op) where T : struct {
 
@@ -1165,6 +1162,25 @@ namespace MicroJ {
             }
         }
 
+        //indexof I.
+        public A<long> intervalIndex<T>(A<T> x, A<T> y) where T : struct {
+            var par1 = Expression.Parameter(typeof(T));
+            var par2 = Expression.Parameter(typeof(T));
+            var lt = Expression.LessThan(par1, par2);
+
+            var LessThan = Expression.Lambda<Func<T, T, bool>>(lt, par1, par2).Compile();
+
+            var z = new A<long>(y.Count);
+            for(var i = 0; i < y.Count; i++) {
+                for (var k = 0; k < x.Count; k++) {
+                    if (LessThan(x.Ravel[k], y.Ravel[i])) {
+                        z.Ravel[i] = (k + 1);
+                    }
+                }
+
+            }
+            return z;
+        }
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
             var verbs = (A<Verb>)method;
@@ -1441,6 +1457,9 @@ namespace MicroJ {
             }
             else if (op == ",.") {
                 return InvokeExpression("stitch", x, y, 1);                
+            }
+            else if (op == "I.") {
+                return InvokeExpression("intervalIndex", x, y, 1);
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
