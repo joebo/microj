@@ -715,9 +715,9 @@ namespace MicroJ {
             if (x.GetType() == typeof(A<Box>)) {
                 var v = yt.Clone();
                 var xb = x as A<Box>;
-                if (yt.UniqueKeys != null) {
+                if (yt.UniqueKeys != null && xb.First().val.GetType() == typeof(A<Box>)) {
                     long idx;
-                    if (yt.UniqueKeys.TryGetValue(xb.Ravel[0].val.ToString(), out idx)) {
+                    if (yt.UniqueKeys.TryGetValue((xb.First().val as A<Box>).Ravel[0].val.ToString(), out idx)) {
                         v.indices = new long[] { idx };
                     }
                     else {
