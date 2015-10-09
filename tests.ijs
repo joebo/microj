@@ -651,6 +651,8 @@ NB. unbox a single element
 NB. multiple assignments
 ( a + b [ 'a b' =: 1 2) -: 3
 
+(abc [ 'abc efg' =: ('abc';'efg')) -: 'abc'
+
 
 NB. if control structure
 ((3 : 'if. y > 1 do. 1 else. 0 end.') 2) -: 1
@@ -701,3 +703,5 @@ NB. I.
 (2 3 I. 2) -: 0
 (2 3 I. 3) -: 1
 (2 3 I. 1 2 3) -: 0 0 1
+
+

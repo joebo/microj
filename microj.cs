@@ -1030,7 +1030,11 @@ namespace MicroJ
                             nameRef[name.word] = rhs.val;
                         } else {
                             for(var k = 0; k < names.Length; k++) {
-                                nameRef[names[k].Replace("'", "")] = rhs.val.GetValA(k);
+                                var val = rhs.val.GetValA(k);
+                                if (val.GetType() == typeof(A<Box>) && val.GetCount() == 1) {
+                                    val = (val as A<Box>).First().val;
+                                }
+                                nameRef[names[k].Replace("'", "")] = val;
                             }
                         }
                             
