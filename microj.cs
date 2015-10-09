@@ -334,6 +334,7 @@ namespace MicroJ
         public long[] indices;
         public Dictionary<string, string> ColumnExpressions;
         public Dictionary<string, string> FooterExpressions;
+        public Dictionary<string, long> UniqueKeys;
 
         public long RowCount {
             get {
