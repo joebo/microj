@@ -672,6 +672,24 @@ end.
 (iftest 50) -: 'b'
 (iftest 101) -: 'c'
 
+iftest =: 3 : 0
+if. y < 2 do. 
+'z'
+'a'
+elseif. y < 100 do. 
+'z'
+'b'
+else. 
+'z'
+'c'
+end.
+)
+
+(iftest 1) -: 'a'
+(iftest 50) -: 'b'
+(iftest 101) -: 'c'
+
+
 NB. iftest immediate
 iftest =: 3 : 0
 if. y < 2 do. 'a' return.
@@ -692,11 +710,19 @@ elseif. y > 100 do. 'c' end.
 +-+-+
 )
 
+NB. behead with key
+(, > }. (<<0) { (('ukey';'a') } flip (('a';'b');(i.10);(10 $ 1 2)))) -: 0 1
+
+(}. (<'a') { (<<0) { (('ukey';'a') } flip (('a';'b');(i.10);(10 $ 1 2)))) -: 0
+
+
 ((<<500) { (('ukey';'a') } flip (('a';'b');(i.10);(10 $ 1 2)))) -: 0 : 0
 +-+-+
 |a|b|
 +-+-+
 )
+
+
 
 NB. I.
 (2 3 I. 1) -: 0
@@ -705,3 +731,63 @@ NB. I.
 (2 3 I. 1 2 3) -: 0 0 1
 
 
+NB. rank on table
+((3 : '# y') (flip ('a';'b');(i.10);(10 $ 1 2))) -: 10
+($ (3 : '# y') (flip ('a';'b');(i.10);(10 $ 1 2))) -: ''
+($ (3 : '# y') "1 (flip ('a';'b');(i.10);(10 $ 1 2))) -: 10
+
+NB. return a box from each row of a table
+((3 : ' 1;2 ') "1 (flip ('a';'b');(i.2);(2 $ 1 2))) -: 0 : 0
++-+-+
+|1|2|
++-+-+
+|1|2|
++-+-+
+)
+NB. return a new table per row, with a value from the original table
+((3 : ' flip (''x'';''z'');0;(}. (<1) { y) ') "1 (flip ('a';'b');(i.2);(2 2 $ 'abc'))) -: 0 : 0
++-+--+
+|x|z |
+|-+--|
+|0|ab|
+|-+--|
+|0|ca|
++-+--+
+)
+
+
+NB. insert or {. on table
+('+/a' /. (flip ('a';'b');(i.10);(10 $ 1 2))) -: 45
+(+/ ((<'a') {. (flip ('a';'b');(i.10);(10 $ 1 2)))) -: 45
+
+({. ((<'a') {. 0 { (flip ('a';'b');(i.10);(10 $ 1 2)))) = 0
+(((<'a') {. 0 { (flip ('a';'b');(i.10);(10 $ 1 2)))) = 0
+
+NB. non-vectorized calculated columns
+('a+b' / (flip ('a';'b');(i.3);(3 $ 1 2))) -: (1 3 3)
+
+NB. create a column through rank  (no access to locals)
+((3 : 'flip (<''c'');(a+b))') "1 (flip ('a';'b');(i.3);(3 $ 1 2))) -: 0 : 0
++-+
+|c|
+|-|
+|1|
+|-|
+|3|
+|-|
+|3|
++-+
+)
+
+NB. create a column through from
+(((<'c';'a+b')) { (flip ('a';'b');(i.3);(3 $ 1 2))) -: 0 : 0
++-+
+|c|
+|-|
+|1|
+|-|
+|3|
+|-|
+|3|
++-+
+)

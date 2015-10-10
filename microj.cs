@@ -354,6 +354,9 @@ namespace MicroJ
             if (y.GetType() == typeof(A<JString>)) {
                 colIdx = Array.IndexOf(Columns, y.GetString(0));
             }
+            else if (y.GetType() == typeof(A<Box>)) {
+                colIdx = -2;
+            }
             else {
                 colIdx = (int) (y as A<long>).Ravel[0];
             }
@@ -379,16 +382,17 @@ namespace MicroJ
             if (indices != null) {
                 ct = indices.Length;
             }
-            
+
+            var ttake = take;
             if (take == 0) {
-                take = ct;
+                ttake = ct;
             }
             var footer = FooterExpressions == null ? 0 : 1;
-            if (footer != 0 && (indices != null || offset != 0 || take != ct)) {
+            if (footer != 0 && (indices != null || offset != 0 || ttake != ct)) {
                 footer++;
             }
 
-            var newShape = new long[] {take+1+footer , Columns.Length};
+            var newShape = new long[] {ttake+1+footer , Columns.Length};
             var formatter = new Formatter(newShape, "");
             foreach (var col in Columns) {
                 int rep = col.Length;
@@ -399,7 +403,7 @@ namespace MicroJ
             }
 
             var newIndices = new List<long>();
-            for (var i = offset; i < (offset+take) && i < ct && i < Parser.OUTPUT_MAX_ROWS; i++) {
+            for (var i = offset; i < (offset+ttake) && i < ct && i < Parser.OUTPUT_MAX_ROWS; i++) {
                 if (indices == null) {
                     newIndices.Add(i);
                 }
@@ -433,7 +437,7 @@ namespace MicroJ
                 
                 Action<bool> buildFooter = (filtered) => {
                     for (var i = 0; i < self.Columns.Length; i++) {
-                        if (!filtered || (self.indices == null && self.take == ct && self.offset == 0)) {
+                        if (!filtered || (self.indices == null && ttake == ct && self.offset == 0)) {
                             locals[self.Columns[i]] = self.Rows[i].val;
                             locals["_C" + i] = locals[self.Columns[i]];
                         }

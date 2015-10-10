@@ -591,7 +591,7 @@ namespace MicroJ {
                     v.Ravel = yv.Rows.Select(x => x).ToArray();
                 }
                 else {
-                    v.Ravel = yv.Rows.Where((x,i) => yv.indices.Contains(i)).ToArray();
+                    v.Ravel = yv.Rows.Select(x=>x.val.FromIndices(yv.indices).Box()).ToArray();
                 }
                 return v;
             }
@@ -724,9 +724,35 @@ namespace MicroJ {
                     
                 }
                 else {
-                    var idx = (x as A<Box>).Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
-                    v.Columns = v.Columns.Where((xv, i) => idx.Contains(i)).ToArray();
-                    v.Rows = v.Rows.Where((xv, i) => idx.Contains(i)).ToArray();
+                    var xbt = (x as A<Box>);
+                    var idx = xbt.Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
+                    var columns = new List<string>();
+                    var rows = new List<Box>();
+                    
+                    
+                    for(var k = 0; k < idx.Length; k++) {
+                        var i = idx[k];
+                        if (i != -2) {
+                            columns.Add(v.Columns[i]);
+                            rows.Add(v.Rows[i]);
+                        }
+                        else {
+                            //(<(<'c';'a+b')) {. (flip ('a';'b');(i.3);(3 $ 1 2))
+                            var col = (xbt.Ravel[k].val as A<Box>);
+                            var colName = (col.Ravel[0].val.GetString(0));
+
+                            
+                            var expression = col.Ravel[1].val.GetString(0);
+                            //var expressionResult = Conjunctions.Parser.exec(expression, locals);
+                            var expressionResult = Conjunctions.rank1table(new A<Verb>(1) { Ravel = new Verb[] { new Verb { explicitDef = expression } } }, (y as A<JTable>));
+
+
+                            columns.Add(colName);
+                            rows.Add(expressionResult.Box());
+                        }                        
+                    }
+                    v.Columns = columns.ToArray();
+                    v.Rows = rows.ToArray();
                     return v.WrapA();
                 }                
             }
@@ -1351,7 +1377,7 @@ namespace MicroJ {
             else if (op == "%") {
                 var a2 = x.ConvertDouble();
                 var b2 = y.ConvertDouble();
-                return math(a2, b2, (a, b) => a / b);
+                return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : a / b);
             }
             else if (op == "$") {
                 if (x.GetType() == typeof(A<long>)) {
@@ -1390,6 +1416,19 @@ namespace MicroJ {
                 return InvokeExpression("append", x, y, 1);
             }
             else if (op == "{.") {
+                if (y.GetType() == typeof(A<JTable>) && x.GetType() != typeof(A<long>)) {
+                    A<JTable> yt = (A<JTable>)InvokeExpression("fromtable", x, y, 2);
+                    var table = beheadTable(yt);
+                    if (table.GetCount() == 1) {
+                        return table.GetValA(0);
+                    }
+                    /*
+                    if (table.GetType() == typeof(A<Box>)) {
+                        return raze<Box>(table as A<Box>);
+                    }
+                     */
+                    return table;
+                }
                 return InvokeExpression("take", x, y, 1);
             }
             else if (op == "}.") {
@@ -1505,15 +1544,28 @@ namespace MicroJ {
             return sb.ToString();
          
         }
+
         public AType runExplicit(string def, AType y) {
 
+            //ensure locals are destroyed after running an explicit
+            try {
+                return _runExplicit(def, y);
+            }
+            finally {
+                Conjunctions.Parser.LocalNames = null;
+            }
+        }
+        private AType _runExplicit(string def, AType y) {
+
             //normalize def so if/elseif/else start on its own line to simplify parsing
-            def = def.Replace("if.", "\nif.").Replace("elseif.", "\nelseif.").Replace("else.", "\nelse.");
+            def = def.Replace(" if.", "\nif.").Replace(" elseif.", "\nelseif.").Replace(" else.", "\nelse.");
 
             var lines = def.Split('\n').Select(x=>x.Trim(new char[] { ' ', '\t' })).Where(x=>x.Length > 0 && !x.StartsWith("NB.")).ToArray();
             var parser = Conjunctions.Parser;
-            parser.LocalNames = new Dictionary<string, AType>();
 
+            if (parser.LocalNames == null) {
+                parser.LocalNames = new Dictionary<string, AType>();
+            }
             parser.LocalNames["y"] = y;
             AType ret = null;
             for (var i = 0; i < lines.Length; i++) {
@@ -1542,27 +1594,50 @@ namespace MicroJ {
                         }
                         if (endIdx == -1) { throw new ApplicationException("end not found"); }
                         AType t = null;
+                        bool matched = false;
+                        bool foundMatch = false;
+                        bool done = false;
                         for (var k = i; k <= endIdx; k++) {
                             line = lines[k];
                             var origLine = line;
                             //dangling end. after else.
                             if (line.StartsWith("end.")) { continue; }
-                            if (line.StartsWith("if.") || line.StartsWith("elseif.")) {                                
-                                line = line.Replace("if.", "").Replace("elseif.", "").Replace("return.", "");
-                                var doIdx = line.IndexOf("do.");
-                                var test = line.Substring(0, doIdx);                                
-                                t = parser.parse(test);
-                                if (t.ToString() == "1") {
-                                    line = line.Substring(doIdx + "do.".Length + 1);
-                                    ret = parser.parse(line);
-                                    if (origLine.Contains("return.")) { return ret; }
-                                    break;
-                                }
+                            if ((line.StartsWith("if.") || line.StartsWith("elseif."))) {
+                                matched = false;
+                                if (!foundMatch) {                                    
+                                    line = line.Replace("elseif.", "").Replace("if.", "").Replace("return.", "");
+                                    var doIdx = line.IndexOf("do.");
+                                    var test = line.Substring(0, doIdx);
+                                    t = parser.parse(test);
+                                    if (t.ToString() == "1") {
+                                        var afterDo = doIdx + "do.".Length + 1;
+                                        if (afterDo <= line.Length) {
+                                            line = line.Substring(afterDo);
+                                            ret = parser.parse(line);
+                                            if (origLine.Contains("return.")) { return ret; }
+                                        }                                        
+                                        matched = true;
+                                        foundMatch = true;
+                                    }
+                                }                                
                             }
                             else if (line.StartsWith("else.")) {
-                                line = line.Replace("else.", "").Replace("end.", "").Replace("return.", "");                                
-                                ret = parser.parse(line);
-                                if (origLine.Contains("return.")) { return ret; }
+                                if (!foundMatch) {
+                                    matched = true;
+                                    line = line.Replace("else.", "").Replace("end.", "").Replace("return.", "");
+                                    if (line.Length > 0) {
+                                        ret = parser.parse(line);
+                                    }                                    
+                                    if (origLine.Contains("return.")) { return ret; }
+                                }
+                                else {
+                                    done = true;
+                                }                              
+                            }
+                            else {
+                                if (matched && !done) {
+                                    ret = parser.parse(line);
+                                }                                
                             }
                         }
                         i = endIdx;
@@ -1869,6 +1944,91 @@ namespace MicroJ {
             }
        
             return vs[0].Merge(newShape, vs);          
+        }
+
+        public AType rank1table(AType method, A<JTable> y) {
+            var yt = y.First();
+            var vs = new AType[yt.RowCount];
+            var verb = ((A<Verb>)method).Ravel[0];
+
+            //create a new verb without the conj component so we can safely pass it around
+            var newVerb = new A<Verb>(1);
+            if (verb.childVerb != null) {
+                Verb cv = (Verb)verb.childVerb;
+                newVerb.Ravel[0] = cv;
+            }
+            else {
+                newVerb.Ravel[0] = new Verb { op = verb.op, adverb = verb.adverb, explicitDef = verb.explicitDef };
+            }
+
+            for(var i = 0; i < yt.RowCount; i++) {
+                //subsetting the table for the verb is unstable currently, so we'll create a new table
+                var rowIdx = yt.indices == null ? i : yt.indices[i];
+                //var newY = yt.Clone();
+                //newY.indices = new long[] { rowIdx };
+                var newY = new JTable {
+                    Columns = yt.Columns.Select(x=>x).ToArray()
+                };
+                var newRows = new Box[newY.Columns.Length];
+                for (var k = 0; k < newY.Columns.Length;k++ ) {
+                    newRows[k] = yt.Rows[k].val.FromIndices(new long[] { rowIdx }).Box();
+                }
+                newY.Rows = newRows;
+
+                //todo move block to function
+                var locals = new Dictionary<string, AType>();
+                if (Parser.LocalNames != null) {
+                    foreach (var kvx in Parser.LocalNames) {
+                        locals[kvx.Key] = kvx.Value;
+                    }
+                }
+                for (var ii = 0; ii < newY.Columns.Length; ii++) {
+                    locals[newY.Columns[ii]] = newY.Rows[ii].val;
+                }
+
+                var oldLocals = Parser.LocalNames;
+                Parser.LocalNames = locals;
+                vs[i] = Verbs.Call1(newVerb, newY.WrapA());
+                Parser.LocalNames = oldLocals;
+            }
+            
+            
+            //merge multiple tables back into 1
+            if (vs[0].GetType() == typeof(A<JTable>)) {
+                var vst = vs.Select(x=>(x as A<JTable>).First()).ToArray();
+                var zt = new JTable {
+                    Columns = vst[0].Columns.Select(x => x).ToArray()
+                };
+                
+                var newCols = new Box[zt.Columns.Length];
+                for (var i = 0; i < newCols.Length; i++) {
+                    var newRows = new AType[vst.Length];
+                    for(var k = 0; k < newRows.Length;k++) {
+                        newRows[k] = vst[k].Rows[i].val.GetValA(vst[k].indices != null ? vst[k].indices[0] : 0);
+                    }
+
+                    var newShape = new long[] { yt.RowCount };
+                    if (vs[0].Shape != null) {
+                        newShape = newShape.Concat(vs[0].Shape).ToArray();
+                    }
+                    newCols[i] = newRows[0].Merge(newShape, newRows).Box();
+                }
+                zt.Rows = newCols;
+                return zt.WrapA();
+            }
+            else {
+                var newShape = new long[] { yt.RowCount };
+                if (vs[0].Shape != null) {
+                    newShape = newShape.Concat(vs[0].Shape).ToArray();
+                }
+                else {
+                    if (vs[0].GetType() == typeof(A<JString>)) {
+                        newShape = new long[] { yt.RowCount,1 };
+                    }
+                }
+                return vs[0].Merge(newShape, vs);
+            }
+            
         }
 
         public AType matchfast<T>(AType method, A<T> x, A<T> y) where T : struct {
@@ -2302,6 +2462,9 @@ namespace MicroJ {
                     }
 
                 }
+                if (y.GetType() == typeof(A<JTable>)) {
+                    return rank1table(method, (A<JTable>)y);
+                }
                 if (y.GetType() == typeof(A<long>)) { return rank1ex<long>(method, (A<long>)y); }
                 //todo: evaluate performance of dynamic dispatch of rank -- probably ok
                 else return Verbs.InvokeExpression("rank1ex", method, y, 1, this);
@@ -2571,12 +2734,24 @@ namespace MicroJ {
             }
             else {
                 //no columns to key by, but need to respect indices in case its filtered
-                var indices = new List<long>();
-                for (var i = 0; i < rowCt; i++) {
-                    var rowIdx = yt.indices == null ? i : yt.indices[i];
-                    indices.Add(rowIdx);
+
+                //todo likely performance issue
+                //hack to support insert: '# Item_UOM' / ((<'Item_UOM') { input)
+                if (op.ToString().Trim() != "/") {
+                    var indices = new List<long>();
+                    for (var i = 0; i < rowCt; i++) {
+                        var rowIdx = yt.indices == null ? i : yt.indices[i];
+                        indices.Add(rowIdx);
+                    }
+                    keyIndices[""] = indices;
                 }
-                keyIndices[""] = indices;
+                else {
+                    for (var i = 0; i < rowCt; i++) {
+                        var rowIdx = yt.indices == null ? i : yt.indices[i];
+                        keyIndices[rowIdx.ToString()] = new List<long> { rowIdx };
+                    }
+                }
+                
             }
             
             var keyCt = keyIndices.Count;
@@ -2652,10 +2827,19 @@ namespace MicroJ {
                 
                 var noun = vop.Ravel[0].childNoun as A<Box>;
 
-                var colCt = noun.Count + ((colIdx != null) ?  colIdx.Length : 0);
-
+                string[] expressions;
+                long colCt;
+                //multiple expressions
+                if (noun != null) {
+                    colCt = noun.Count + ((colIdx != null) ? colIdx.Length : 0);
+                    expressions = noun.Ravel.Select(xv => xv.val.ToString()).ToArray();
+                }
+                else {
+                    colCt = 1;
+                    expressions = new string[] { (vop.Ravel[0].childNoun as A<JString>).GetString(0) };
+                }
                 var rows = new Box[colCt];
-                var expressions = noun.Ravel.Select(xv=>xv.val.ToString()).ToArray();
+
                 var cols = colIdx != null ? yt.Columns.Where((xv, i) => colIdx.Contains(i)).ToArray().Concat(expressions).ToArray() : expressions;
                 var t = new JTable {
                     Columns = cols,
@@ -2683,7 +2867,7 @@ namespace MicroJ {
 
                 
 
-                for(var k = 0; k < noun.Count;k++) {
+                for(var k = 0; k < expressions.Length;k++) {
                     var parser = new Parser();
                     parser.Names = Conjunctions.Parser.Names;
 
@@ -2945,13 +3129,20 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<double>)) {
                     return reduce<double>(newVerb, (A<double>)y);
                 }
+                else if (y.GetType() == typeof(A<JTable>)) {
+                    return Verbs.beheadTable(keyTable(method, (A<JString>)null, (A<JTable>)y) as A<JTable>);
+                }
             }
             else if (adverb == "~") {
                 return Verbs.InvokeExpression("reflex", y, y, 1, this, newVerb);
             }
             else if (adverb == "/.") {
                 if (y.GetType() == typeof(A<JTable>)) {
-                    return keyTable(method, (A<JString>)null, (A<JTable>) y);
+                    var table = Verbs.beheadTable(keyTable(method, (A<JString>)null, (A<JTable>)y) as A<JTable>);
+                    if (table.GetCount() == 1) {
+                        return table.GetValA(0);
+                    }                    
+                    return table;
                 }
             }
             else if (adverb == "}") {
