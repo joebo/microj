@@ -36,6 +36,7 @@ using System.IO;
 
 #if CSSCRIPT
 using CSScriptLibrary;
+using System.Text.RegularExpressions;
 #endif
 
 namespace MicroJ
@@ -239,7 +240,8 @@ namespace MicroJ
                 a.Ravel = doubles.ToArray();
                 return a;
             }
-            else if (int.TryParse(word, NumberStyles.Any, CultureInfo.InvariantCulture, out val)) {
+                //allow using . to force cast to double
+            else if (!word.Contains(".") && int.TryParse(word, NumberStyles.Any, CultureInfo.InvariantCulture, out val)) {
                 var a = new A<long>(0);
                 a.Ravel[0] = val;
                 return a;
@@ -335,7 +337,11 @@ namespace MicroJ
         public Dictionary<string, string> ColumnExpressions;
         public Dictionary<string, string> FooterExpressions;
         public Dictionary<string, long> UniqueKeys;
+        public Dictionary<string, List<long>> Key;
 
+        public static string SafeColumnName(string col) {
+            return Regex.Replace(col, @"[^A-Za-z0-9\\_]+", "");
+        }
         public long RowCount {
             get {
                 if (indices == null) {
@@ -377,6 +383,23 @@ namespace MicroJ
                 FooterExpressions = FooterExpressions
             };
         }
+
+        public static JTable FromDict(A<Box> dict) {
+            var t = new JTable();
+            var columns = new string[dict.Shape[1]];
+            for (var i = 0; i < dict.Shape[1]; i++) {
+                columns[i] = dict.Ravel[i].val.GetString(0);
+            }
+            var rows = new Box[dict.Shape[1]];
+            int offset = 0;
+            for (var i = dict.Shape[1]; i < dict.Count; i++) {
+                rows[offset++] = dict.Ravel[i].val.Box();
+            }
+            t.Columns = columns;
+            t.Rows = rows;
+            return t;
+        }
+            
         public override string ToString() {
             var ct = Rows[0].val.GetCount();
             if (indices != null) {
@@ -626,7 +649,14 @@ namespace MicroJ
         }
         
         public override string GetString(long n) {
-            return Ravel[n].ToString();
+            if (Type != typeof(Byte)) {
+                return Ravel[n].ToString();
+            }
+            else {
+                int offset = (int)(Shape[1] * n);
+                return System.Text.Encoding.UTF8.GetString(Ravel as Byte[], (int)offset, (int)Shape[1]);                
+            }
+            
         }
 
         public override string GetString(long n, string format) {
@@ -724,6 +754,7 @@ namespace MicroJ
     }
     public class Parser {
 
+        public static bool ThrowError = true;
         public static int OUTPUT_MAX_ROWS = 10000;
         public bool SafeMode = false;
         public Verbs Verbs;

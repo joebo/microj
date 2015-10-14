@@ -722,6 +722,23 @@ NB. behead with key
 +-+-+
 )
 
+NB. key with  multiple rows
+((<<1) { (('key';'b') } flip (('a';'b');(i.10);(10 $ 1 2)))) -: 0 : 0
++-+-+
+|a|b|
+|-+-|
+|0|1|
+|-+-|
+|2|1|
+|-+-|
+|4|1|
+|-+-|
+|6|1|
+|-+-|
+|8|1|
++-+-+
+)
+
 
 
 NB. I.
@@ -755,6 +772,16 @@ NB. return a new table per row, with a value from the original table
 +-+--+
 )
 
+NB. return a new table per row, with a value from the original table
+((3 : ' (''a'';a+1),.(''b'';''c'') ') "1 (flip ('a';'b');(i.2);(2 2 $ 'abc'))) -: 0 : 0
++-+-+
+|a|b|
+|-+-|
+|1|c|
+|-+-|
+|2|c|
++-+-+
+)
 
 NB. insert or {. on table
 ('+/a' /. (flip ('a';'b');(i.10);(10 $ 1 2))) -: 45
@@ -763,10 +790,10 @@ NB. insert or {. on table
 ({. ((<'a') {. 0 { (flip ('a';'b');(i.10);(10 $ 1 2)))) = 0
 (((<'a') {. 0 { (flip ('a';'b');(i.10);(10 $ 1 2)))) = 0
 
-NB. non-vectorized calculated columns
+NB. vectorized calculated columns
 ('a+b' / (flip ('a';'b');(i.3);(3 $ 1 2))) -: (1 3 3)
 
-NB. create a column through rank  (no access to locals)
+NB. create a column through rank 
 ((3 : 'flip (<''c'');(a+b))') "1 (flip ('a';'b');(i.3);(3 $ 1 2))) -: 0 : 0
 +-+
 |c|
@@ -790,4 +817,38 @@ NB. create a column through from
 |-|
 |3|
 +-+
+)
+
+add=: 3 : 0
+a+1
+)
+
+((3 : ' (''x''; add a ) ,. (''z''; 2 * add a)') "1 (flip ('a';'b');(i.2);(2 2 $ 'abc'))) -: 0 : 0
++-+-+
+|x|z|
+|-+-|
+|1|2|
+|-+-|
+|2|4|
++-+-+
+)
+
+
+NB. abs
+(| _5 10 _20) -: (5 10 20)
+
+(3!:103 flip ('a';'b';'name');(i.3);(3 $ 1 2);(3 4 $ 'abc')) -: 0 : 0
+[{"a":0,"b":1,"name":"abca"},{"a":1,"b":2,"name":"bcab"},{"a":2,"b":1,"name":"cabc"}]
+)
+
+((3!:102) '[{"a":0,"b":1,"name":"abca"},{"a":1,"b":2,"name":"bcab"},{"a":2,"b":1,"name":"cabc"}]') -: 0 : 0
++-+-+----+
+|a|b|name|
+|-+-+----|
+|0|1|abca|
+|-+-+----|
+|1|2|bcab|
+|-+-+----|
+|2|1|cabc|
++-+-+----+
 )

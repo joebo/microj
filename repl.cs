@@ -112,7 +112,7 @@ namespace App {
                     for (var i = 0; i < lines.Length; i++) {
                         var line = lines[i];
                         try {
-                            if (line.StartsWith("NB.") || line.Length == 0) continue;
+                            if (line.StartsWith("NB.") || line.TrimStart(new char[] { ' ', '\t' }).Length == 0) continue;
                             if (line.StartsWith("exit")) break;
                             if (line.StartsWith("!B")) {
                                 Debugger.Launch();
@@ -142,12 +142,15 @@ namespace App {
                             }
                         } catch (Exception e) {
                             Console.WriteLine(line + "\n" + e);
+                            //if (Parser.ThrowError) { throw; }
+                            break;
                         }
                     }
                 }
                 if (runRepl) {
                     string prompt = "    ";
-                    while (true) {
+                    bool hasError = false;
+                    while (true || hasError) {
                         Console.Write(prompt);
 
                         repl.ReadLine = Console.ReadLine;
@@ -180,6 +183,7 @@ namespace App {
                             
                         } catch (Exception e) {
                             Console.WriteLine(e.ToString());
+                            hasError = true;
                         }
                     }
                 }
