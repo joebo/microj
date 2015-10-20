@@ -345,7 +345,7 @@ namespace MicroJ
         public long RowCount {
             get {
                 if (indices == null) {
-                    return Rows[0].val.GetCount();
+                    return Rows[0].val.Shape[0];
                 }
                 else {
                     return indices.Length;
