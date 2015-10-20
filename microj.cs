@@ -305,7 +305,7 @@ namespace MicroJ
             return str.CompareTo(((JString)obj).str);
         }
         public AType WrapA() {
-            return new A<JString>(new long[] { 1, str.Length }) { Ravel = new JString[] { this } };
+            return new A<JString>(new long[] { str.Length }) { Ravel = new JString[] { this } };
         }
     }
 
