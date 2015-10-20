@@ -775,7 +775,7 @@ namespace MicroJ {
             else if (x.GetType() == typeof(A<long>) && (x.Rank == 1 || x.Rank == 0)) {
                 var rowIndices = (x as A<long>).Ravel;
                 var v = yt.Clone();
-                v.indices = rowIndices;
+                v.indices = v.indices == null ? rowIndices : rowIndices.Select(xv => v.indices[xv]).ToArray();
                 return v.WrapA();
             }
             else if (x.GetType() == typeof(A<JString>) && x.Rank < 2) {
@@ -2689,7 +2689,7 @@ namespace MicroJ {
                         else if (spec.StartsWith("l")) {
                             var rows = num / sizeof(long);
                             long[] arr = new long[num];
-                            System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);
+                            System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)rows);
                             val = new A<long>(new long[] { rows }) { Ravel = arr };
                         }
                         view.SafeMemoryMappedViewHandle.ReleasePointer();
