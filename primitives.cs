@@ -2869,7 +2869,7 @@ namespace MicroJ {
             else if (verb.conj == "!:" && verb.op == "6" && verb.rhs == "2") {
                 return timeit((A<JString>)y);
             }
-            else if (verb.conj == "!:" && verb.op == "150" && verb.rhs == "1") {
+            else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "1") {
                 return readcsv(null, (A<Box>)y);
             }            
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
