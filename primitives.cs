@@ -2573,16 +2573,19 @@ namespace MicroJ {
             for (var i = 0; i < columns.Count; i++) {
                 var key = columns[i];
                 var val = first[key];
+
+                var allInt = obj.Select(x => x.GetType() == typeof(int)).Where(x => x).Count() == obj.Count();
+
                 if (val.GetType() == typeof(long)) {
                     var vals = obj.Select(x => (long)x[key]).ToArray();
                     rows[i] = new A<long>(rowCount) { Ravel = vals }.Box();
                 }
-                else if (val.GetType() == typeof(int)) {
+                else if (val.GetType() == typeof(int) && allInt) {
                     var vals = obj.Select(x => (long)(int)x[key]).ToArray();
                     rows[i] = new A<long>(rowCount) { Ravel = vals }.Box();
                 }
-                else if (val.GetType() == typeof(double) || val.GetType() == typeof(decimal)) {
-                    var vals = obj.Select(x => (double)x[key]).ToArray();
+                else if (val.GetType() == typeof(double) || val.GetType() == typeof(decimal) || val.GetType() == typeof(int)) {
+                    var vals = obj.Select(x => Convert.ToDouble(x[key])).ToArray();
                     rows[i] = new A<double>(rowCount) { Ravel = vals }.Box();
                 }
                 else if (val.GetType() == typeof(string)) {
@@ -2851,7 +2854,7 @@ namespace MicroJ {
                         Columns = (yb.Ravel[0].val as A<Box>).Ravel.Select(x=>((A<JString>)x.val).Ravel[0].str).ToArray(),
                         Rows = yb.Ravel.Skip(1).ToArray()
                     };
-
+                   
                     return table;
                 }
                 else if (y.GetType() == typeof(A<JString>)) {
