@@ -262,7 +262,6 @@ namespace MicroJ
         public Box Box() {
             return new Box { val = this };
         }
-        
     }
 
     public struct Undefined { }

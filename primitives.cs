@@ -1319,7 +1319,9 @@ namespace MicroJ {
                     return math((A<long>)x, (A<long>)y, (a, b) => a * b);
                 }
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
-                    return math((A<double>)x, (A<double>)y, (a, b) => a * b);
+                    //add rounding to 6 decimal points
+                    //TODO: make option
+                    return math((A<double>)x, (A<double>)y, (a, b) => Math.Round(a * b,8));
                 }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a * b);
@@ -1399,7 +1401,10 @@ namespace MicroJ {
             else if (op == "%") {
                 var a2 = x.ConvertDouble();
                 var b2 = y.ConvertDouble();
-                return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : a / b);
+                //round to 6 decimal points
+                //TODO: make option
+                return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : Math.Round(a / b,6));
+                //return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : a / b);
             }
             else if (op == "$") {
                 if (x.GetType() == typeof(A<long>)) {
