@@ -2216,7 +2216,7 @@ namespace MicroJ {
         //BYTE=1, JCHAR = 2, JFL = 8
         //(2;12) (151!:0) 'dates';'c:/temp/dates.bin';
         //(<8) (151!:0) 'tv';'c:/temp/tv.bin';                
-        public unsafe AType readmmap(A<Box> x, A<Box> y, Verb verb) {
+        public unsafe AType readmmap(A<Box> x, A<Box> y, Verb verb, long[] offsets = null) {
             string name = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
             string file = ((A<JString>)y.Ravel[1].val).Ravel[0].str;            
             long type = ((A<long>)x.Ravel[0].val).Ravel[0];
@@ -2224,6 +2224,7 @@ namespace MicroJ {
             if (x.Count > 1) {
                 size = ((A<long>)x.Ravel[1].val).Ravel[0];
             }
+
             
             var num = new FileInfo(file).Length;
             using (var mmf = MemoryMappedFile.CreateFromFile(file, FileMode.Open)) {
@@ -2255,19 +2256,27 @@ namespace MicroJ {
                     }
                     else if (type == 4) {
                         var rows = num / sizeof(long);
-                        long[] arr = new long[num];
-                        System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);
+                        
+                        int offset = 0;
+                        if (offsets != null) {
+                            offset = (int)offsets[0] * sizeof(long);                            
+                            rows = (offsets[1] - offsets[0]);
+                            if (offsets[1] == -1) {
+                                rows = (int)(num - offset) / sizeof(long);
+                            }
+                        }
+                        long[] arr = new long[rows];
+                        System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), offset), arr, 0, (int)rows);
                         val = new A<long>(new long[] { rows }) { Ravel = arr };
                     }
                     view.SafeMemoryMappedViewHandle.ReleasePointer();
                     Parser.Names[name] = val;
+                    return val;
                     
                 }
                 
             }
-            var z = new A<JString>(0);
-            z.Ravel[0].str = "";
-            return z;
+            throw new ApplicationException("unknown type");
         }
 
         private Tuple<Stopwatch, List<double>> measureTime(Tuple<Stopwatch, List<double>> measurement) {
@@ -2600,6 +2609,174 @@ namespace MicroJ {
                 
         }
 
+        public AType writeTableKeys(A<Box> x, A<JTable> y) {
+            var yt = y.First();
+            var path = x.First().val.GetString(0);
+            var keyName = x.Ravel[1].val.GetString(0);
+
+            if (yt.Key == null || yt.Key.Keys.Count() == 0) {  throw new ApplicationException("keys cannot be null or empty"); }
+
+            var maxKey = yt.Key.Keys.Select(xv => xv.Length).Max();
+
+            using (var fs = new FileStream(path + "\\" + keyName + "_s" + maxKey + ".key", FileMode.Create)) {
+                using (var bw = new BinaryWriter(fs)) {
+                    foreach (var key in yt.Key.Keys) {
+                        var bytes = System.Text.Encoding.UTF8.GetBytes(key.PadRight(maxKey));                                
+                        bw.Write(bytes); 
+                    }
+                }
+            }
+
+            long pos = 0L;
+            using (var fs = new FileStream(path + "\\" + keyName + "_l-keyoffset.key", FileMode.Create)) {
+                using (var bw = new BinaryWriter(fs)) {
+                    foreach (var key in yt.Key.Keys) {                        
+                        bw.Write(pos);
+                        pos += yt.Key[key].Count;
+                    }
+                }
+            }
+            
+            using (var fs = new FileStream(path + "\\" + keyName + "_l.key", FileMode.Create)) {
+                using (var bw = new BinaryWriter(fs)) {
+                    foreach (var val in yt.Key.Values) {
+                        foreach (var idx in val) {
+                            bw.Write(idx);
+                        }
+                    }
+                }
+            }
+            return y;
+        }
+
+        public unsafe AType readTableKey(A<Box> x, A<Box> y) {
+            var path = x.First().val.GetString(0);
+            var keyName = x.Ravel[1].val.GetString(0);
+
+            var files = new DirectoryInfo(path).GetFiles(keyName + "_s*" + ".key");
+            var keyFile = files.FirstOrDefault();
+            if (keyFile == null) { throw new ApplicationException("key " + keyName + " not found in " + path);  }
+            var parts = keyFile.FullName.Split('_');
+            var len = Convert.ToInt32(parts[parts.Length - 1].Substring(1).Replace(".key", ""));
+
+            var keys = readmmap(Box.BoxLongs(2, 2), 
+                new A<Box>(2) { Ravel = new Box[] { 
+                    new JString { str = keyName + "_key" }.WrapA().Box(), 
+                    new JString { str = keyFile.FullName }.WrapA().Box() } 
+                }, new Verb()) as A<JString>;
+
+            var keyOffset = readmmap(Box.BoxLongs(4),
+                new A<Box>(2) {
+                    Ravel = new Box[] { 
+                    new JString { str = keyName + "_keyoffset" }.WrapA().Box(), 
+                    new JString { str = Path.Combine(path, keyName + "_l-keyoffset.key") }.WrapA().Box() }
+                }, new Verb()) as A<long>;
+
+            
+            var foundIdx = -1;
+            var searchVal = y.Ravel[0].val.GetString(0);
+            for (var i = 0; i < keys.Ravel.Length; i++) {
+                if (keys.Ravel[i].str == searchVal) { foundIdx = i; break; }
+            }
+
+            long[] offsets = new long[2];
+            if (foundIdx < keys.Ravel.Length-1) {
+                offsets[0] = keyOffset.Ravel[foundIdx];
+                offsets[1] = keyOffset.Ravel[foundIdx+1];
+            }
+            else {
+                offsets[0] = keyOffset.Ravel[foundIdx];
+                offsets[1] = -1;
+            }
+
+            var keyIdx = readmmap(Box.BoxLongs(4),
+                new A<Box>(2) {
+                    Ravel = new Box[] { 
+                    new JString { str = keyName + "_keys" }.WrapA().Box(), 
+                    new JString { str = Path.Combine(path, keyName + "_l.key") }.WrapA().Box() }
+                }, new Verb(), offsets:offsets) as A<long>;
+
+            var newRowLen = keyIdx.Ravel.Length;
+
+            files = new DirectoryInfo(path).GetFiles("*.bin");
+
+            string[] cols = new string[files.Length];
+            Box[] newRows = new Box[files.Length];
+
+            int offset = 0;
+            foreach (var file in files) {
+                parts = file.Name.Split('_');
+                var spec = parts[0];
+                var col = String.Join("", parts.Skip(1).ToArray()).Replace(".bin", "");
+                var num = file.Length;
+
+                using (var mmf = MemoryMappedFile.CreateFromFile(path + "\\" + file.Name, FileMode.Open)) {
+                    AType val = null;
+                    using (var view = mmf.CreateViewStream(0, num)) {
+                        using(var bw = new BinaryReader(view)) {
+                            
+                            if (spec.StartsWith("b")) {
+                                /*
+                                int size = Int32.Parse(spec.Substring(1));
+                                var rows = size > 0 ? num / size : num;
+                                byte[] arr = new byte[num];
+                                System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)num);
+                                val = new A<Byte>(new long[] { rows, size }) { Ravel = arr };
+                                 */
+                            }
+                            else if (spec.StartsWith("s")) {
+                                var arr = new JString[newRowLen];
+                                int size = Int32.Parse(spec.Substring(1));
+                                for (var i = 0; i < keyIdx.Ravel.Length; i++) {
+                                    var idx = keyIdx.Ravel[i];
+                                    view.Seek(idx * size, SeekOrigin.Begin);
+                                    byte[] bytes = bw.ReadBytes(size);
+                                    arr[i] =  new JString { str = String.Intern(System.Text.Encoding.UTF8.GetString(bytes)) };
+                                }
+                                val = new A<JString>(new long[] { newRowLen, size }) { Ravel = arr };
+                                /*
+                                int size = Int32.Parse(spec.Substring(1));
+                                var rows = size > 0 ? num / size : num;
+                                var vals = new JString[rows];
+                                for (var i = 0; i < rows; i++) {
+                                    byte[] arr = new byte[size];
+                                    System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), (int)(i * size)), arr, 0, (int)size);
+                                    vals[i] = new JString { str = String.Intern(System.Text.Encoding.UTF8.GetString(arr)) };
+                                }
+                                val = new A<JString>(new long[] { rows, size }) { Ravel = vals };
+                                 */
+                            }
+                            else if (spec.StartsWith("d")) {
+                                /*
+                                var rows = num / sizeof(double);
+                                double[] arr = new double[rows];
+                                System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)rows);
+                                val = new A<double>(new long[] { rows }) { Ravel = arr };
+                                 */
+                            }
+                            else if (spec.StartsWith("l")) {
+                                long[] arr = new long[newRowLen];
+                                for (var i = 0; i < keyIdx.Ravel.Length; i++) {
+                                    var idx = keyIdx.Ravel[i];
+                                    view.Seek(idx * sizeof(long), SeekOrigin.Begin);
+                                    arr[i] = bw.ReadInt64();
+                                }
+                                val = new A<long>(new long[] { newRowLen }) { Ravel = arr };
+                            }
+                        }
+                        cols[offset] = col;
+                        newRows[offset] = val.Box();
+                        offset++;
+                    }
+                }         
+            }
+            return new JTable {
+                Columns = cols,
+                Rows = newRows
+            }.WrapA();
+            
+        }
+
         public AType writeTableBinary(A<Box> x, A<JTable> y) {
             var yt = y.First();
             var path = x.First().val.GetString(0);
@@ -2696,7 +2873,7 @@ namespace MicroJ {
                         }
                         else if (spec.StartsWith("l")) {
                             var rows = num / sizeof(long);
-                            long[] arr = new long[num];
+                            long[] arr = new long[rows];
                             System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)rows);
                             val = new A<long>(new long[] { rows }) { Ravel = arr };
                         }
@@ -2911,6 +3088,12 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "3") {
                 return readTableBinary((A<Box>)x, (A<Box>)y);
+            }
+            else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "4") {
+                return writeTableKeys((A<Box>)x, (A<JTable>)y);
+            }
+            else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "5") {
+                return readTableKey((A<Box>)x, (A<Box>)y);
             }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }

@@ -324,7 +324,13 @@ namespace MicroJ
         public override int GetHashCode() {
             return ToString().GetHashCode();
         }
-        
+        public static A<Box> BoxLongs(params long[] vals) {
+            var ret = new Box[vals.Length];
+            for (var i = 0; i < vals.Length; i++) {
+                ret[i].val = new A<long>(0) { Ravel = new long[] { vals[i] } };
+            }
+            return new A<Box>(vals.Length) { Ravel = ret };
+        }   
     }
 
     public struct JTable {
