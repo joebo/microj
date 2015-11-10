@@ -1233,6 +1233,10 @@ namespace MicroJ {
             var verb = ((A<Verb>)method).Ravel[0];
             var verbs = (A<Verb>)method;
 
+            if (verb.explicitDef != null) {
+                return runExplicit(verb.explicitDef, y, x);
+            }
+
             if (verb.childVerb != null) {
                 var v = verb.childVerb as A<Verb>;
                 if (v != null) {
@@ -1578,36 +1582,39 @@ namespace MicroJ {
          
         }
 
-        public AType runExplicit(string def, AType y) {
+        public AType runExplicit(string def, AType y, AType x = null) {
 
             var oldLocals = Conjunctions.Parser.LocalNames;
             //ensure locals are restored after running an explicit (multiple depths of explicit)
             try {
                 if (oldLocals != null) { Conjunctions.Parser.LocalNames = new Dictionary<string, AType>(oldLocals); }
-                return _runExplicit(def, y);
+                return _runExplicit(def, y, x);
             }
             finally {
                 Conjunctions.Parser.LocalNames = oldLocals;
             }
         }
-        private AType _runExplicit(string def, AType y) {
+        private AType _runExplicit(string def, AType y, AType x) {
 
             
-            var lines = def.Split('\n').SelectMany(x => {
-                var line = x.Trim(new char[] { ' ', '\t' });
+            var lines = def.Split('\n').SelectMany(xv => {
+                var line = xv.Trim(new char[] { ' ', '\t' });
                 if (line.StartsWith("if.")) {
                     //normalize def so if/elseif/else start on its own line to simplify parsing
                     line = line.Replace(" if.", "\nif.").Replace(" elseif.", "\nelseif.").Replace(" else.", "\nelse.");
 
                 }
                 return line.Split('\n');
-            }).Where(x => x.Length > 0 && !x.StartsWith("NB.")).ToArray();
+            }).Where(xv => xv.Length > 0 && !xv.StartsWith("NB.")).ToArray();
             var parser = Conjunctions.Parser;
 
             if (parser.LocalNames == null) {
                 parser.LocalNames = new Dictionary<string, AType>();
             }
             parser.LocalNames["y"] = y;
+            if (x != null) {
+                parser.LocalNames["x"] = x;
+            }
             AType ret = null;
             for (var i = 0; i < lines.Length; i++) {
                 var line = lines[i];
@@ -2985,6 +2992,13 @@ namespace MicroJ {
                     return Verbs.runExplicit(verb.rhs.TrimStart('\'').TrimEnd('\''), y);
                 }
             }
+            else if (verb.conj == ":" && verb.op == "4") {
+                if (verb.rhs == "0") {
+                    var v = new A<Verb>(0);
+                    v.Ravel[0] = new Verb { explicitDef = y.ToString() };
+                    return v;
+                }
+            }
             else if (verb.conj == "!:" && verb.op == "0") {
                 return runfile((A<Box>) y,verb);
             }
@@ -3077,6 +3091,16 @@ namespace MicroJ {
                 }
                 return Verbs.InvokeExpression("rank2ex", x, y, 2, this,method);
             }
+            else if (verb.conj == ":" && verb.op == "4") {
+                if (verb.rhs == "0") {
+                    var v = new A<Verb>(0);
+                    v.Ravel[0] = new Verb { explicitDef = y.ToString() };
+                    return v;
+                }
+                else {
+                    return Verbs.runExplicit(verb.rhs.TrimStart('\'').TrimEnd('\''), y, x);
+                }
+            }            
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "0") {
                 return readmmap((A<Box>)x, (A<Box>)y, verb);
             }
@@ -3095,6 +3119,7 @@ namespace MicroJ {
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "5") {
                 return readTableKey((A<Box>)x, (A<Box>)y);
             }
+
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 

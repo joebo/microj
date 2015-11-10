@@ -96,7 +96,11 @@ NB. 0 conjunction
 'abc' -: (0 : 'abc')
 
 NB. explicit verb
-NB. 'abc' -: (3 : '1+1') ''
+((3 : '1+1') 0) -: 2
+((3 : 'y+1') 1) -: 2
+(1 (4 : 'y+x') 1) -: 2
+
+
 (_1 p: 10 20 50 100) -: 4 8 15 25                    NB. Primes less than
 (_1 p: 17 37 79 101) -: 6 11 21 25  NB. Primes less than (prime arguments)
 
