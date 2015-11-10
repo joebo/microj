@@ -1837,7 +1837,13 @@ namespace MicroJ {
                 return box(y);
             }
             else if (op == ">") {
-                return unbox((A<Box>)y);
+                if (y.GetType() == typeof(A<Box>)) {
+                    return unbox((A<Box>)y);
+                }
+                else {
+                    return y;
+                }
+                
             }
             else if (op == "|:") {
                 if (y.GetType() == typeof(A<int>)) {
@@ -3485,7 +3491,9 @@ namespace MicroJ {
                     indices.Add(rowIdx);
                 }
             }
-            return yt.WrapA();
+            //replace instance copied by runtime since jtable is a struct
+            y.Ravel[0] = yt;
+            return y;
         }
         public A<JTable> amendTable(AType noun, AType newVal, A<JTable> y) {
             var yt = y.First();
