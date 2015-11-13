@@ -617,7 +617,7 @@ namespace MicroJ {
             return v;
         }
 
-
+        
         public A<T> take<T>(A<long> x, A<T> y) where T : struct {
             long[] newShape = null;
             
@@ -631,22 +631,34 @@ namespace MicroJ {
             }
             else if (y.GetType() == typeof(A<JTable>)) {
                 //todo: move to own
-                var yt = y as A<JTable>;
+                var yt = (y as A<JTable>).First();
                 var take = xct;
                 var offset = 0L;
                 var xv = x.Ravel[0];
                 if (xv < 0) {
-                    var rowCt = yt.Ravel[0].Rows[0].val.Shape[0];
+                    var rowCt = yt.Rows[0].val.Shape[0];
                     offset = xv +  rowCt;
                     take = rowCt - offset;
+                    var zt = yt.Clone();
+                    zt.take = take;
+                    zt.offset = offset;
+                    return (A<T>)(object)zt.WrapA();           
                 }
                 else {
                     take = xct;
+                    long[] indices;
+                    if (yt.RowCount == 0) {
+                        indices = new long[0];
+                    }
+                    else if (yt.indices != null) { indices = yt.indices.Take((int)take).ToArray();  }
+                    else {
+                        indices = permutationIdx(new long[] { take }, true);
+                    }
+                    var zt = yt.Clone();
+                    zt.indices = indices;
+                    return (A<T>)(object)zt.WrapA(); 
                 }
-                var zt = yt.First().Clone();
-                zt.take = take;
-                zt.offset = offset;
-                return (A<T>)(object) zt.WrapA();                
+                    
             }
             else {
                 v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
@@ -1105,6 +1117,7 @@ namespace MicroJ {
             }
                 return z.WrapA();
         }
+
         public A<T> nub<T>(A<T> y) where T : struct {            
             var indices = NubIndex(y);
             var fromIdx = new A<long>(indices.Count);
@@ -1112,6 +1125,26 @@ namespace MicroJ {
             return from(fromIdx, y);    
         }
 
+        public A<JTable> nubTable(A<JTable> y)  {
+            var yt = y.First();
+            var keys = new JString[yt.RowCount];
+
+            if (yt.RowCount == 0) {
+                var v = yt.Clone();
+                v.indices = new long[0];
+                return v.WrapA();
+            }
+            for (var i = 0; i < yt.RowCount; i++) {
+                keys[i].str = "";
+                for (var k = 0; k < yt.Rows.Length;k++) {
+                    keys[i].str += yt.Rows[k].val.GetString(yt.indices == null ? i : yt.indices[i]);
+                }
+            }
+            var indices = NubIndex(new A<JString>(yt.RowCount) { Ravel = keys });
+            var z = yt.Clone();
+            z.indices = indices.Values.Select(x => (yt.indices != null ? yt.indices[x.First()] : x.First())).OrderBy(x => x).ToArray();
+            return z.WrapA();
+        }
 
         public AType primesm(AType w) {
             return primes(null, w);
@@ -1448,6 +1481,7 @@ namespace MicroJ {
             }
             else if (op == "{.") {
                 if (y.GetType() == typeof(A<JTable>) && x.GetType() != typeof(A<long>)) {
+
                     A<JTable> yt = (A<JTable>)InvokeExpression("fromtable", x, y, 2);
                     var table = beheadTable(yt);
                     if (table.GetCount() == 1) {
@@ -1913,7 +1947,13 @@ namespace MicroJ {
                 return InvokeExpression("tostring", y);
             }
             else if (op == "~.") {
-                return InvokeExpression("nub", y);
+                if (y.GetType() != typeof(A<JTable>)) {
+                    return InvokeExpression("nub", y);
+                }
+                else {
+                    return nubTable( (A<JTable>) y);
+                }
+                
             }
             else if (op == ",.") {
                 return InvokeExpression("ravelitems", y);
