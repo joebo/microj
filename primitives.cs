@@ -2636,7 +2636,7 @@ namespace MicroJ {
                 var key = columns[i];
                 var val = first[key];
 
-                var allInt = obj.Select(x => x.GetType() == typeof(int)).Where(x => x).Count() == obj.Count();
+                var allInt = obj.Select(x => x[key].GetType() == typeof(int)).Where(x => x).Count() == obj.Count();
 
                 if (val.GetType() == typeof(long)) {
                     var vals = obj.Select(x => (long)x[key]).ToArray();
