@@ -2603,7 +2603,7 @@ namespace MicroJ {
                 var idx = yt.indices != null ? yt.indices[i] : i;
                 var row = new Dictionary<string, object>();
                 for(var k = 0 ; k < yt.Columns.Length; k++) {
-                    var val = yt.Rows[k].val.GetVal(i);
+                    var val = yt.Rows[k].val.GetVal(idx);
                     if (val.GetType() == typeof(JString)) {
                         row[yt.Columns[k]] = val.ToString();
                     }
