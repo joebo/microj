@@ -1826,8 +1826,8 @@ namespace MicroJ {
                     
                 }
                 catch (Exception e) {
-                    Console.WriteLine(line + "\n" + e);
-                    if (Parser.ThrowError) { throw; }
+                    //Console.WriteLine(line + "\n" + e);
+                    if (Parser.ThrowError) { throw new ApplicationException(line + "\nwith: " + (y != null ? y.ToString() : "") + "\n" + (x!=null?x.ToString():"") + "\ndef: " + def, e); }
                 }
             }
             return ret;
