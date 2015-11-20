@@ -193,6 +193,9 @@ namespace MicroJ
             throw new NotImplementedException();
         }
 
+        public static AType MakeA(long val) {
+            return new A<long>(0) { Ravel = new long[] { val } };
+        }
         public static AType MakeA(string word, Dictionary<string, AType> names, Dictionary<string, AType> locals = null) {
             int val;
             double vald;
@@ -261,6 +264,9 @@ namespace MicroJ
 
         public Box Box() {
             return new Box { val = this };
+        }
+        public AType UnBox() {
+            return (this as A<Box>).Ravel[0].val;
         }
     }
 
@@ -876,6 +882,9 @@ namespace MicroJ
             try {
                 if (locals != null) { LocalNames = locals; }
                 return parse(cmd);
+            }
+            catch (Exception e) {
+                throw;
             }
             finally {
                 LocalNames = prevNames;
