@@ -272,6 +272,7 @@ namespace MicroJ {
         public A<long> tally(AType y) {
             var v = new A<long>(0);
             if (y.GetType() == typeof(A<JTable>)) { v.Ravel[0] = (y as A<JTable>).First().RowCount;  }
+            else if (y.Rank <= 1 && y.GetType() == typeof(A<JString>)) { v.Ravel[0] = y.GetString(0).Length; }
             else if (y.Rank == 0) { v.Ravel[0] = 1; }
             else { v.Ravel[0] = y.Shape[0]; }
             return v;
@@ -3116,8 +3117,11 @@ namespace MicroJ {
                     v.Ravel[0] = new Verb { explicitDef = y.ToString() };
                     return v;
                 }
-                else {
+                else if (verb.rhs.StartsWith("'")) { 
                     return Verbs.runExplicit(verb.rhs.TrimStart('\'').TrimEnd('\''), y);
+                }
+                else {                    
+                    return Verbs.runExplicit(AType.MakeA(verb.rhs, Names).ToString(), y);
                 }
             }
             else if (verb.conj == ":" && verb.op == "4") {
