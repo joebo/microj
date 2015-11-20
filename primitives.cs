@@ -2930,11 +2930,18 @@ namespace MicroJ {
             string[] cols = new string[files.Length];
             Box[] newRows = new Box[files.Length];
 
+            var optionsDict = new Dictionary<string, string>();
+            
+            if (x != null) {
+                optionsDict = AHelper.ToOptions(x);
+            }
+            bool noPad = optionsDict.ContainsKey("nopad");
+
             int offset = 0;
             foreach (var file in files) {
                 var parts = file.Name.Split('_');
                 var spec = parts[0];
-                var col = String.Join("", parts.Skip(1).ToArray()).Replace(".bin", "");
+                var col = String.Join("_", parts.Skip(1).ToArray()).Replace(".bin", "");
                 var num = file.Length;
 
                 using (var mmf = MemoryMappedFile.CreateFromFile(path + "\\" + file.Name, FileMode.Open)) {
@@ -2956,7 +2963,9 @@ namespace MicroJ {
                             for (var i = 0; i < rows; i++) {
                                 byte[] arr = new byte[size];
                                 System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), (int)(i * size)), arr, 0, (int)size);
-                                vals[i] = new JString { str = String.Intern(System.Text.Encoding.UTF8.GetString(arr)) };
+                                var str = System.Text.Encoding.UTF8.GetString(arr);
+                                if (noPad) { str = str.TrimEnd();  }
+                                vals[i] = new JString { str = String.Intern(str) };
                             }
                             val = new A<JString>(new long[] { rows, size }) { Ravel = vals };
                         }
@@ -3133,10 +3142,10 @@ namespace MicroJ {
                     var yb = y as A<Box>;
                     var table = new A<JTable>(1);
                     table.Ravel[0] = new JTable {
-                        Columns = (yb.Ravel[0].val as A<Box>).Ravel.Select(x=>((A<JString>)x.val).Ravel[0].str).ToArray(),
+                        Columns = (yb.Ravel[0].val as A<Box>).Ravel.Select(x => ((A<JString>)x.val).Ravel[0].str).ToArray(),
                         Rows = yb.Ravel.Skip(1).ToArray()
                     };
-                   
+
                     return table;
                 }
                 else if (y.GetType() == typeof(A<JString>)) {
