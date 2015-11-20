@@ -2424,8 +2424,10 @@ namespace MicroJ {
             HashSet<string> keepColumns = null;
             if (optionsDict.ContainsKey("cols")) {
                 keepColumns = new HashSet<string>();
-                keepColumns.UnionWith(optionsDict["cols"].Split(','));
+                keepColumns.UnionWith(optionsDict["cols"].Split(',').Select(x=>x.Trim()));
             }
+
+            
 
             bool noPad = optionsDict.ContainsKey("nopad");
             
@@ -2439,40 +2441,60 @@ namespace MicroJ {
             stopWatch = measureTime(stopWatch);
 
             var headerLine = File.ReadLines(fileName).First();
-            headers = headerLine.Split(delimiter);
+            headers = headerLine.Split(delimiter).Select(x=>x.Trim()).ToArray();
             fieldCount = headers.Length;
+
+            int[] manualTypes = null;
+            if (optionsDict.ContainsKey("types")) {
+                manualTypes = optionsDict["types"].Select(x => {
+                    if (x == 'I') {
+                        return TYPE_INT;
+                    }
+                    else if (x == 'F') {
+                        return TYPE_DOUBLE;
+                    }
+                    else {
+                        return TYPE_STR;
+                    }
+                }).ToArray();
+            }
 
             stopWatch = measureTime(stopWatch);
 
-            foreach(var line in File.ReadLines(fileName).Skip(1)) {
-                var csv = line.Split(delimiter);
-                if (iLine++ > 1000 && iLine > limit) { break; }
-                for (var k = 0; k < fieldCount; k++) {
-                    int n = 0;
-                    double d = 0;
-                    if (csv[k] == "") continue;
-                    if ((types[k] == 0 || types[k] == 3) && Int32.TryParse(csv[k], out n)) {
-                        if (csv[k].StartsWith("0") && keepLeadingZero && csv[k].Length > 1) {
-                            types[k] = TYPE_STR;                            
+            if (manualTypes == null) {
+                foreach (var line in File.ReadLines(fileName).Skip(1)) {
+                    var csv = line.Split(delimiter);
+                    if (iLine++ > 1000 && iLine > limit) { break; }
+                    for (var k = 0; k < fieldCount; k++) {
+                        int n = 0;
+                        double d = 0;
+                        if (csv[k] == "") continue;
+                        if ((types[k] == 0 || types[k] == 3) && Int32.TryParse(csv[k], out n)) {
+                            if (csv[k].StartsWith("0") && keepLeadingZero && csv[k].Length > 1) {
+                                types[k] = TYPE_STR;
+                            }
+                            else {
+                                types[k] = TYPE_INT;
+                            }
+                        }
+                        else if ((types[k] == 0 || types[k] == TYPE_DOUBLE || types[k] == TYPE_INT) && Double.TryParse(csv[k], out d)) {
+                            types[k] = TYPE_DOUBLE;
                         }
                         else {
-                            types[k] = TYPE_INT;
-                        }
-                    }
-                    else if ((types[k] == 0 || types[k] == TYPE_DOUBLE || types[k] == TYPE_INT) && Double.TryParse(csv[k], out d)) {
-                        types[k] = TYPE_DOUBLE;
-                    }
-                    else {
 #if DEBUG
-                        if (types[k] != TYPE_STR && types[k] != 0) {
-                            Debug.WriteLine("Promoting " + headers[k] + " to string " + csv[k]);
-                        }
+                            if (types[k] != TYPE_STR && types[k] != 0) {
+                                Debug.WriteLine("Promoting " + headers[k] + " to string " + csv[k]);
+                            }
 #endif
-                        types[k] = TYPE_STR;
+                            types[k] = TYPE_STR;
+                        }
                     }
                 }
             }
-
+            else {
+                types = manualTypes;
+            }
+            
             stopWatch = measureTime(stopWatch);
             /*
             for (int i = 0; i < fieldCount; i++) {
@@ -2498,12 +2520,16 @@ namespace MicroJ {
                 if (rowCount >= limit) { break; }
 
                 rowCount++;
-
+                var keptColumnCt = 0;
                 for (int i = 0; i < fieldCount; i++) {
-                    var columnType = types[i];
                     var columnName = headers[i];
-
                     if (keepColumns != null && !keepColumns.Contains(columnName)) { continue; }
+
+                    var columnType = types[keptColumnCt];
+                    
+
+                    
+                    keptColumnCt++;
 
                     if (columnType == TYPE_INT) {
                         if (!longs.ContainsKey(columnName)) {
@@ -2526,7 +2552,12 @@ namespace MicroJ {
                         if (!doubles.ContainsKey(columnName)) {
                             doubles[columnName] = new List<double>();
                         }
-                        double dv = Double.Parse(csv[i] != "" ? csv[i] : "0");
+                        var val = csv[i] != "" ? csv[i] : "0";
+                        if (manualTypes != null) {
+                            val = val.Replace(",", "").Replace("$", "").Replace("\"","").Trim();
+                        }
+                        double dv;
+                        Double.TryParse(val, out dv);
                         doubles[columnName].Add(dv);
 
                     }
