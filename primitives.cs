@@ -37,13 +37,28 @@ namespace MicroJ {
             DyadicY = y;
         }
 
+        public AType InvokeWithRank(AType y) {
+            if (Monadic == 0 && y.Rank > 0) {
+                AType[] ret = new AType[y.GetCount()];
+
+                for (var i = 0; i < ret.Length; i++) {
+                    ret[i] = MonadicFunc(y.GetValA(i));
+                }
+                return ret[0].Merge(new long[] { ret.Length }, ret);
+            }
+            else {
+                return MonadicFunc(y);
+            }
+        }
     }
    
     public class Verbs {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:"};
+
+        public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
         public Adverbs Adverbs = null;
         public Conjunctions Conjunctions = null;
@@ -52,12 +67,41 @@ namespace MicroJ {
         //Delegate copyFunc;
 
         Dictionary<Tuple<string, Type, Type>, Delegate> expressionDict;
-        Dictionary<string, VerbWithRank> expressionMap;
+        public Dictionary<string, VerbWithRank> expressionMap;
         public Verbs() {
             expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
             expressionMap = new Dictionary<string, VerbWithRank>();
             expressionMap["p:"] = new VerbWithRank(primesm, primes, 0, VerbWithRank.Infinite, VerbWithRank.Infinite);
             expressionMap["q:"] = new VerbWithRank(primesqm, primesq, 0, 0, 0);
+            expressionMap[";:"] = new VerbWithRank((y) => {
+                var words = Conjunctions.Parser.toWords(y.GetString(0));
+                return new A<Box>(words.Length) { Ravel = words.Select(xv => new JString { str = xv }.WrapA().Box()).ToArray() };
+            }, null, 0, 0, 0);
+
+            expressionMap["nameClass"] = new VerbWithRank((y) => {
+                var str = y.GetValA(0).UnBox().ToString();
+                var val = AType.MakeA(str, Conjunctions.Parser.Names, Conjunctions.Parser.LocalNames);
+                
+                if (Adverbs.Words.Contains(str)) {
+                    return AType.MakeA(1);
+                } 
+                else if (Conjunctions.Words.Contains(str)) {
+                    return AType.MakeA(2);
+                } 
+                else if (val.GetType() == typeof(A<Verb>)) {
+                    return AType.MakeA(3);
+                }
+                else if (Verbs.ControlWords.Contains(str)) {
+                    return AType.MakeA(4);
+                }
+                else if (val.GetType() == typeof(A<Undefined>)) {
+                    return AType.MakeA(-1);
+                }                
+                else  {
+                    return AType.MakeA(0);
+                } 
+            }, null, 0, 0, 0);
+
         }
 
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null) {
@@ -3068,6 +3112,9 @@ namespace MicroJ {
                     return new JString { str = "" }.WrapA();
                 }
                 
+            }
+            else if (verb.conj == "!:" && verb.op == "4" && verb.rhs == "0") {
+                return Verbs.expressionMap["nameClass"].InvokeWithRank(y);
             }
             else if (verb.conj == "!:" && verb.op == "3" && verb.rhs == "100") {
                 var str = y.ToString();

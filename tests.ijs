@@ -885,3 +885,9 @@ NB. json type promotion
 |ab|
 +--+
 )
+
+NB. AND
+NB. (0 *. 1) -: 0
+
+
+((4!:0) ;: 'qqq 123') -: _1 0
