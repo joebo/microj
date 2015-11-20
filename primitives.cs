@@ -775,7 +775,7 @@ namespace MicroJ {
                 if ((yt.UniqueKeys != null || yt.Key != null) && xb.First().val.GetType() == typeof(A<Box>) && xb.First().val.GetCount() == 1) {                    
                     if (yt.UniqueKeys != null) {
                         long idx;
-                        if (yt.UniqueKeys.TryGetValue((xb.First().val as A<Box>).Ravel[0].val.ToString(), out idx)) {
+                        if (yt.UniqueKeys.TryGetValue((xb.First().val as A<Box>).Ravel[0].val.ToString().ToUpper(), out idx)) {
                             v.indices = new long[] { idx };
                         }
                         else {
@@ -785,7 +785,7 @@ namespace MicroJ {
                     }
                     else if (yt.Key != null) {
                         List<long> indices;
-                        if (yt.Key.TryGetValue((xb.First().val as A<Box>).Ravel[0].val.ToString(), out indices)) {
+                        if (yt.Key.TryGetValue((xb.First().val as A<Box>).Ravel[0].val.ToString().ToUpper(), out indices)) {
                             v.indices = indices.ToArray();
                         } else {
                             v.indices = new long[0];
@@ -3559,7 +3559,7 @@ namespace MicroJ {
                 var colIdx = yt.GetColIndex(new JString { str = options["ukey"] }.WrapA());
                 for (var i = 0; i < yt.RowCount; i++) {
                     var rowIdx = yt.indices == null ? i : yt.indices[i];
-                    yt.UniqueKeys[yt.Rows[colIdx].val.GetString(rowIdx)] = rowIdx;
+                    yt.UniqueKeys[yt.Rows[colIdx].val.GetString(rowIdx).ToUpper()] = rowIdx;
                 }
             }
             else if (options.ContainsKey("key")) {
@@ -3568,7 +3568,7 @@ namespace MicroJ {
                 for (var i = 0; i < yt.RowCount; i++) {
                     var rowIdx = yt.indices == null ? i : yt.indices[i];
                     List<long> indices = null;
-                    var key = yt.Rows[colIdx].val.GetString(rowIdx);
+                    var key = yt.Rows[colIdx].val.GetString(rowIdx).ToUpper();
                     if (!yt.Key.TryGetValue(key, out indices)) {
                         indices = new List<long>();
                         yt.Key[key] = indices;
@@ -3616,7 +3616,7 @@ namespace MicroJ {
 
             //group for keys
             for(var i = 0; i < yt.Rows[0].val.GetCount(); i++) {
-                var keyVal = yt.Rows[keyIdx].val.GetString(i);
+                var keyVal = yt.Rows[keyIdx].val.GetString(i).ToUpper();
                 List<long> keyIndices = null;
                 if (!keys.TryGetValue(keyVal, out keyIndices)) {
                     keyIndices = new List<long>();
@@ -3628,7 +3628,7 @@ namespace MicroJ {
             if (newVal.GetType() != typeof(A<JTable>)) {
                 for (var i = 0; i < newVal.GetCount(); i++) {
                     List<long> keyIndices = null;
-                    var checkVal = yb.Ravel[1].val.GetString(i);
+                    var checkVal = yb.Ravel[1].val.GetString(i).ToUpper();
                     var newValx = newVal.GetVal(i);
                     if (keys.TryGetValue(checkVal, out keyIndices)) {
                         for (var k = 0; k < keyIndices.Count; k++) {
@@ -3643,7 +3643,7 @@ namespace MicroJ {
                 var joinKeyIdx = Array.IndexOf(xt.Columns, keyColumn);
                 var joinKeys = new Dictionary<string, long>();
                 for (var i = 0; i < xt.RowCount; i++) {
-                    var keyVal = xt.Rows[joinKeyIdx].val.GetString(i);
+                    var keyVal = xt.Rows[joinKeyIdx].val.GetString(i).ToUpper();
                     joinKeys[keyVal] = i;
                 }
                 var newCols = xt.Columns.Where(xv => xv != keyColumn).ToArray();
