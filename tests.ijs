@@ -445,7 +445,7 @@ NB. tables - select column and row
 )
 
 NB. tables - update a column
-((flip (<'abc');(1,2));(flip (<'abc');(3,4))) -: 0 : 0
+((flip (<'abc');(1,2)),(flip (<'abc');(3,4))) -: 0 : 0
 +---+
 |abc|
 |---|
@@ -456,7 +456,7 @@ NB. tables - update a column
 )
 
 NB. tables - add a column
-((flip (<'abc');(1,2));(flip (<'xyz');(3,4))) -: 0 : 0
+((flip (<'abc');(1,2)),(flip (<'xyz');(3,4))) -: 0 : 0
 +---+---+
 |abc|xyz|
 |---+---|
@@ -467,7 +467,7 @@ NB. tables - add a column
 )
 
 NB. tables - add a calculated column
-((flip ('a';'b');(1,2);(3,5));('c';'a + b')) -: 0 : 0
+((flip ('a';'b');(1,2);(3,5)),('c';'a + b')) -: 0 : 0
 +-+-+-+
 |a|b|c|
 |-+-+-|

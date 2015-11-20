@@ -1521,6 +1521,12 @@ namespace MicroJ {
                 return InvokeExpression("indexof", x, y, 1);
             }
             else if (op == ",") {
+                if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<JTable>)) {
+                    return linktable((A<JTable>)x, (A<JTable>)y);
+                }
+                else if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<Box>)) {
+                    return linktableExpression((A<JTable>)x, (A<Box>)y);
+                }      
                 return InvokeExpression("append", x, y, 1);
             }
             else if (op == "{.") {
@@ -1599,15 +1605,7 @@ namespace MicroJ {
                 }                
             }
             else if (op == ";") {
-                if (x.GetType() != typeof(A<JTable>)) {
-                    return InvokeExpression("link", x, y, 2);
-                }
-                else if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<JTable>)){
-                    return linktable((A<JTable>)x, (A<JTable>)y);                    
-                }
-                else if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<Box>)) {
-                    return linktableExpression((A<JTable>)x, (A<Box>)y);
-                }                
+                return InvokeExpression("link", x, y, 2);                
             }
             else if (op == ",.") {
                 return InvokeExpression("stitch", x, y, 1);                
