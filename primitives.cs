@@ -107,6 +107,10 @@ namespace MicroJ {
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null) {
             var key = new Tuple<string, Type, Type>(op, x.GetType(), y.GetType());
             Delegate d;
+
+            //no xs take decimals right now, so lets convert to long 
+            x = x.TryConvertLong(Conjunctions.Parser);
+
             if (!expressionDict.TryGetValue(key, out d)) {
                 var calleeType = callee == null ? typeof(Verbs) : callee.GetType();
 
@@ -1368,6 +1372,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return math((A<double>)x, (A<double>)y, (a, b) => a + b);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a + b);
+                }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a + b);
                 }
@@ -1386,6 +1393,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return math((A<double>)x, (A<double>)y, (a, b) => a - b);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a - b);
+                }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a - b);
                 }
@@ -1399,6 +1409,9 @@ namespace MicroJ {
             else if (op == "*") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a * b);
+                }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a * b);
                 }
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     //add rounding to 6 decimal points
@@ -1422,6 +1435,9 @@ namespace MicroJ {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a < b ? 1 : 0);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a < b ? 1 : 0);
+                }
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return math((A<double>)x, (A<double>)y, (a, b) => a < b ? 1 : 0);
                 }
@@ -1442,6 +1458,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return math((A<double>)x, (A<double>)y, (a, b) => a > b ? 1 : 0);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a > b ? 1 : 0);
+                }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a > b ? 1 : 0);
                 }
@@ -1459,6 +1478,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return math((A<double>)x, (A<double>)y, (a, b) => a < b ? a : b);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a < b ? a : b);
+                }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a < b ? a : b);
                 }
@@ -1473,6 +1495,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
                     return math((A<double>)x, (A<double>)y, (a, b) => a > b ? a : b);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a > b ? a : b);
+                }
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a > b ? a : b);
                 }
@@ -1481,12 +1506,18 @@ namespace MicroJ {
                 }
             }
             else if (op == "%") {
-                var a2 = x.ConvertDouble();
-                var b2 = y.ConvertDouble();
-                //round to 6 decimal points
-                //TODO: make option
-                return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : Math.Round(a / b,6));
-                //return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : a / b);
+                if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => b != 0 ? a / b : 0 );
+                }
+                else {
+                    var a2 = x.ConvertDouble();
+                    var b2 = y.ConvertDouble();
+                    //round to 6 decimal points
+                    //TODO: make option
+                    return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : Math.Round(a / b, 6));
+                    //return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : a / b);
+                }
+                
             }
             else if (op == "$") {
                 if (x.GetType() == typeof(A<long>)) {
@@ -1531,6 +1562,7 @@ namespace MicroJ {
                 return InvokeExpression("append", x, y, 1);
             }
             else if (op == "{.") {
+                x = x.TryConvertLong(Conjunctions.Parser);
                 if (y.GetType() == typeof(A<JTable>) && x.GetType() != typeof(A<long>)) {
 
                     A<JTable> yt = (A<JTable>)InvokeExpression("fromtable", x, y, 2);
@@ -2511,6 +2543,7 @@ namespace MicroJ {
 
             var strings = new Dictionary<string, List<string>>();
             var longs = new Dictionary<string, List<long>>();
+            var decimals = new Dictionary<string, List<decimal>>();
             var doubles = new Dictionary<string, List<double>>();
             var rowCount = 0;
 
@@ -2532,7 +2565,17 @@ namespace MicroJ {
                     
                     keptColumnCt++;
 
-                    if (columnType == TYPE_INT) {
+                    if (Parser.UseDecimal && (columnType == TYPE_INT || columnType == TYPE_DOUBLE)) {
+                        if (!decimals.ContainsKey(columnName)) {
+                            decimals[columnName] = new List<decimal>();
+                        }
+                        decimal dv;
+                        if (!Decimal.TryParse(csv[i] != "" ? csv[i] : "0", out dv)) {
+                            Console.WriteLine("bad data: " + csv[i]);
+                        }
+                        decimals[columnName].Add(dv);
+                    }
+                    else if (columnType == TYPE_INT) {
                         if (!longs.ContainsKey(columnName)) {
                             longs[columnName] = new List<long>();
                         }
@@ -2579,7 +2622,14 @@ namespace MicroJ {
                 return JTable.SafeColumnName(s) + "_" + tableName + "_";
             };
 
-
+            foreach (var col in decimals.Keys) {
+                var jname = new MicroJ.A<decimal>(rowCount) { Ravel = decimals[col].ToArray() };
+                var newName = createName(col);
+                newNames.Add(newName);
+                Parser.Names[newName] = jname;
+                finalColumnNames.Add(col);
+                boxedRows.Add(new Box { val = jname });
+            }
             foreach (var col in longs.Keys) {
                 var jname = new MicroJ.A<long>(rowCount) { Ravel = longs[col].ToArray() };
                 var newName = createName(col);
@@ -2712,7 +2762,11 @@ namespace MicroJ {
 
                 var allInt = obj.Select(x => x[key].GetType() == typeof(int)).Where(x => x).Count() == obj.Count();
 
-                if (val.GetType() == typeof(long)) {
+                if (Parser.UseDecimal && (val.GetType() == typeof(long) || val.GetType() == typeof(int) || val.GetType() == typeof(double) || val.GetType() == typeof(decimal))) {
+                    var vals = obj.Select(x => Convert.ToDecimal(x[key])).ToArray();
+                    rows[i] = new A<decimal>(rowCount) { Ravel = vals }.Box();
+                }
+                else if (val.GetType() == typeof(long)) {
                     var vals = obj.Select(x => (long)x[key]).ToArray();
                     rows[i] = new A<long>(rowCount) { Ravel = vals }.Box();
                 }
@@ -2939,6 +2993,9 @@ namespace MicroJ {
                             if (yt.Rows[k].val.GetType() == typeof(A<long>)) {
                                 bw.Write((long)val);
                             }
+                            else if (yt.Rows[k].val.GetType() == typeof(A<decimal>)) {
+                                bw.Write((decimal)val);
+                            }
                             else if (yt.Rows[k].val.GetType() == typeof(A<double>)) {
                                 bw.Write((double)val);
                             }
@@ -3005,13 +3062,25 @@ namespace MicroJ {
                             var rows = num / sizeof(double);
                             double[] arr = new double[rows];
                             System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)rows);
-                            val = new A<double>(new long[] { rows }) { Ravel = arr };
+                            if (!Parser.UseDecimal) {
+                                val = new A<double>(new long[] { rows }) { Ravel = arr };
+                            }
+                            else {
+                                val = new A<decimal>(new long[] { rows }) { Ravel = arr.Select(xv=>Convert.ToDecimal(xv)).ToArray() };
+                            }
+                            
                         }
                         else if (spec.StartsWith("l")) {
                             var rows = num / sizeof(long);
                             long[] arr = new long[rows];
                             System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)rows);
-                            val = new A<long>(new long[] { rows }) { Ravel = arr };
+                            if (!Parser.UseDecimal) {
+                                val = new A<long>(new long[] { rows }) { Ravel = arr };
+                            }
+                            else {
+                                val = new A<decimal>(new long[] { rows }) { Ravel = arr.Select(xv => Convert.ToDecimal(xv)).ToArray() };
+                            }
+                            
                         }
                         view.SafeMemoryMappedViewHandle.ReleasePointer();
                         cols[offset] = col;
@@ -3134,18 +3203,29 @@ namespace MicroJ {
             else if (verb.conj == "!:" && verb.op == "0") {
                 return runfile((A<Box>) y,verb);
             }
+            else if (verb.conj == "!:" && verb.op == "9" && verb.rhs == "100") {
+                Parser.UseDecimal = Convert.ToInt32(y.GetString(0)) == 1 ? true : false;
+                if (Parser.UseDecimal) {
+                    Parser.Names["UseDecimal"] = AType.MakeA(1);
+                }
+                else {
+                    Parser.Names.Remove("UseDecimal");
+                }
+                return y;
+            }
             else if (verb.conj == "!:" && verb.op == "4" && verb.rhs == "1") {
                 //names       
                 var type = (y as A<long>).First();
-                var vals = Parser.Names.Where(xv=>{
+                var vals = Parser.Names.Where(xv => {
                     var isVerb = xv.Value.GetType() == typeof(A<Verb>);
                     if (type == 0) {
                         return !isVerb;
-                    } else {
+                    }
+                    else {
                         return isVerb;
                     }
                 }).Select(xv => new JString { str = xv.Key }.WrapA()).Select(xv => xv.Box()).ToArray();
-                if (vals.Length > 0)     {
+                if (vals.Length > 0) {
                     var z = new A<Box>(vals.Length);
                     z.Ravel = vals;
                     return z;
@@ -3153,10 +3233,13 @@ namespace MicroJ {
                 else {
                     return new JString { str = "" }.WrapA();
                 }
-                
+
             }
             else if (verb.conj == "!:" && verb.op == "4" && verb.rhs == "0") {
                 return Verbs.expressionMap["nameClass"].InvokeWithRank(y);
+            }
+            else if (verb.conj == "!:" && verb.op == "4" && verb.rhs == "100") {
+                return new JString { str = y.GetType().ToString() }.WrapA();
             }
             else if (verb.conj == "!:" && verb.op == "3" && verb.rhs == "100") {
                 var str = y.ToString();
@@ -3295,6 +3378,17 @@ namespace MicroJ {
             return v;
         }
 
+        //special code for +/ rank 1 (decimal)
+        public A<decimal> reduceplus(A<decimal> y) {
+            var v = new A<decimal>(0);
+            decimal total = 0;
+            for (var i = 0; i < y.Count; i++) {
+                total += (decimal)y.Ravel[i];
+            }
+            v.Ravel[0] = total;
+            return v;
+        }
+
         public A<T> reduceboxed<T>(AType op, A<Box> y) where T : struct {
             if (y.Rank == 1) {
                 var v = new A<T>(0);
@@ -3412,7 +3506,7 @@ namespace MicroJ {
                     }
                     else {
                         if (yt.FooterExpressions != null && yt.FooterExpressions.ContainsKey(yt.Columns[k])) {
-                            var parser = new Parser();
+                            var parser = new Parser { UseDecimal = Conjunctions.Parser.UseDecimal };
                             parser.Names = Conjunctions.Parser.Names;
 
                             var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
@@ -3498,7 +3592,7 @@ namespace MicroJ {
                 
 
                 for(var k = 0; k < expressions.Length;k++) {
-                    var parser = new Parser();
+                    var parser = new Parser { UseDecimal = Conjunctions.Parser.UseDecimal };
                     parser.Names = Conjunctions.Parser.Names;
 
                     var groupRows = new List<AType>();
@@ -3772,6 +3866,9 @@ namespace MicroJ {
             else if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<double>)) {
                 return reduceplus((A<double>)y);
             }
+            else if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<decimal>)) {
+                return reduceplus((A<decimal>)y);
+            }
             else if (adverb == "/" && op == "%" && y.GetType() == typeof(A<long>)) {
                 //special code to convert longs to double for division
                 var newY = y.ConvertDouble();
@@ -3783,6 +3880,9 @@ namespace MicroJ {
                 }
                 else if (y.GetType() == typeof(A<double>)) {
                     return reduce<double>(newVerb, (A<double>)y);
+                }
+                else if (y.GetType() == typeof(A<decimal>)) {
+                    return reduce<decimal>(newVerb, (A<decimal>)y);
                 }
                 else if (y.GetType() == typeof(A<JTable>)) {
                     return Verbs.beheadTable(keyTable(method, (A<JString>)null, (A<JTable>)y) as A<JTable>);

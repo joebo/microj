@@ -130,6 +130,7 @@ namespace MicroJ
         public abstract object GetVal(long n);
         public abstract AType GetValA(long n);
         public abstract AType FromIndices(long[] indices);
+        public abstract AType TryConvertLong(Parser parse);
 
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
@@ -199,6 +200,7 @@ namespace MicroJ
         public static AType MakeA(string word, Dictionary<string, AType> names, Dictionary<string, AType> locals = null) {
             int val;
             double vald;
+            bool UseDecimal = names != null && names.ContainsKey("UseDecimal");
 
             if (word.Length > 1 && word[0] == '_' && char.IsDigit(word[1])) {
                 word = word.Replace("_", "-");
@@ -230,29 +232,62 @@ namespace MicroJ
 
                     longs.Add(int.Parse(part, CultureInfo.InvariantCulture));
                 }
-                var a = new A<long>(longs.Count);
-                a.Ravel = longs.ToArray();
-                return a;
+
+                if (UseDecimal) {
+                    var at = new A<decimal>(longs.Count);
+                    at.Ravel = longs.Select(xv=>Convert.ToDecimal(xv)).ToArray();
+                    return at;
+                }
+                else {
+                    var a = new A<long>(longs.Count);
+                    a.Ravel = longs.ToArray();
+                    return a;
+                }
+
             }
             else if (word.Contains(" ") && word.Contains(".")) {
                 var doubles = new List<double>();
                 foreach (var part in word.Split(' ')) {
                     doubles.Add(double.Parse(part, CultureInfo.InvariantCulture));
                 }
-                var a = new A<double>(doubles.Count);
-                a.Ravel = doubles.ToArray();
-                return a;
+
+                if (UseDecimal) {
+                    var at = new A<decimal>(doubles.Count);
+                    at.Ravel = doubles.Select(xv => Convert.ToDecimal(xv)).ToArray();
+                    return at;
+                }
+                else {
+                    var a = new A<double>(doubles.Count);
+                    a.Ravel = doubles.ToArray();
+                    return a;
+                }
+                
             }
                 //allow using . to force cast to double
             else if (!word.Contains(".") && int.TryParse(word, NumberStyles.Any, CultureInfo.InvariantCulture, out val)) {
-                var a = new A<long>(0);
-                a.Ravel[0] = val;
-                return a;
+                if (UseDecimal) {
+                    var a = new A<decimal>(0);
+                    a.Ravel[0] = Convert.ToDecimal(val);
+                    return a;
+                }
+                else {
+                    var a = new A<long>(0);
+                    a.Ravel[0] = val;
+                    return a;
+                }
+                
             }
             else if (double.TryParse(word, NumberStyles.Any, CultureInfo.InvariantCulture, out vald)) {
-                var a = new A<double>(0);
-                a.Ravel[0] = vald;
-                return a;
+                if (UseDecimal) {
+                    var a = new A<decimal>(0);
+                    a.Ravel[0] = Convert.ToDecimal(vald);
+                    return a;
+                }
+                else {
+                    var a = new A<double>(0);
+                    a.Ravel[0] = vald;
+                    return a;
+                }                
             }
             else if (Verbs.Words.Contains(word)) {
                 var a = new A<Verb>(1);
@@ -563,6 +598,20 @@ namespace MicroJ
             }
         }
 
+        public override AType TryConvertLong(Parser parser) {
+            if (parser.UseDecimal && this.GetType() == typeof(A<decimal>)) {
+                A<long> retA;
+                if (this.Shape != null) {
+                    retA = new A<long>(this.Shape);
+                }
+                else {
+                    retA = new A<long>(0);
+                }                
+                retA.Ravel = this.Ravel.Select(x=>Convert.ToInt64(x)).ToArray();
+                return retA;
+            }
+            return this;
+        }
         public override bool SliceEquals(long offseta, long offsetb, long count) {
             for (long i = 0; i < count; i++) {
                 if (!Ravel[offseta + i].Equals(Ravel[offsetb + i])) {
@@ -768,6 +817,8 @@ namespace MicroJ
 
         public static bool ThrowError = true;
         public static int OUTPUT_MAX_ROWS = 10000;
+
+        public bool UseDecimal = false;
         public bool SafeMode = false;
         public Verbs Verbs;
         public Adverbs Adverbs;
