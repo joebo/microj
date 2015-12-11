@@ -3402,7 +3402,7 @@ namespace MicroJ {
         }
 
         public A<T> reduce<T>(AType op, A<T> y) where T : struct {
-            if (y.Rank == 0) {
+            if (y.Rank == 0 || y.Count == 1) {
                 return y;
             }
             if (y.Rank == 1) {
