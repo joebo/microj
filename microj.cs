@@ -695,6 +695,11 @@ namespace MicroJ
                 if (v < 0) { return "_" + Math.Abs(v); }
                 else { return v.ToString(); }
             }
+            else if (typeof(T) == typeof(decimal)) {
+                decimal v = (decimal)(object)val;
+                if (v < 0) { return "_" + Math.Abs(v); }
+                else { return v.ToString(); }
+            }
             else if (typeof(T) == typeof(double)) {
                 double v = (double)(object)val;
                 if (v < 0) { return "_" + Math.Abs(v); }
