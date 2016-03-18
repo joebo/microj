@@ -1064,7 +1064,7 @@ namespace MicroJ {
         }
 
         public A<T> append<T>(A<T> x, A<T> y) where T : struct {
-            if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
+            //if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
 
             if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>) && x.Rank <= 1 && y.Rank <= 1) {
                 var vs = new A<JString>(0);
@@ -3437,21 +3437,28 @@ namespace MicroJ {
                 return v;
             }
             else {
-                var newShape = y.Shape.Skip(1).ToArray();
-                var ct = prod(newShape);
-                var v = new A<T>(ct, newShape);
-                for (var i = ct - 1; i >= 0; i--) {
-                    for (var k = y.Shape[0] - 1; k >= 0; k--) {
-                        var n = i + (k * ct);
-                        if (k == y.Shape[0] - 1) {
-                            var np = i + ((k - 1) * ct);
-                            v.Ravel[i] = A<T>.GetAtom(Verbs.Call2(op, y.ToAtom(np), y.ToAtom(n)), 0);
-                            k--;
-                        }
-                        else {
-                            v.Ravel[i] = A<T>.GetAtom(Verbs.Call2(op, y.ToAtom(n), v.ToAtom(i)), 0);
-                        }
+                var indices = Verbs.permutationIdx(y.Shape);
+                var subShape = y.Shape.Skip(1).ToArray();
+                int subShapeCt = (int) prod(subShape);
+                
+                //this reduce is not from the left?
+                var xt = y.FromIndices(indices.Take(subShapeCt).ToArray());
+                xt.Shape = subShape;
+                var yt = y.FromIndices(indices.Skip(subShapeCt).Take(subShapeCt).ToArray());
+                yt.Shape = subShape;
+                var v = (A<T>)Verbs.Call2(op, xt, yt);
+
+                var taken = subShapeCt * 2;
+                for (int i = (int)y.Shape[0] - 3; i >= 0; i--) {
+                    var subIndices = new long[subShapeCt];
+                    for (var k = 0; k < subShapeCt; k++) {
+                        subIndices[k] = indices[k+taken];
                     }
+                    taken += subShapeCt;
+                    yt = y.FromIndices(subIndices);
+                    yt.Shape = subShape;
+                    v = (A<T>)Verbs.Call2(op, v, yt);
+                    
                 }
                 return v;
             }
@@ -3907,7 +3914,11 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<decimal>)) {
                     return reduce<decimal>(newVerb, (A<decimal>)y);
                 }
+                else if (y.GetType() == typeof(A<Box>)) {
+                    return reduce<Box>(newVerb, (A<Box>)y);
+                }
                 else if (y.GetType() == typeof(A<JTable>)) {
+                    //this is a way to query a table
                     return Verbs.beheadTable(keyTable(method, (A<JString>)null, (A<JTable>)y) as A<JTable>);
                 }
             }

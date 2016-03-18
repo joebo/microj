@@ -922,3 +922,5 @@ NB. rank support on trains
 
 4 5
 )
+
+NB. TODO support ,/ i. 4 3 2
