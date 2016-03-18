@@ -1894,14 +1894,17 @@ namespace MicroJ {
                 return runExplicit(verb.explicitDef, y);
             }
 
-            if (verb.childVerb != null) {
+            //future: add check for integrated rank support
+            if (verb.conj != null) {
+                return Conjunctions.Call1(method, y);
+            }
+            else  if (verb.childVerb != null) {
                 var v = verb.childVerb as A<Verb>;
                 if (v != null) {
                     return Call1(v, y);
                 }
             }
-
-            if (verbs.GetCount()  == 3) {
+            else if (verbs.GetCount()  == 3) {
                 AType z1 = null;
                 //support noun in left tine
                 Verb v = verbs.ToAtom(0).Ravel[0];
@@ -1921,11 +1924,7 @@ namespace MicroJ {
                 return Adverbs.Call1(method, y);
             }
 
-            //future: add check for integrated rank support
-            if (verb.conj != null) {
-                return Conjunctions.Call1(method, y);
-            }
-
+            
             var op = verb.op;
             VerbWithRank verbWithRank = null;
 
@@ -2097,7 +2096,11 @@ namespace MicroJ {
 
             //create a new verb without the conj component so we can safely pass it around
             var newVerb = new A<Verb>(1);
-            if (verb.childVerb != null) {
+            bool isTrain = verb.childVerb != null && verb.childVerb.GetType() == typeof(A<Verb>);
+            if (isTrain) {
+                newVerb.Ravel = (verb.childVerb as A<Verb>).Ravel;
+            }
+            else if (verb.childVerb != null) {
                 Verb cv = (Verb)verb.childVerb;
                 newVerb.Ravel[0] = cv;
             }
@@ -3124,7 +3127,8 @@ namespace MicroJ {
                 //future: add special code for +/"n or use some type of integrated rank support
 
                 //not sure if this is the right way to deal with boxes yet
-                if (y.GetType() == typeof(A<Box>) || (verb.childVerb != null && ((Verb)verb.childVerb).op == "<")) {
+                bool isTrain = verb.childVerb.GetType() == typeof(A<Verb>);
+                if (y.GetType() == typeof(A<Box>) || (!isTrain && verb.childVerb != null && ((Verb)verb.childVerb).op == "<")) {
                     if (y.GetType() == typeof(A<long>)) {
                         return rank1ex<long>(method, (A<long>)y);
                     }

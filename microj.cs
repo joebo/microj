@@ -1076,7 +1076,11 @@ namespace MicroJ
                             var z = new A<Verb>(0);
                             if (isVerb(lhs)) {
                                 //z.Ravel[0] = ((A<Verb>)lhs.val).Ravel[0];
-                                z.Ravel[0].childVerb = ((A<Verb>)lhs.val).Ravel[0];
+                                var lv = ((A<Verb>)lhs.val);
+                                if (lv.Count == 1)
+                                    z.Ravel[0].childVerb = lv.Ravel[0];
+                                else
+                                    z.Ravel[0].childVerb = lv;
                             } else {
                                 z.Ravel[0].op = lhs.word;
                             }

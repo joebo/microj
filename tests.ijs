@@ -913,3 +913,12 @@ NB. decimal types
 
 ((9!:100) 0) -: 0
 
+
+NB. rank support on trains
+(({. ,. }.)"1 (i. 3 2)) -: 0 : 0
+0 1
+
+2 3
+
+4 5
+)
