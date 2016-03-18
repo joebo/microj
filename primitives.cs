@@ -1272,6 +1272,24 @@ namespace MicroJ {
                 z.Ravel[1] = y.Ravel[0];
                 return z;
             }
+            else if (x.Rank == 0 && y.Rank > 0) {
+                var yshape = y.ShapeProduct(1);
+                //make # of rows be 1-cells y and add room for x in cell
+                long[] newShape = new long[] { y.Shape[0], 1 + yshape };
+                A<T> z = new A<T>(newShape);
+
+                var offset = 0;
+                var yoffset = 0;
+                for (var i = 0; i < newShape[0]; i++) {                    
+                    for (var k = 0; k < newShape[1]; k++) {
+                        if (k == 0)
+                            z.Ravel[offset++] = x.Ravel[0];
+                        else
+                            z.Ravel[offset++] = y.Ravel[yoffset++];    
+                    }
+                }
+                return z;
+            }
             else {
                 var xshape = x.ShapeProduct(1);
                 var yshape = y.ShapeProduct(1);

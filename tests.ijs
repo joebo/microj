@@ -349,11 +349,19 @@ NB. right
 NB. stitch
 
 (1 ,. 2) -: 1 2
-
 ((i.3) ,. (1+i.3)) -: 0 : 0
 0 1
 1 2
 2 3
+)
+
+($ 9,. (i.3)) -: '3 2'
+($ 9,. (i.3 3)) -: '3 4'
+
+NB. stich with atom
+(9 ,. (i.2)) -: 0 : 0
+9 0
+9 1
 )
 
 NB. fork in right tine
