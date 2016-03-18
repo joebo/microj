@@ -629,7 +629,8 @@ namespace MicroJ {
             long[] newShape = y.ShapeCopy();
             newShape[0] = newShape[0] - 1;           
             var v = new A<T>(newShape);
-            v.Ravel = y.Copy(v.Count > 0 ? v.Count : 1, skip: y.ShapeProduct(skip: 1));
+            if (newShape[0] > 0)
+                v.Ravel = y.Copy(v.Count > 0 ? v.Count : 1, skip: y.ShapeProduct(skip: 1));
             return v;
         }
 

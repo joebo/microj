@@ -792,8 +792,11 @@ namespace MicroJ
                 }
                 return formatter.ToString();
             }
-            
-            return new Formatter(Shape).AddRange(Ravel.Select(x=>StringConverter(x))).ToString();
+
+            if (Ravel.Length > 0)
+                return new Formatter(Shape).AddRange(Ravel.Select(x => StringConverter(x))).ToString();
+            else
+                return "";
         }
 
         public T[] Copy(long count = 0, long skip = 0, bool ascending=true) {
