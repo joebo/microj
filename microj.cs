@@ -125,6 +125,7 @@ namespace MicroJ
         public abstract long GetCount();
         public abstract bool SliceEquals(long offseta, long offsetb, long count);        
         public abstract AType Merge(long[] newShape, AType[] vs);
+        public abstract AType Create(long[] newShape);
         public abstract long[] GradeUp();
         public abstract void SetVal(long n, object val);
         public abstract object GetVal(long n);
@@ -667,6 +668,10 @@ namespace MicroJ
             return v;
         }
 
+        public override AType Create(long[] newShape) {
+            var v = new A<T>(Adverbs.prod(newShape), newShape);
+            return v;
+        }
         public string StringConverter(T val) {
             var str = "";
             if (typeof(T) == typeof(Box)) {

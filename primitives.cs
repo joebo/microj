@@ -66,7 +66,15 @@ namespace MicroJ {
         //Func<A<long>, A<JString>, A<JString>> copyFunc;
         //Delegate copyFunc;
 
+        public class SpecialCodeEval {
+            public Func<AType, AType> monad;
+            public Func<AType, AType, AType> dyad;
+            public Func<AType, bool> evalType;
+        }
         Dictionary<Tuple<string, Type, Type>, Delegate> expressionDict;
+        public Dictionary<string, SpecialCodeEval> SpecialCode = new Dictionary<string,SpecialCodeEval>();
+        
+
         public Dictionary<string, VerbWithRank> expressionMap;
         public Verbs() {
             expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
@@ -78,6 +86,7 @@ namespace MicroJ {
                 return new A<Box>(words.Length) { Ravel = words.Select(xv => new JString { str = xv }.WrapA().Box()).ToArray() };
             }, null, 0, 0, 0);
 
+            //determine nameClass
             expressionMap["nameClass"] = new VerbWithRank((y) => {
                 var str = y.GetValA(0).UnBox().ToString();
                 var val = AType.MakeA(str, Conjunctions.Parser.Names, Conjunctions.Parser.LocalNames);
@@ -102,6 +111,13 @@ namespace MicroJ {
                 } 
             }, null, 0, 0, 0);
 
+            SpecialCode["([:,/({.,.}.))\"1"] = new SpecialCodeEval {
+                evalType = (y) => {
+                    return y.GetType() == typeof(A<JTable>);
+                },
+                monad = this.unpivotTable
+            };
+            
         }
 
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null) {
@@ -1885,10 +1901,42 @@ namespace MicroJ {
             return ret;
         }
 
+        public AType unpivotTable(AType y) {
+            var yt = (y as A<JTable>).First();
+            var zt = new JTable {
+                Columns = new string[] { yt.Columns[0], "value" }
+            };
+            var newCt = yt.RowCount * (yt.Columns.Length - 1);
+            var keys = yt.Rows[0].val.Create(new long[] { newCt });
+            var vals = yt.Rows[1].val.Create(new long[] { newCt });
+            var keyRavel = yt.Rows[0].val;
+            var rowIdx = 0;
+
+            //TODO: potential optimization to avoid getVal/setVal
+            for(var i = 0; i < yt.RowCount; i++) {
+                var keyVal = keyRavel.GetVal(i);
+                for (var k = 1; k < yt.Columns.Length; k++) {
+                    keys.SetVal(rowIdx, keyVal);
+                    vals.SetVal(rowIdx, yt.Rows[k].val.GetVal(i));
+                    rowIdx++;
+                }
+                
+            }
+            zt.Rows = new Box[] { keys.Box(), vals.Box() };
+            return zt.WrapA();
+        }
         //candidate for code generation
         public AType Call1(AType method, AType y) {
             var verbs = (A<Verb>)method;
             var verb = verbs.Ravel[0];
+
+            var exp = verbs.ToString().Replace(" ", "");
+            SpecialCodeEval eval;
+            if (SpecialCode.TryGetValue(exp, out eval)) {
+                if (eval.evalType(y)) {
+                    return eval.monad(y);
+                }
+            }
 
             if (verb.explicitDef != null) {
                 return runExplicit(verb.explicitDef, y);
@@ -2068,7 +2116,7 @@ namespace MicroJ {
         }
     }
     public class Conjunctions {
-        public static readonly string[] Words = new[] { "\"", "!:", "&", ":" };
+        public static readonly string[] Words = new[] { "\"", "!:", "&", ":", "!." };
         public Verbs Verbs;
         public Dictionary<string, AType> Names;
         public Parser Parser;
@@ -2516,13 +2564,21 @@ namespace MicroJ {
 
             stopWatch = measureTime(stopWatch);
 
+            int warningCt = 0;
             if (manualTypes == null) {
                 foreach (var line in File.ReadLines(fileName).Skip(1)) {
                     var csv = line.Split(delimiter);
+                    
                     if (iLine++ > 1000 && iLine > limit) { break; }
                     for (var k = 0; k < fieldCount; k++) {
                         int n = 0;
-                        double d = 0;
+                        double d = 0;              
+                        if (csv.Length < fieldCount) {
+                            if (warningCt < 5) 
+                                Console.WriteLine("WARNING: Line is less than field count" + line);
+                            warningCt++;
+                            continue;
+                        }
                         if (csv[k] == "") continue;
                         if ((types[k] == 0 || types[k] == 3) && Int32.TryParse(csv[k], out n)) {
                             if (csv[k].StartsWith("0") && keepLeadingZero && csv[k].Length > 1) {
@@ -2611,7 +2667,7 @@ namespace MicroJ {
                         if (!strings.ContainsKey(columnName)) {
                             strings[columnName] = new List<string>();
                         }
-                        var sv = csv[i];
+                        var sv = i < csv.Length ? csv[i] : "";
                         strings[columnName].Add(sv);
                     }
                     else if (columnType == TYPE_DOUBLE) {
@@ -2644,6 +2700,35 @@ namespace MicroJ {
                 return JTable.SafeColumnName(s) + "_" + tableName + "_";
             };
 
+            if (keepColumns == null) {
+                keepColumns = new HashSet<string>();
+                keepColumns.UnionWith(headers);
+            }
+            foreach (var col in keepColumns) {
+                AType val;
+                if (decimals.ContainsKey(col)) {
+                    val = new MicroJ.A<decimal>(rowCount) { Ravel = decimals[col].ToArray() };
+                }
+                else if (longs.ContainsKey(col)) {
+                    val = new MicroJ.A<long>(rowCount) { Ravel = longs[col].ToArray() };
+                }
+                else if (doubles.ContainsKey(col)) {
+                    val = new MicroJ.A<double>(rowCount) { Ravel = doubles[col].ToArray() };
+                }
+                else if (strings.ContainsKey(col)) {
+                    var max = strings[col].Select(x => x.Length).Max();
+                    val = new MicroJ.A<JString>(rowCount, new long[] { rowCount, max }) { Ravel = strings[col].Select(x => new MicroJ.JString { str = String.Intern( !noPad ? x.PadRight(max) : x) }).ToArray() };
+                } else {
+                    throw new ApplicationException("col: " + col + " not found");
+                }
+                var newName = createName(col);
+                newNames.Add(newName);
+                Parser.Names[newName] = val;
+                finalColumnNames.Add(col);
+                boxedRows.Add(val.Box());
+            }
+
+            /*
             foreach (var col in decimals.Keys) {
                 var jname = new MicroJ.A<decimal>(rowCount) { Ravel = decimals[col].ToArray() };
                 var newName = createName(col);
@@ -2677,6 +2762,7 @@ namespace MicroJ {
                 finalColumnNames.Add(col);
                 boxedRows.Add(new Box { val = jname });
             }
+             */
             stopWatch = measureTime(stopWatch);
             //return new MicroJ.A<MicroJ.JString>(new long[] { newNames.Count, 100 }) { Ravel = newNames.Select(x=>new MicroJ.JString { str = x }).ToArray() };
             var ret = new JTable {
@@ -3360,7 +3446,24 @@ namespace MicroJ {
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "5") {
                 return readTableKey((A<Box>)x, (A<Box>)y);
             }
-
+            else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString() == "{")) {
+                //todo move somewhere else?
+                var yt = (y as A<JTable>).First();
+                var xb = (x as A<Box>);
+                var col = xb.First().val.GetString(0);
+                if (!yt.Columns.Contains(col)) {
+                    return new JTable {
+                        Columns = new string[] { col  },
+                        Rows = new Box[] {
+                            AType.MakeA(verb.rhs, null, null).Box()
+                        }
+                    }.WrapA();
+                }
+                else {
+                    return Verbs.fromtable(x as A<Box>, y as A<JTable>);                
+                }
+                
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
@@ -3375,7 +3478,7 @@ namespace MicroJ {
         }
 
         //todo move to utility
-        public long prod(long[] ri) {
+        public static long prod(long[] ri) {
             return ri.Aggregate(1L, (prod, next) => prod * next);
         }
 

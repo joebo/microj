@@ -924,3 +924,6 @@ NB. rank support on trains
 )
 
 NB. TODO support ,/ i. 4 3 2
+
+NB. ('id';'col1';'col2');(> ;: 'a b c');(i.3);(i.3)
+NB. ([: ,/ ({. ,. }.)"1) (flip ('id';'col1';'col2');(> ;: 'a b c');(i.3);(i.3))
