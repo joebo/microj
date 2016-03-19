@@ -2728,41 +2728,6 @@ namespace MicroJ {
                 boxedRows.Add(val.Box());
             }
 
-            /*
-            foreach (var col in decimals.Keys) {
-                var jname = new MicroJ.A<decimal>(rowCount) { Ravel = decimals[col].ToArray() };
-                var newName = createName(col);
-                newNames.Add(newName);
-                Parser.Names[newName] = jname;
-                finalColumnNames.Add(col);
-                boxedRows.Add(new Box { val = jname });
-            }
-            foreach (var col in longs.Keys) {
-                var jname = new MicroJ.A<long>(rowCount) { Ravel = longs[col].ToArray() };
-                var newName = createName(col);
-                newNames.Add(newName);
-                Parser.Names[newName] = jname;
-                finalColumnNames.Add(col);
-                boxedRows.Add(new Box { val = jname });
-            }
-            foreach (var col in doubles.Keys) {
-                var jname = new MicroJ.A<double>(rowCount) { Ravel = doubles[col].ToArray() };
-                var newName = createName(col);
-                newNames.Add(newName);
-                Parser.Names[newName] = jname;
-                finalColumnNames.Add(col);
-                boxedRows.Add(new Box { val = jname });
-            }
-            foreach (var col in strings.Keys) {
-                var max = strings[col].Select(x => x.Length).Max();
-                var jname = new MicroJ.A<JString>(rowCount, new long[] { rowCount, max }) { Ravel = strings[col].Select(x => new MicroJ.JString { str = String.Intern( !noPad ? x.PadRight(max) : x) }).ToArray() };
-                var newName = createName(col);
-                newNames.Add(newName);
-                Parser.Names[newName] = jname;
-                finalColumnNames.Add(col);
-                boxedRows.Add(new Box { val = jname });
-            }
-             */
             stopWatch = measureTime(stopWatch);
             //return new MicroJ.A<MicroJ.JString>(new long[] { newNames.Count, 100 }) { Ravel = newNames.Select(x=>new MicroJ.JString { str = x }).ToArray() };
             var ret = new JTable {
@@ -3455,7 +3420,7 @@ namespace MicroJ {
                     return new JTable {
                         Columns = new string[] { col  },
                         Rows = new Box[] {
-                            AType.MakeA(verb.rhs, null, null).Box()
+                            AType.MakeA(verb.rhs, Names).Box()
                         }
                     }.WrapA();
                 }
