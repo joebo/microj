@@ -3429,6 +3429,19 @@ namespace MicroJ {
                 }
                 
             }
+            else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString() == "{.")) {
+                //todo move somewhere else?
+                var yt = (y as A<JTable>).First();
+                var xb = (x as A<Box>);
+                var col = xb.First().val.GetString(0);
+                if (!yt.Columns.Contains(col)) {
+                    return AType.MakeA(verb.rhs, Names);
+                }
+                else {
+                    return Verbs.Call2(AType.MakeA("{.", null), x, y);
+                }
+
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
