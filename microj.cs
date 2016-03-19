@@ -320,17 +320,19 @@ namespace MicroJ
 
         public override string ToString() {
             string str = "";
-            if (op != null) str+=op;
-            if (adverb != null) str+=" " + adverb;
-            if (conj != null) str+=" " + conj;
-            if (rhs != null) str+=" " + rhs;
-
+      
             if (childVerb != null) {
-                str = str + childVerb.ToString();
+                str = str + "(" + childVerb.ToString() + ")";
             }
             if (explicitDef != null) {
                 str = explicitDef;
             }
+
+            if (op != null) str += op;
+            if (adverb != null) str += " " + adverb;
+            if (conj != null) str += " " + conj;
+            if (rhs != null) str += " " + rhs;
+
             return str;
         }
     }
@@ -797,7 +799,14 @@ namespace MicroJ
                 }
                 return formatter.ToString();
             }
-
+            else if (typeof(T) == typeof(Verb)) {
+                var ravel = (Verb[])(object)Ravel;
+                var str = new List<string>();
+                foreach (var val in ravel) {                
+                    str.Add(val.ToString());
+                }
+                return String.Join(" ", str);
+            }
             if (Ravel.Length > 0)
                 return new Formatter(Shape).AddRange(Ravel.Select(x => StringConverter(x))).ToString();
             else
