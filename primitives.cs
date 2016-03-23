@@ -1610,7 +1610,8 @@ namespace MicroJ {
                     if (table.GetType() == typeof(A<Box>) && (ytt.RowCount <=1)) {
                         var allInt = ytt.Rows.Aggregate(true, (p,c) => p && c.val.GetType() == typeof(A<long>));
                         var allDouble = ytt.Rows.Aggregate(true, (p, c) => p && c.val.GetType() == typeof(A<double>));
-                        if (allInt || allDouble) {
+                        var allDecimal = ytt.Rows.Aggregate(true, (p, c) => p && c.val.GetType() == typeof(A<decimal>));
+                        if (allInt || allDouble || allDecimal) {
                             var ret = raze<Box>(table as A<Box>);
                             return ret;
                         }
