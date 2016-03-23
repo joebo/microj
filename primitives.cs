@@ -1070,6 +1070,11 @@ namespace MicroJ {
                 var op = new A<Verb>(0);
                 op.Ravel[0] = new Verb { op = "," };
                 return Adverbs.reduceboxed<double>(op, y);
+            }
+            else if (type == typeof(A<decimal>)) {
+                var op = new A<Verb>(0);
+                op.Ravel[0] = new Verb { op = "," };
+                return Adverbs.reduceboxed<decimal>(op, y);
             }            
             else if (type == typeof(A<JString>)) {
                 var op = new A<Verb>(0);
@@ -1593,7 +1598,11 @@ namespace MicroJ {
                 }
                 else if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<Box>)) {
                     return linktableExpression((A<JTable>)x, (A<Box>)y);
-                }      
+                }
+                //WARNING: invoke expression will convert to long
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<Decimal>)) {
+                    return append(x as A<decimal>, y as A<decimal>);
+                }
                 return InvokeExpression("append", x, y, 1);
             }
             else if (op == "{.") {
@@ -1674,7 +1683,12 @@ namespace MicroJ {
                 }                
             }
             else if (op == ";") {
-                return InvokeExpression("link", x, y, 2);                
+                //WARNING: invoke expression will convert to long
+                if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<Decimal>)) {
+                    return link(x as A<decimal>, y as A<decimal>);
+                }
+                else 
+                    return InvokeExpression("link", x, y, 2);                
             }
             else if (op == ",.") {
                 return InvokeExpression("stitch", x, y, 1);                
