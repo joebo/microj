@@ -720,6 +720,10 @@ namespace MicroJ
                 else if (double.IsNaN(v)) { return "0"; }
                 else { return v.ToString(CultureInfo.InvariantCulture); }
             }
+            else if (typeof(T) == typeof(JString)) {
+                JString v = (JString)(object)val;
+                return v.str != null ? v.str : "";
+            }
             else {
                 str = val.ToString();
             }
