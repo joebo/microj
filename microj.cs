@@ -408,10 +408,15 @@ namespace MicroJ
         public int GetColIndex(AType y) {
             int colIdx = -1;
             if (y.GetType() == typeof(A<JString>)) {
-                colIdx = Array.IndexOf(Columns, y.GetString(0));
+                var colStr = y.GetString(0);
+                colIdx = Array.IndexOf(Columns, colStr);
+
             }
             else if (y.GetType() == typeof(A<Box>)) {
                 colIdx = -2;
+            }
+            else if (y.GetType() == typeof(A<decimal>)) {
+                colIdx = (int)(y as A<decimal>).Ravel[0];
             }
             else {
                 colIdx = (int) (y as A<long>).Ravel[0];
