@@ -3109,12 +3109,43 @@ namespace MicroJ {
             
         }
 
+        public AType writeTableCSV(A<Box> x, A<JTable> y) {
+            var path = x.First().val.GetString(0);
+
+            var optionsDict = new Dictionary<string, string>();
+            if (x.Count > 1) {
+                //writeBytes = true;
+                optionsDict = AHelper.ToOptions((x.Ravel[1].val) as A<Box>);
+            }
+            var yt = y.First();
+            var delim = "\t";
+            using (var sw = new StreamWriter(path)) {
+                sw.WriteLine(String.Join(delim, yt.Columns));
+                var colCt = yt.Columns.Length;
+
+                for(var i = 0; i < yt.RowCount; i++) {
+                    var idx = yt.indices != null ? yt.indices[i] : i;
+                    var row = new string[colCt];
+                    for(var k = 0; k < colCt; k++ ) {
+                        row[k] = yt.Rows[k].val.GetString(idx);
+                    }                        
+                    sw.WriteLine(String.Join(delim, row));
+                }
+            }
+
+            return AType.MakeA(new FileInfo(path).Length);
+        }
         public AType writeTableBinary(A<Box> x, A<JTable> y) {
             var yt = y.First();
             var path = x.First().val.GetString(0);
             bool writeBytes = false;
+            var optionsDict = new Dictionary<string, string>();
             if (x.Count > 1) {
-                writeBytes = true;
+                //writeBytes = true;
+                optionsDict = AHelper.ToOptions((x.Ravel[1].val) as A<Box>);
+            }
+            if (optionsDict.ContainsKey("type") && optionsDict["type"] == "csv") {
+                return writeTableCSV(x, y);
             }
             for (var k = 0; k < yt.Columns.Length; k++) {
                 var col = JTable.SafeColumnName(yt.Columns[k]);
@@ -3353,7 +3384,7 @@ namespace MicroJ {
                 }
             }
             else if (verb.conj == "!:" && verb.op == "0") {
-                return runfile((A<Box>) y,verb);
+                return runfile(y,verb);
             }
             else if (verb.conj == "!:" && verb.op == "9" && verb.rhs == "100") {
                 Parser.UseDecimal = Convert.ToInt32(y.GetString(0)) == 1 ? true : false;
