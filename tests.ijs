@@ -947,3 +947,23 @@ NB. found column
 |1|
 +-+
 )
+
+
+NB. non-matching row should not blow up
+('b = ''xx'' ' { (<<4) {('ukey';'a') } ((3!:102) '[{"a":1,"b":"xyz"},{"a":1.2, "b":"abc"}]')) -: 0 : 0
++-+-+
+|a|b|
++-+-+
+)
+
+NB. TODO add test for this keyword on rank1table
+
+
+NB. drop on string
+(5 }. '2016-01-05') -: '01-05'
+
+NB. negative index on string
+(_2 {. '2016-01-05') -: '05'
+
+NB. from bugfix
+($ 1 { ('foo';'bar'),.('foo2';'abc')) -: (,2)

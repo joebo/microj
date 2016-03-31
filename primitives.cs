@@ -120,13 +120,15 @@ namespace MicroJ {
             
         }
 
-        public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null) {
+        public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null, bool tryConvertLong = true) {
             var key = new Tuple<string, Type, Type>(op, x.GetType(), y.GetType());
             Delegate d;
 
-            //no xs take decimals right now, so lets convert to long 
-            x = x.TryConvertLong(Conjunctions.Parser);
-
+            if (tryConvertLong) {
+                //no xs take decimals right now, so lets convert to long 
+                x = x.TryConvertLong(Conjunctions.Parser);
+            }
+            
             if (!expressionDict.TryGetValue(key, out d)) {
                 var calleeType = callee == null ? typeof(Verbs) : callee.GetType();
 
@@ -194,21 +196,25 @@ namespace MicroJ {
             return (AType)d.DynamicInvoke(y);
         }
 
-        public A<long> iota<T>(A<T> y) where T : struct {
-            var shape = y.Ravel.Cast<long>().ToArray();
+        public A<T> iota<T>(A<T> y) where T : struct {
+            var shape = y.Ravel.Select(x => Convert.ToInt64(x)).ToArray();
             var ascending = shape.All(x => x >= 0);
             long ct = prod(shape);
             var k = Math.Abs(ct);
-            var z = new A<long>(k);
+            var z = new A<T>(k);
             if (y.Rank > 0) { z.Shape = shape.Select(x => Math.Abs(x)).ToArray(); }
-            z.Ravel = permutationIdx(z.Shape);
+            if (z.GetType() == typeof(A<long>))
+                z.Ravel = permutationIdx(z.Shape).Cast<T>().ToArray();
+            else
+                z.Ravel = permutationIdx(z.Shape).Select(x=>Convert.ToDecimal(x)).Cast<T>().ToArray();
+
             if (!ascending) {
                 for (var i = z.Rank - 1; i >= 0; i--) {
                     if (shape[i] < 0) {
                         var nr = z.Rank - i;
                         var conj = new A<Verb>(0);
                         conj.Ravel[0] = new Verb { op = "|.", conj = "\"", rhs = nr.ToString() };
-                        z = (A<long>)Conjunctions.rank1ex<long>(conj, z);
+                        z = (A<T>)Conjunctions.rank1ex<T>(conj, z);
                     }
                 }
             }
@@ -518,7 +524,7 @@ namespace MicroJ {
 
         public A<long> indexof<T>(A<T> x, A<T> y) where T : struct {            
             var z = new A<long>(y.Count);
-            if (y.Rank <= 1 && x.Rank <= 1) {
+            if (y.Rank <= 1 && x.Rank <= 1 && y.GetType() != typeof(A<Box>) && y.GetType() != typeof(A<JString>)) {
                 for (var i = 0; i < y.Count; i++) {
                     z.Ravel[i] = x.Count;
                     for (var xi = 0; xi < x.Count; xi++) {
@@ -634,10 +640,7 @@ namespace MicroJ {
             }
             //drop 1 from the shape;
             var z = from(new A<long>(0) { Ravel = new long[] { 0 } }, y);
-            if (z.Shape != null) {
-                z.Shape = z.Shape.Skip(1).ToArray();
-            }
-            
+
             return z;
         }
 
@@ -693,7 +696,15 @@ namespace MicroJ {
             var v = new A<T>(newShape);
 
             if (y.GetType() == typeof(A<JString>) && y.Rank < 2) {
-                v.Ravel[0] = (T)(object) new JString { str = ((A<JString>) (object)y).Ravel[0].str.Substring(0, (int)x.Ravel[0]) };
+                var idx = (int)x.Ravel[0];
+                if (idx >= 0) {
+                    v.Ravel[0] = (T)(object)new JString { str = ((A<JString>)(object)y).Ravel[0].str.Substring(0, idx) };
+                }
+                else {
+                    var str = ((A<JString>)(object)y).Ravel[0].str;
+                    v.Ravel[0] = (T)(object)new JString { str = str.Substring(str.Length+idx) };
+                }
+                
             }
             else if (y.GetType() == typeof(A<JTable>)) {
                 //todo: move to own
@@ -746,7 +757,14 @@ namespace MicroJ {
             }
             var v = new A<T>(newShape);
             var skip = y.Count- AType.ShapeProduct(newShape);
-            v.Ravel = y.Copy(v.Count, skip: skip, ascending: x.Ravel[0] >= 0);
+
+            if (y.GetType() == typeof(A<JString>) && y.Rank < 2) {
+                v.Ravel[0] = (T)(object)new JString { str = ((A<JString>)(object)y).Ravel[0].str.Substring((int)x.Ravel[0]) };
+            }
+            else {
+                v.Ravel = y.Copy(v.Count, skip: skip, ascending: x.Ravel[0] >= 0);
+            }
+            
             return v;
         }
         
@@ -768,6 +786,10 @@ namespace MicroJ {
             A<T> v;
             if (y.Rank == 1 && x.Count == 1) {
                 v = new A<T>(0);
+            }
+            else if (y.Rank == 2 && x.Count == 1) {
+                newShape = newShape.Skip(1).ToArray();
+                v = new A<T>(newShape);
             }
             else {
                 v = new A<T>(newShape);
@@ -1333,18 +1355,27 @@ namespace MicroJ {
         }
 
         //indexof I.
-        public A<long> intervalIndex<T>(A<T> x, A<T> y) where T : struct {
+        public A<T> intervalIndex<T>(A<T> x, A<T> y) where T : struct {
             var par1 = Expression.Parameter(typeof(T));
             var par2 = Expression.Parameter(typeof(T));
             var lt = Expression.LessThan(par1, par2);
 
             var LessThan = Expression.Lambda<Func<T, T, bool>>(lt, par1, par2).Compile();
+            Func<long, T> setter;
 
-            var z = new A<long>(y.Count);
+            //todo terrible boxing
+            if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                setter = (a) => (T)(object)Convert.ToDecimal(a);
+            }
+            else {
+                setter = (a) => (T)(object)a;
+            }
+                
+            var z = new A<T>(y.Count);
             for(var i = 0; i < y.Count; i++) {
                 for (var k = 0; k < x.Count; k++) {
                     if (LessThan(x.Ravel[k], y.Ravel[i])) {
-                        z.Ravel[i] = (k + 1);
+                        z.Ravel[i] = setter(k+1);
                     }
                 }
 
@@ -1603,7 +1634,7 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<Decimal>)) {
                     return append(x as A<decimal>, y as A<decimal>);
                 }
-                return InvokeExpression("append", x, y, 1);
+                return InvokeExpression("append", x, y, 1, tryConvertLong: false);
             }
             else if (op == "{.") {
                 x = x.TryConvertLong(Conjunctions.Parser);
@@ -1616,6 +1647,7 @@ namespace MicroJ {
                     }
                     
                     var ytt = yt.First();
+                    //handling for single row with multiple columns of all the same type
                     if (table.GetType() == typeof(A<Box>) && (ytt.RowCount <=1)) {
                         var allInt = ytt.Rows.Aggregate(true, (p,c) => p && c.val.GetType() == typeof(A<long>));
                         var allDouble = ytt.Rows.Aggregate(true, (p, c) => p && c.val.GetType() == typeof(A<double>));
@@ -1687,14 +1719,17 @@ namespace MicroJ {
                 if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<Decimal>)) {
                     return link(x as A<decimal>, y as A<decimal>);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<Box>)) {
+                    return link(x as A<decimal>, y as A<Box>);
+                }    
                 else 
-                    return InvokeExpression("link", x, y, 2);                
+                    return InvokeExpression("link", x, y, 2, tryConvertLong: false);                
             }
             else if (op == ",.") {
                 return InvokeExpression("stitch", x, y, 1);                
             }
             else if (op == "I.") {
-                return InvokeExpression("intervalIndex", x, y, 1);
+                return InvokeExpression("intervalIndex", x, y, 1, tryConvertLong: false);
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 if (verbWithRank.DyadicX == VerbWithRank.Infinite && verbWithRank.DyadicY == VerbWithRank.Infinite) {
@@ -2001,6 +2036,9 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<long>)) {
                     return iota((A<long>)y);
                 }
+                else if (y.GetType() == typeof(A<decimal>)) {
+                    return iota((A<decimal>)y);
+                }
             }
             else if (op == "$") {
                 return shape(y);
@@ -2120,6 +2158,9 @@ namespace MicroJ {
                 }
                 else if (y.GetType() == typeof(A<double>)) {
                     return math(new A<double>(0), (A<double>)y, (a, b) => Math.Abs(b));
+                }
+                else if (y.GetType() == typeof(A<decimal>)) {
+                    return math(new A<decimal>(0), (A<decimal>)y, (a, b) => Math.Abs(b));
                 }
                     
                 
