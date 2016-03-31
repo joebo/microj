@@ -722,6 +722,9 @@ namespace MicroJ
         }
         
         public override string GetString(long n) {
+            if (Type == typeof(Decimal) && Parser.MAX_DECIMAL >= 0) {
+                return ((decimal)(object)Ravel[n]).ToString("N" + Parser.MAX_DECIMAL);
+            }
             if (Type != typeof(Byte)) {
                 return Ravel[n].ToString();
             }
@@ -841,6 +844,7 @@ namespace MicroJ
         public static int OUTPUT_MAX_ROWS = 10000;
 
         public bool UseDecimal = false;
+        public static int MAX_DECIMAL = -1;
         public bool SafeMode = false;
         public Verbs Verbs;
         public Adverbs Adverbs;
