@@ -2581,6 +2581,7 @@ namespace MicroJ {
 
             var limit = optionsDict.ContainsKey("limit") ? Int64.Parse(optionsDict["limit"]) : Int64.MaxValue;
             var delimiter = !optionsDict.ContainsKey("delimiter") ? ',' : Char.Parse(optionsDict["delimiter"].Replace("\\t", "\t"));
+            var unquote = optionsDict.ContainsKey("unquote");
             HashSet<string> keepColumns = null;
             if (optionsDict.ContainsKey("cols")) {
                 keepColumns = new HashSet<string>();
@@ -2602,6 +2603,9 @@ namespace MicroJ {
 
             var headerLine = File.ReadLines(fileName).First();
             headers = headerLine.Split(delimiter).Select(x=>x.Trim()).ToArray();
+            if (unquote) {
+                headers = headers.Select(x => x.Trim('\"')).ToArray();
+            }
             fieldCount = headers.Length;
 
             int[] manualTypes = null;
@@ -2625,7 +2629,9 @@ namespace MicroJ {
             if (manualTypes == null) {
                 foreach (var line in File.ReadLines(fileName).Skip(1)) {
                     var csv = line.Split(delimiter);
-                    
+                    if (unquote) {
+                        csv = csv.Select(x => x.Trim('\"')).ToArray();
+                    }
                     if (iLine++ > 1000 && iLine > limit) { break; }
                     for (var k = 0; k < fieldCount; k++) {
                         int n = 0;
@@ -2685,7 +2691,9 @@ namespace MicroJ {
             foreach (var line in File.ReadLines(fileName).Skip(1)) {
                 
                 var csv = line.Split(delimiter);
-
+                if (unquote) {
+                    csv = csv.Select(x => x.Trim('\"')).ToArray();
+                }
                 if (rowCount >= limit) { break; }
 
                 rowCount++;
