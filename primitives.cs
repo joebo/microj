@@ -2803,16 +2803,29 @@ namespace MicroJ {
             stopWatch = measureTime(stopWatch);
             return ret;
         }
-        public AType runfile(A<Box> y, Verb verb) {
+        public AType runfile(AType y, Verb verb) {
 
-            if (Parser.SafeMode) { throw new AccessViolationException();  }
-            string file = ((A<JString>)y.Ravel[0].val).Ravel[0].str;
+            string[] lines;
+
+            if (y.GetType() == typeof(A<Box>)) {
+                if (Parser.SafeMode) { throw new AccessViolationException(); }
             
-            if (!File.Exists(file)) {
-                Console.WriteLine("file: " + file + " does not exist");                
+                string file = ((A<JString>)(y as A<Box>).Ravel[0].val).Ravel[0].str;
+
+                if (!File.Exists(file)) {
+                    Console.WriteLine("file: " + file + " does not exist");
+                }
+                lines = File.ReadAllLines(file);
             }
+            else if (y.GetType() == typeof(A<JString>)) {
+                lines = (y as A<JString>).GetVal(0).ToString().Replace("\r", "").Split('\n').ToArray();
+            }
+            else {
+                throw new NotImplementedException("runfile not implemented on: " + y.GetType());
+            }
+            
             var oldRL = Parser.ReadLine;
-            string[] lines = File.ReadAllLines(file);
+            
             string lastEval = "";
             for (var i = 0; i < lines.Length; i++) {
                 var line = lines[i];
