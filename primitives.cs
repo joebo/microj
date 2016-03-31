@@ -2291,6 +2291,7 @@ namespace MicroJ {
                 for (var ii = 0; ii < newY.Columns.Length; ii++) {
                     locals[JTable.SafeColumnName(newY.Columns[ii])] = newY.Rows[ii].val;
                 }
+                locals["this"] = newY.WrapA();
 
                 var oldLocals = Parser.LocalNames;
                 Parser.LocalNames = locals;
