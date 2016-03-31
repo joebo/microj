@@ -3430,6 +3430,10 @@ namespace MicroJ {
                 z.Ravel = System.Text.UTF8Encoding.UTF8.GetBytes(str);
                 return z;
             }
+            else if (verb.conj == "!:" && verb.op == "13" && verb.rhs == "100") {
+                throw new ApplicationException(y.ToString());
+            }
+
             else if (verb.conj == "!:" && verb.op == "3" && verb.rhs == "101") {
                 if (y.GetType() == typeof(A<long>)) {
                     return new A<BigInteger>(1) { Ravel = new BigInteger[] { new BigInteger(y.GetLong(0)) } };
