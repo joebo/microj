@@ -92,7 +92,7 @@ NB. 0 : 0
 abc
 123
 )
-NB. 0 conjunction 
+NB. 0 conjunction
 'abc' -: (0 : 'abc')
 
 NB. explicit verb
@@ -108,7 +108,7 @@ NB. explicit verb
 (1 p: 2 3 17 79 199 3581) -: 1 1 1 1 1 1             NB. is prime (true)
 (1 p: 10 66 111 32331 603201 9040131) -: 0 0 0 0 0 0 NB. is prime (false)
 (2 p: 20) -: '2 5\n2 1'                              NB. factors with exponents
-(2 p: 120) -: '2 3 5\n3 1 1'                           NB. factors with 3 exponents 
+(2 p: 120) -: '2 3 5\n3 1 1'                           NB. factors with 3 exponents
 (2 p: 20 120) -: '2 5 0\n2 1 0\n\n2 3 5\n3 1 1'      NB. factors with exponents
 (3 p: 56) -: 2 2 2 7                                 NB. factorization
 (3 p: 56 57) -: '2  2 2 7\n3 19 0 0'                  NB. factorization w/fill
@@ -280,7 +280,7 @@ NB. max
 NB. simple reflex
 + ~ 2 -: 4
 
-NB. key 
+NB. key
 (< /. ~ 1 1 2 3 3) -: 0 : 0
 +---+-+---+
 |1 1|2|3 3|
@@ -326,7 +326,7 @@ NB. train with adverb
 )
 
 NB. rank2ex
-1 0 1 0 -: ((3 $ 'abc') -:"1 (4 3 $ 'abcxyz')) 
+1 0 1 0 -: ((3 $ 'abc') -:"1 (4 3 $ 'abcxyz'))
 
 NB. nub
 (~. (1 2 3 1)) -: (1 2 3)
@@ -488,7 +488,7 @@ NB. tables - add a calculated column
 +-+-+-+
 )
 
-NB. table - filter 
+NB. table - filter
 ('a > 1' { (flip ('a';'b');(i. 4);(5+i. 4))) -: 0 : 0
 +-+-+
 |a|b|
@@ -688,13 +688,13 @@ end.
 (iftest 101) -: 'c'
 
 iftest =: 3 : 0
-if. y < 2 do. 
+if. y < 2 do.
 'z'
 'a'
-elseif. y < 100 do. 
+elseif. y < 100 do.
 'z'
 'b'
-else. 
+else.
 'z'
 'c'
 end.
@@ -805,10 +805,17 @@ NB. insert or {. on table
 ({. ((<'a') {. 0 { (flip ('a';'b');(i.10);(10 $ 1 2)))) = 0
 (((<'a') {. 0 { (flip ('a';'b');(i.10);(10 $ 1 2)))) = 0
 
+
+NB. importance of vectorized calcs
+NB. 6!:2 ' z=: ''extended_price % qty_shipped'' / InvoiceAgg '
+NB. 0.0194236
+NB. 6!:2 ' z2=: ( <''ASP'' ; ''extended_price % qty_shipped'') { InvoiceAgg '
+NB. 4.7938795
+
 NB. vectorized calculated columns
 ('a+b' / (flip ('a';'b');(i.3);(3 $ 1 2))) -: (1 3 3)
 
-NB. create a column through rank 
+NB. create a column through rank
 ((3 : 'flip (<''c'');(a+b))') "1 (flip ('a';'b');(i.3);(3 $ 1 2))) -: 0 : 0
 +-+
 |c|

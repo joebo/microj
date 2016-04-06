@@ -62,8 +62,12 @@ namespace MicroJ
             Type = t;
             if (t == typeof(Decimal)) {
                 this.TypeE = Types.Decimal;
-            } else if (t == typeof(Double)) {
+            } 
+            else if (t == typeof(Double)) {
                 this.TypeE = Types.Double;
+            }
+            else if (t == typeof(long)) {
+                this.TypeE = Types.Long;
             }
         }
 

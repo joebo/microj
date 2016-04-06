@@ -119,6 +119,8 @@ namespace MicroJ {
             };
             SpecialCode["+/"] = new SpecialCodeEval {
                 evalType = (y) => {
+                    //special code path only works on rank 0/1
+                    if (y.Rank > 1) { return false;  }
                     return true;
                 },
                 monad = y => {
