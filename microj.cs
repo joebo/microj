@@ -1333,7 +1333,7 @@ namespace MicroJ
                             if (c >= lines.Count) continue;
 
                             var line = i < lines[c].Length ? lines[c][i] : spacer;
-                            if (boxed) {
+                            if (boxed && line.Length > 0) {
                                 line = line.Substring(1, line.Length - 1);
                                 if (line.Length > 0) {
                                     line = line.Substring(0, line.Length - 1);
