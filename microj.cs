@@ -668,9 +668,14 @@ namespace MicroJ
             long offset = 0;
             for (var i = 0; i < vs.Length; i++) {
                 var a = (A<T>)vs[i];
-                for (var k = 0; k < a.Count; k++) {
-                    v.Ravel[offset++] =a.Ravel[k];
+                if (a.Count == 0) {
+                    v.Ravel[offset++] = default(T);
                 }
+                else {
+                    for (var k = 0; k < a.Count; k++) {
+                        v.Ravel[offset++] = a.Ravel[k];
+                    }
+                }                
             }
             return v;
         }
