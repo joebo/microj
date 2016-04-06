@@ -49,9 +49,22 @@ namespace MicroJ
         public long[] Shape;
         public int Rank { get { return Shape == null ? 0 : Shape.Length; } }
         public Type Type;
+        public Types TypeE;
 
+        public enum Types {
+            Double,
+            Decimal,
+            Long,
+            JString,
+            Box            
+        }
         public AType(Type t) {
             Type = t;
+            if (t == typeof(Decimal)) {
+                this.TypeE = Types.Decimal;
+            } else if (t == typeof(Double)) {
+                this.TypeE = Types.Double;
+            }
         }
 
         public AType Apply(Func<long, long> func) {
