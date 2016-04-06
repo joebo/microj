@@ -117,6 +117,19 @@ namespace MicroJ {
                 },
                 monad = this.unpivotTable
             };
+            SpecialCode["+/"] = new SpecialCodeEval {
+                evalType = (y) => {
+                    return true;
+                },
+                monad = y => {
+                    switch (y.TypeE) {
+                        case AType.Types.Long: return Adverbs.reduceplus(y as A<long>);
+                        case AType.Types.Double: return Adverbs.reduceplus(y as A<double>);
+                        case AType.Types.Decimal: return Adverbs.reduceplus(y as A<decimal>);
+                    }
+                    throw new NotImplementedException();
+                }
+            };
             
         }
 
@@ -287,6 +300,7 @@ namespace MicroJ {
             }
             return z;
         }
+
 
         public A<long> shape(AType y) {
             var v = new A<long>(y.Rank);
@@ -3815,10 +3829,12 @@ namespace MicroJ {
 
                 
 
+
                 for(var k = 0; k < expressions.Length;k++) {
                     var parser = new Parser { UseDecimal = Conjunctions.Parser.UseDecimal };
                     parser.Names = Conjunctions.Parser.Names;
-
+                    var expression = expressions[k];
+                    var expressionParts = expression.Split(' ');
                     var groupRows = new List<AType>();
 
                     foreach (var kv in keyIndices) {
@@ -3837,10 +3853,21 @@ namespace MicroJ {
                         locals["_N"] = rowCtA;
                         locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } };
                         locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
+
+                        
+
+                        AType expressionResult = null;
                         for (var i = 0; i < yt.Columns.Length; i++) {
                             locals[JTable.SafeColumnName(yt.Columns[i])] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
                         }
-                        var expressionResult = parser.exec(expressions[k], locals);
+                        
+                        if (!expression.StartsWith("!")) {
+                            expressionResult = parser.exec(expression, locals);
+                        }
+                        else {
+                            var method = new A<Verb>(1) { Ravel = new Verb[] { new Verb { op = expressionParts[1]} } };
+                            expressionResult = Verbs.Call1(method, locals[expressionParts[2]]);
+                        }
                         //var expressionResult = new A<long>(0);
                         groupRows.Add(expressionResult);
                     }
