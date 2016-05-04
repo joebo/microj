@@ -974,3 +974,10 @@ NB. negative index on string
 
 NB. from bugfix
 ($ 1 { ('foo';'bar'),.('foo2';'abc')) -: (,2)
+
+NB. or
+(1 +. 0) -: 1
+(0 +. 1) -: 1
+(1 +. 1) -: 1
+(0 +. 0) -: 0
+

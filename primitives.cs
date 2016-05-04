@@ -56,7 +56,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+."};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -1595,6 +1595,17 @@ namespace MicroJ {
                     return mathmixed(x, y, (a, b) => a > b ? a : b);
                 }
             }
+            else if (op == "+.") {
+                if (x.TypeE == AType.Types.Bool && y.TypeE == AType.Types.Bool) {
+                    return math(x as A<bool>, y as A<bool>, (a,b) => a || b);
+                }
+                if (x.TypeE == AType.Types.Long && y.TypeE == AType.Types.Long) {
+                    return math(x as A<long>, y as A<long>, (a, b) => a | b);
+                }
+                if (x.TypeE == AType.Types.Decimal && y.TypeE == AType.Types.Decimal) {
+                    return math(x as A<Decimal>, y as A<Decimal>, (a, b) => ((long)a) | ((long)b));
+                }
+            }
             else if (op == "%") {
                 if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
                     return math((A<decimal>)x, (A<decimal>)y, (a, b) => b != 0 ? a / b : 0 );
@@ -1758,7 +1769,7 @@ namespace MicroJ {
                     return verbWithRank.DyadicFunc(x, y);
                 }
             }
-
+            
             throw new NotImplementedException(op + " on x:" + x + " y:" + y + " type: " + y.GetType());
         }
 

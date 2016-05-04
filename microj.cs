@@ -56,7 +56,8 @@ namespace MicroJ
             Decimal,
             Long,
             JString,
-            Box            
+            Box,
+            Bool
         }
         public AType(Type t) {
             Type = t;
@@ -68,6 +69,9 @@ namespace MicroJ
             }
             else if (t == typeof(long)) {
                 this.TypeE = Types.Long;
+            }
+            else if (t == typeof(bool)) {
+                this.TypeE = Types.Bool;
             }
         }
 
@@ -991,7 +995,7 @@ namespace MicroJ
                 if (locals != null) { LocalNames = locals; }
                 return parse(cmd);
             }
-            catch (Exception e) {
+            catch  {
                 throw;
             }
             finally {
