@@ -2621,7 +2621,7 @@ namespace MicroJ {
             
 
             bool noPad = optionsDict.ContainsKey("nopad");
-            
+            bool noUTF8 = optionsDict.ContainsKey("noutf8");
 
             var iLine = 0;
             var types = new int[500];
@@ -2723,6 +2723,9 @@ namespace MicroJ {
                 var csv = line.Split(delimiter);
                 if (unquote) {
                     csv = csv.Select(x => x.Trim('\"')).ToArray();
+                }
+                if (noUTF8) {
+                    csv = csv.Select(x => Regex.Replace(x, @"[^\u0000-\u007F]", string.Empty)).ToArray();
                 }
                 if (rowCount >= limit) { break; }
 
@@ -2855,8 +2858,8 @@ namespace MicroJ {
             }
             
             var oldRL = Parser.ReadLine;
-            
-            string lastEval = "";
+
+            AType lastEval = null;
             for (var i = 0; i < lines.Length; i++) {
                 var line = lines[i];
                 try {
@@ -2874,7 +2877,7 @@ namespace MicroJ {
                     if (verb.rhs == "1") {
                         Console.WriteLine(line);
                     }
-                    var ret = Parser.parse(line).ToString();
+                    var ret = Parser.parse(line);
                     lastEval = ret;
                 }
                 finally { }
@@ -2882,9 +2885,11 @@ namespace MicroJ {
             Parser.ReadLine = oldRL;
             var z = new A<JString>(0);
             if (verb.rhs == "1") {                
-                z.Ravel[0].str = lastEval;
+                z.Ravel[0].str = lastEval.ToString();
             }
-            
+            if (verb.rhs == "4") {
+                return lastEval;
+            }
 
             return z;
         }
