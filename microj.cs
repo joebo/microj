@@ -409,6 +409,24 @@ namespace MicroJ
         public Dictionary<string, long> UniqueKeys;
         public Dictionary<string, List<long>> Key;
 
+        public IEnumerator<dynamic> GetEnumerator() {
+            JTable yt = this;
+            for (var i = 0; i < yt.RowCount; i++) {
+                var idx = yt.indices != null ? yt.indices[i] : i;
+                var obj = new System.Dynamic.ExpandoObject();
+                var objD = obj as IDictionary<string, object>;
+                for (var k = 0; k < yt.Columns.Length; k++) {
+                    var val = yt.Rows[k].val.GetVal(idx);
+                    if (val.GetType() == typeof(JString)) {
+                        objD[yt.Columns[k]] = val.ToString();
+                    }
+                    else {
+                        objD[yt.Columns[k]] = val;
+                    }
+                }
+                yield return obj;
+            }
+        }
         public static string SafeColumnName(string col) {
             return Regex.Replace(col, @"[^A-Za-z0-9\\_]+", "");
         }
