@@ -1276,7 +1276,7 @@ namespace MicroJ {
 
             //var matches = xv.Columns.Select((v, i) => new { xv = xv, xi = i, yi = Array.IndexOf(columns, v) }).ToArray();
 
-            var matches = columns.Select((v, i) => new { col = v, colIdx = i, yi = Array.IndexOf(xv.Columns, v) }).ToArray();
+            var matches = columns.Select((v, i) => new { col = v, colIdx = i }).ToArray();
 
             foreach(var match in matches) {
                 var yt = new JTable {
@@ -1297,7 +1297,6 @@ namespace MicroJ {
                 yt.Rows = new Box[] { new Box { val = expressionResult } };
                 var zt = linktable(z.WrapA(), yt.WrapA());
                 z = zt.Ravel[0];
-                //z.Rows[match.xi] = yv.Rows[match.yi];
             }
             z.ColumnExpressions = new Dictionary<string, string>();
             for (var k = 0; k < columns.Length; k++) {
