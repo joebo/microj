@@ -512,15 +512,49 @@ namespace MicroJ {
 
             var maxCt = y.Count > x.Count ? y.Count : x.Count;
             var z = new A<bool>(maxCt);
-            for (var i = 0; i < maxCt; i++) {
-                //todo: need a faster way to compare equality, this was failing on double to long comparisons
-                //x.Ravel[i].Equals(y.Ravel[i]);
-                z.Ravel[i] = x.StringConverter(x.Ravel[i < x.Count ? i : 0]) == y.StringConverter(y.Ravel[i < y.Count ?  i : 0]);
+
+            if (x.GetType() == y.GetType() && x.GetType() != typeof(A<JString>)) {
+                var yt = (y as A<T>);
+                for (var i = 0; i < maxCt; i++) {
+                    var xi = i < x.Count ? i : 0;
+                    var yi = i < y.Count ? i : 0;
+                    z.Ravel[i] = x.FastEquals(x.Ravel[xi], yt.Ravel[yi]);
+                    
+                }
             }
-            
+            else {
+                for (var i = 0; i < maxCt; i++) {
+                    //todo: need a faster way to compare equality, this was failing on double to long comparisons
+                    //x.Ravel[i].Equals(y.Ravel[i]);
+                    z.Ravel[i] = x.StringConverter(x.Ravel[i < x.Count ? i : 0]) == y.StringConverter(y.Ravel[i < y.Count ? i : 0]);
+                }
+            }
+            return z;
+        }
+
+        public A<bool> notequals<T, T2>(A<T> x, A<T2> y) where T : struct where T2 : struct {
+            //todo handle application errors without exceptions
+            var maxCt = y.Count > x.Count ? y.Count : x.Count;
+            var z = new A<bool>(maxCt);
+            if (x.GetType() == y.GetType() && x.GetType() != typeof(A<JString>)) {
+                var yt = (y as A<T>);
+                for (var i = 0; i < maxCt; i++) {
+                    var xi = i < x.Count ? i : 0;
+                    var yi = i < y.Count ? i : 0;
+                    z.Ravel[i] = !x.FastEquals(x.Ravel[xi], yt.Ravel[yi]);
+                }
+            }
+            else {
+                for (var i = 0; i < maxCt; i++) {
+                    //todo: need a faster way to compare equality, this was failing on double to long comparisons
+                    //x.Ravel[i].Equals(y.Ravel[i]);
+                    z.Ravel[i] = x.StringConverter(x.Ravel[i < x.Count ? i : 0]) != y.StringConverter(y.Ravel[i < y.Count ? i : 0]);
+                }
+            }
             
             return z;
         }
+
 
         public A<JString> tostring<T>(A<T> y) where T: struct {
             if (y.Rank <= 1) {
@@ -1646,6 +1680,17 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>))
                     return equals((A<JString>)x, (A<JString>)y);
                 else return InvokeExpression("equals", x, y, 2);
+            }
+            else if (op == "~:") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
+                    return notequals((A<long>)x, (A<long>)y);
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>))
+                    return notequals((A<double>)x, (A<double>)y);
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>))
+                    return notequals((A<long>)x, (A<double>)y);
+                else if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>))
+                    return notequals((A<JString>)x, (A<JString>)y);
+                else return InvokeExpression("notequals", x, y, 2);
             }
             else if (op == "#") {
                 return InvokeExpression("copy", x.ConvertLong(), y, 1);

@@ -587,9 +587,11 @@ namespace MicroJ
         public T[] Ravel;
 
         
+        
         public long Count { get { return Ravel == null ? 1 : Ravel.Length; } }
 
         public static Func<T, T, T> AddFunc;
+        public static Func<T, T, bool> EqualFunc;
 
         public T First() { return Ravel[0];  }
 
@@ -617,6 +619,20 @@ namespace MicroJ
                 AddFunc = Expression.Lambda<Func<T, T, T>>(add, par1, par2).Compile();
             }
             return AddFunc(a, b);
+        }
+
+        //not used, but here for the future
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool FastEquals(T a, T b) {
+            if (EqualFunc == null) {
+                var par1 = Expression.Parameter(typeof(T));
+                var par2 = Expression.Parameter(typeof(T));
+
+                var add = Expression.Equal(par1, par2);
+
+                EqualFunc = Expression.Lambda<Func<T, T, bool>>(add, par1, par2).Compile();
+            }
+            return EqualFunc(a, b);
         }
 
         public A(long n) : base(typeof(T)) {
