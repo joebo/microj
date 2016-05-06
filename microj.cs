@@ -350,10 +350,10 @@ namespace MicroJ
             }
 
             if (op != null) str += op;
-            if (adverb != null) str += " " + adverb;
             if (conj != null) str += " " + conj;
             if (rhs != null) str += " " + rhs;
-
+            if (adverb != null) str += " " + adverb;
+            
             return str;
         }
     }
