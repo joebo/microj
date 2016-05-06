@@ -56,7 +56,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+."};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:"};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -132,7 +132,52 @@ namespace MicroJ {
                     throw new NotImplementedException();
                 }
             };
-            
+            SpecialCode["((%)^:0~:])\"0"] = new SpecialCodeEval {
+                evalType = (y) => {
+                    return true;
+                },
+                dyad = (x, y) => {
+                    if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                        return math((A<decimal>)x, (A<decimal>)y, (a, b) => b != 0 ? a / b : 0);
+                    }
+                    else {
+                        var a2 = x.ConvertDouble();
+                        var b2 = y.ConvertDouble();
+                        return math(a2, b2, (a, b) =>  b == 0 ? 0 : Math.Round(a / b, 6));
+                    }
+                }
+            };
+
+            //hack to support string partial matching
+            SpecialCode["(>./)@E.~"] = new SpecialCodeEval {
+                evalType = (y) => {
+                    //special code path only works on rank 0/1
+                    return true;
+                },
+                dyad = (x, y) => {
+                    //todo figure out why TypeE doesn't work
+                    if (y.GetType() == typeof(A<JString>) && x.GetType() == typeof(A<JString>)) {
+                        var xv = (x as A<JString>);
+                        if (x.Rank <= 1 && xv.Ravel.Length == 1) {
+                            var xt = xv.GetString(0);
+                            var yt = (y as A<JString>).GetString(0);
+                            return AType.MakeA(xt.IndexOf(yt, StringComparison.OrdinalIgnoreCase) >= 0 ? 1 : 0);
+                        }
+                        else {
+                            var z = new A<long>(x.Shape[0]);
+                            var yt = (y as A<JString>).GetString(0);
+                            var xt = (x as A<JString>);
+                            for (var i = 0; i < z.Count; i++) {
+                                z.Ravel[i] = xt.GetString(i).IndexOf(yt, StringComparison.OrdinalIgnoreCase) >= 0 ? 1 : 0;
+                            }
+
+                            return z;
+                        }
+                        
+                    }                    
+                    throw new NotImplementedException();
+                }
+            };
         }
 
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null, bool tryConvertLong = true) {
@@ -1436,6 +1481,16 @@ namespace MicroJ {
             var verb = ((A<Verb>)method).Ravel[0];
             var verbs = (A<Verb>)method;
 
+
+            SpecialCodeEval eval;
+            var exp = verbs.ToString().Replace(" ", "");
+            if (SpecialCode.TryGetValue(exp, out eval)) {
+                if (eval.evalType(y) && eval.dyad != null) {
+                    return eval.dyad(x,y);
+                }
+            }
+
+
             if (verb.explicitDef != null) {
                 return runExplicit(verb.explicitDef, y, x);
             }
@@ -2247,7 +2302,8 @@ namespace MicroJ {
         }
     }
     public class Conjunctions {
-        public static readonly string[] Words = new[] { "\"", "!:", "&", ":", "!." };
+        //@ and ^: handled in special code only right now
+        public static readonly string[] Words = new[] { "\"", "!:", "&", ":", "!.", "@", "^:" };
         public Verbs Verbs;
         public Dictionary<string, AType> Names;
         public Parser Parser;
@@ -3604,6 +3660,7 @@ namespace MicroJ {
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "5") {
                 return readTableKey((A<Box>)x, (A<Box>)y);
             }
+            //default value for missing colum
             else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString() == "{")) {
                 //todo move somewhere else?
                 var yt = (y as A<JTable>).First();
@@ -3622,6 +3679,7 @@ namespace MicroJ {
                 }
                 
             }
+            //default value for missing colum
             else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString() == "{.")) {
                 //todo move somewhere else?
                 var yt = (y as A<JTable>).First();
