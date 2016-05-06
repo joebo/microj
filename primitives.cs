@@ -1797,7 +1797,17 @@ namespace MicroJ {
             }
             else if (op == "{") {
                 if (y.GetType() != typeof(A<JTable>)) {
-                    return InvokeExpression("from", x, y, 1);
+                    if (x.GetType() != typeof(A<Boolean>)) {
+                        return InvokeExpression("from", x, y, 1);
+                    }
+                    else if (x.GetType() == typeof(A<Boolean>)) {
+                        //todo: shouldn't need to convert, but make from support bools natively
+                        var newX = new A<long>(x.Shape);
+                        newX.Ravel = (x as A<bool>).Ravel.Select(xv => (long)(xv ? 1 : 0)).ToArray();
+                        return InvokeExpression("from", newX, y, 1);
+                    }
+                    
+
                 } else {
                     return InvokeExpression("fromtable", x, y, 2);
                 }
