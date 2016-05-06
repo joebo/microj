@@ -3635,6 +3635,11 @@ namespace MicroJ {
                 }
 
             }
+            else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString().Trim()== "/.")) {
+                A<Verb> newVerb = new A<Verb>(0) { Ravel = new Verb[] { (Verb)verb.childVerb } };
+                newVerb.Ravel[0].rhs = verb.rhs;
+                return Verbs.Adverbs.keyTable( newVerb, x as A<Box>, y as A<JTable>);
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
@@ -3744,6 +3749,7 @@ namespace MicroJ {
             return v;
         }
 
+        //where options=noparse, the operation is not parsed
         public AType keyTable<T2, T>(AType op, A<T2> x, A<T> y) where T : struct where T2 : struct {
             var yt = (y as A<JTable>).First();
             var rowCt = yt.RowCount;
@@ -3868,12 +3874,34 @@ namespace MicroJ {
                 }
                 var rows = new Box[colCt];
 
-                var cols = colIdx != null ? yt.Columns.Where((xv, i) => colIdx.Contains(i)).ToArray().Concat(expressions).ToArray() : expressions;
+                //clean up col names - smarter defaults
+                var expressionCols = new List<string>();
+                for(var i = 0; i < expressions.Length; i++) {
+                    string col = expressions[i];
+                    var parts = col.Split(' ');
+                    //eg: is {. MSA
+                    if (parts[0] == "is") {
+                        col = parts.Last();
+                        expressions[i] = String.Join(" ", parts.Skip(1));
+                    }
+                    //eg MSA is {. MSA
+                    else if (parts.Length > 1 && parts[1] == "is") {
+                        col = parts[0];
+                        expressions[i] = String.Join(" ", parts.Skip(2));
+                    }
+                    expressionCols.Add(col);
+                }
+
+                var cols = colIdx != null ? yt.Columns.Where((xv, i) => colIdx.Contains(i)).ToArray().Concat(expressionCols).ToArray() : expressionCols.ToArray();
+                
                 var t = new JTable {
                     Columns = cols,
                     Rows = rows,
                 };
                 var colOffset = 0;
+
+                //special fit to not parse expressions /. !. 'noparse'
+                bool noParse = vop.Ravel[0].rhs != null && vop.Ravel[0].rhs.Contains("noparse");
 
                 for (var k = 0; colIdx != null && k < colIdx.Length; k++) {
                     var groupRows = new List<AType>();
@@ -3927,12 +3955,17 @@ namespace MicroJ {
                             locals[JTable.SafeColumnName(yt.Columns[i])] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
                         }
                         
-                        if (!expression.StartsWith("!")) {
-                            expressionResult = parser.exec(expression, locals);
+                        
+                        if (noParse) {
+                            var method = new A<Verb>(1) { Ravel = new Verb[] { new Verb { op = expressionParts[0] } } };
+                            expressionResult = Verbs.Call1(method, locals[expressionParts[1]]);
                         }
-                        else {
+                        else if (expression.StartsWith("!")) {
                             var method = new A<Verb>(1) { Ravel = new Verb[] { new Verb { op = expressionParts[1]} } };
                             expressionResult = Verbs.Call1(method, locals[expressionParts[2]]);
+                        }
+                        else {
+                            expressionResult = parser.exec(expression, locals);
                         }
                         //var expressionResult = new A<long>(0);
                         groupRows.Add(expressionResult);

@@ -1173,6 +1173,10 @@ namespace MicroJ
                             }
                             z.Ravel[0].conj = conj.word;
                             z.Ravel[0].rhs = rhs.word;
+                            //todo figure out conjunctions taking verbs on right
+                            if (rhs.val != null && rhs.word == null) {
+                                z.Ravel[0].rhs = rhs.val.ToString();
+                            }
                             stack.Push(new Token { val = z });
                         }
                         stack.Push(p1);
@@ -1252,11 +1256,15 @@ namespace MicroJ
                     if (queue.Count() != 0) {
                         var newWord = queue.Dequeue();
 
+                        
                         //try to parse word before putting on stack
                         var val = AType.MakeA(newWord.word, Names, LocalNames);
                         var token = new Token();
                         if (val.GetType() == typeof(A<Undefined>)) {
                             token.word = newWord.word;
+                            if (Verbs.expressionMap.ContainsKey(newWord.word)) {
+                                token.val = new A<Verb>(0) { Ravel = new Verb[] { new Verb { op = newWord.word } } };
+                            }
                         }
                         else {
                             token.val = val;
