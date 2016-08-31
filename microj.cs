@@ -154,11 +154,9 @@ namespace MicroJ
         public abstract AType FromIndices(long[] indices);
         public abstract AType TryConvertLong(Parser parse);
         public abstract bool IsAtom();
+        public abstract long GetLong(int n);
 
-        public long GetLong(int n) {
-            return ((A<long>)this).Ravel[n];
-        }
-
+        
         public JString GetCharJString(long n) {
             return new JString { str = GetChar(n) };
         }
@@ -587,8 +585,11 @@ namespace MicroJ
 
         public T[] Ravel;
 
-        
-        
+
+        public override long GetLong(int n) {
+            return Convert.ToInt64(Ravel[n]);
+        }
+
         public long Count { get { return Ravel == null ? 1 : Ravel.Length; } }
 
         public static Func<T, T, T> AddFunc;

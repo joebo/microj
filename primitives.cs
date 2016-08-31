@@ -56,7 +56,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:"};
+            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*."};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -328,6 +328,40 @@ namespace MicroJ {
             }
             return z;
         }
+
+        //dynamic dispatch of math operations -- slowest, around 7x slower
+        public A<long> mathmixedLong(AType x, AType y, Func<long, long, long> op) {
+            if (x.Rank == 0 && y.Rank == 0) {
+                var z = new A<long>(0);
+                z.Ravel[0] = op(x.GetLong(0), y.GetLong(0));
+                return z;
+            }
+            if (x.Rank == 0) {
+                var z = new A<long>(y.GetCount(), y.Shape);
+                var xl = x.GetLong(0);
+                for (var i = 0; i < z.Count; i++) {
+                    z.Ravel[i] = op(xl, y.GetLong(i));
+                }
+                return z;
+            }
+            else if (y.Rank == 0 && x.Rank > 0) {
+                var z = new A<long>(x.GetCount(), x.Shape);
+                var yl = y.GetLong(0);
+                for (var i = 0; i < z.Count; i++) {
+                    z.Ravel[i] = op(x.GetLong(i), yl);
+                }
+                return z;
+            }
+            else {
+                var z = new A<long>(y.GetCount(), y.Shape);
+                for (var i = 0; i < z.Count; i++) {
+                    z.Ravel[i] = op(x.GetLong(i), y.GetLong(i));
+                }
+                return z;
+            }
+            throw new NotImplementedException();
+        }
+
 
         //convert long to double
         public A<double> mathmixed(A<long> x, A<double> y, Func<double, double, double> op) {
@@ -1693,7 +1727,25 @@ namespace MicroJ {
                 if (x.TypeE == AType.Types.Decimal && y.TypeE == AType.Types.Decimal) {
                     return math(x as A<Decimal>, y as A<Decimal>, (a, b) => ((long)a) | ((long)b));
                 }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixedLong(x, y, (a, b) => a | b);
+                }
             }
+            else if (op == "*.") {
+                if (x.TypeE == AType.Types.Bool && y.TypeE == AType.Types.Bool) {
+                    return math(x as A<bool>, y as A<bool>, (a, b) => a && b);
+                }
+                if (x.TypeE == AType.Types.Long && y.TypeE == AType.Types.Long) {
+                    return math(x as A<long>, y as A<long>, (a, b) => a & b);
+                }
+                if (x.TypeE == AType.Types.Decimal && y.TypeE == AType.Types.Decimal) {
+                    return math(x as A<Decimal>, y as A<Decimal>, (a, b) => ((long)a) & ((long)b));
+                }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixedLong(x, y, (a, b) => a & b);
+                }
+            }
+
             else if (op == "%") {
                 if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
                     return math((A<decimal>)x, (A<decimal>)y, (a, b) => b != 0 ? a / b : 0 );
