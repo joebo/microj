@@ -2584,17 +2584,18 @@ namespace MicroJ {
         Dictionary<string, Func<AType, Parser, AType>> dotnetMethodCache = null;
         public AType calldotnet<T>(A<T> x, A<JString> y) where T : struct {
 
-            if (Parser.SafeMode) { throw new AccessViolationException(); }
+            
 
 #if CSSCRIPT
             if (dotnetMethodCache == null) { dotnetMethodCache = new Dictionary<string, Func<AType, Parser, AType>>(); }
             Func<AType, Parser, AType> func = null;
             if (!dotnetMethodCache.TryGetValue(y.Ravel[0].str, out func)) {
+                if (Parser.SafeMode) { throw new AccessViolationException(); }
                 var code = y.Ravel[0].str;
                 var lines = code.Split('\n');
                 var usings = String.Join("\n", lines.Where(t => t.StartsWith("//css_using ")).Select(t => "using " + t.Replace("//css_using ", "") + ";").ToArray());
                 var refs = lines.Where(t => t.StartsWith("//css_ref ")).SelectMany(t => t.Replace("//css_ref ", "").Split(',')).Select(t => t.Trim()).ToArray();
-                var codecs = usings + "\n" + "MicroJ.AType func (MicroJ.AType v, MicroJ.Parser parser) { " + code + " }";
+                var codecs = "using MicroJ;\n" + usings + "\n" + "MicroJ.AType func (MicroJ.AType v, MicroJ.Parser parser) { " + code + " }";
                 func = CSScript.LoadDelegate<Func<AType, Parser, AType>>(codecs, null, false, refs);
                 dotnetMethodCache[y.Ravel[0].str] = func;
             }
