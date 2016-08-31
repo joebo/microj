@@ -329,7 +329,11 @@ namespace MicroJ {
             return z;
         }
 
-        //dynamic dispatch of math operations -- slowest, around 7x slower
+        //significantly faster than dispatch (10x)
+        //0 [ arr=: i. 10000000
+        //0.0871601 (6!:2) '1<arr' NB. same type
+        //2.8003321 (6!:2) '1.0 <arr' NB. old
+        //0.2403719 (6!:2) '1.0 <arr' NB. new
         public A<long> mathmixedLong(AType x, AType y, Func<long, long, long> op) {
             if (x.Rank == 0 && y.Rank == 0) {
                 var z = new A<long>(0);
@@ -1659,6 +1663,9 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
                     return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a < b ? 1 : 0);
                 }
+                else if (x.CanBeInt()  && y.CanBeInt()) {
+                    return mathmixedLong(x, y, (a, b) => a < b ? 1 : 0);
+                }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a < b ? 1 : 0);
                 }
@@ -1678,6 +1685,9 @@ namespace MicroJ {
                 }
                 else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
                     return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a > b ? 1 : 0);
+                }
+                else if (x.CanBeInt() && y.CanBeInt()) {
+                    return mathmixedLong(x, y, (a, b) => a > b ? 1 : 0);
                 }
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a > b ? 1 : 0);

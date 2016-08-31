@@ -155,7 +155,7 @@ namespace MicroJ
         public abstract AType TryConvertLong(Parser parse);
         public abstract bool IsAtom();
         public abstract long GetLong(int n);
-
+        public abstract bool CanBeInt();
         
         public JString GetCharJString(long n) {
             return new JString { str = GetChar(n) };
@@ -588,6 +588,17 @@ namespace MicroJ
 
         public override long GetLong(int n) {
             return Convert.ToInt64(Ravel[n]);
+        }
+
+        public override bool CanBeInt() {
+            if (TypeE == Types.Long || TypeE == Types.Bool) {
+                return true;
+            }
+            if (IsAtom()) {
+                long tryLong;
+                if (Int64.TryParse(GetString(0), out tryLong)) return true;
+            }
+            return false;
         }
 
         public long Count { get { return Ravel == null ? 1 : Ravel.Length; } }
