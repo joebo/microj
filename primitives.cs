@@ -315,18 +315,28 @@ namespace MicroJ {
 
         //dynamic dispatch of math operations -- slowest, around 7x slower
         public A<double> mathmixed(dynamic x, dynamic y, Func<dynamic, dynamic, dynamic> op) {
-            var z = new A<double>(y.Ravel.Length, y.Shape);
+            
             if (x.Rank == 0) {
+                var z = new A<double>(y.Ravel.Length, y.Shape);
                 for (var i = 0; i < y.Ravel.Length; i++) {
                     z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
                 }
+                return z;
+            }
+            else if (y.Rank == 0) {
+                var z = new A<double>(x.Ravel.Length, x.Shape);
+                for (var i = 0; i < x.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[0]);
+                }
+                return z;
             }
             else {
+                var z = new A<double>(y.Ravel.Length, y.Shape);
                 for (var i = 0; i < y.Ravel.Length; i++) {
                     z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
                 }
-            }
-            return z;
+                return z;
+            }            
         }
 
         //significantly faster than dispatch (10x)
