@@ -38,7 +38,7 @@ namespace MicroJ {
         }
 
         public AType InvokeWithRank(AType y) {
-            if (Monadic == 0 && y.Rank > 0) {
+            if (Monadic == 0 && !y.IsAtom()) {
                 AType[] ret = new AType[y.GetCount()];
 
                 for (var i = 0; i < ret.Length; i++) {
@@ -2305,7 +2305,7 @@ namespace MicroJ {
                 
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
-                return verbWithRank.MonadicFunc(y);
+                return verbWithRank.InvokeWithRank(y);
             }
             throw new NotImplementedException(op + " on y: " + y + " type: " + y.GetType());
         }

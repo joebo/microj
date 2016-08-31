@@ -153,6 +153,7 @@ namespace MicroJ
         public abstract AType GetValA(long n);
         public abstract AType FromIndices(long[] indices);
         public abstract AType TryConvertLong(Parser parse);
+        public abstract bool IsAtom();
 
         public long GetLong(int n) {
             return ((A<long>)this).Ravel[n];
@@ -594,6 +595,10 @@ namespace MicroJ
         public static Func<T, T, bool> EqualFunc;
 
         public T First() { return Ravel[0];  }
+
+        public override bool IsAtom() {
+            return Rank == 0 || (Rank == 1 && this.GetType() == typeof(A<JString>));
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public A<T> ToAtom(long n) {
