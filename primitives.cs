@@ -1557,7 +1557,7 @@ namespace MicroJ {
                 AType z1 = null;
                 //support noun in left tine
                 Verb v = verbs.ToAtom(0).Ravel[0];
-                if (v.rhs != null && v.op == null && v.childAdverb == null) {
+                if (v.rhs != null && v.op == null && v.childAdverb == null && v.conj == null) {
                     z1 = AType.MakeA(v.rhs, null);
                 }
                 else if (v.op == "[:") {
@@ -3793,7 +3793,22 @@ namespace MicroJ {
             else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString().Trim()== "/.")) {
                 A<Verb> newVerb = new A<Verb>(0) { Ravel = new Verb[] { (Verb)verb.childVerb } };
                 newVerb.Ravel[0].rhs = verb.rhs;
-                return Verbs.Adverbs.keyTable( newVerb, x as A<Box>, y as A<JTable>);
+                return Verbs.Adverbs.keyTable( newVerb, x as A<Box>, y as A<JTable>);           
+            }
+            else if (verb.conj == "&") {
+                AType xv;
+                var newVerb = new A<Verb>(0);
+
+                xv = AType.MakeA(verb.rhs, Names);
+                newVerb.Ravel[0] = (Verb)verb.childVerb;
+                var z = Verbs.Call1(x, xv);
+                return z;
+            }
+            else if (verb.conj == "@") {
+                if (verb.rhs == "[" && verb.childVerb != null) {
+                    A<Verb> newVerb = new A<Verb>(0) { Ravel = new Verb[] { (Verb)verb.childVerb } };
+                    return Verbs.Call1(newVerb, x);
+                }
             }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
