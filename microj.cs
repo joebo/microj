@@ -591,10 +591,10 @@ namespace MicroJ
         }
 
         public override bool CanBeInt() {
-            if (TypeE == Types.Long || TypeE == Types.Bool) {
+            if (GetType() == typeof(A<long>)|| GetType() == typeof(A<bool>)) {
                 return true;
             }
-            if (IsAtom()) {
+            if (IsAtom() || Count == 1) {
                 long tryLong;
                 if (Int64.TryParse(GetString(0), out tryLong)) return true;
             }
@@ -809,7 +809,12 @@ namespace MicroJ
         
         public override string GetString(long n) {
             if (Type == typeof(Decimal) && Parser.MAX_DECIMAL >= 0) {
-                return ((decimal)(object)Ravel[n]).ToString("N" + Parser.MAX_DECIMAL);
+                var val = Convert.ToDecimal(Ravel[n]);
+                if (Math.Truncate(val) == val) {
+                    return val.ToString();
+                } else {
+                    return val.ToString("N" + Parser.MAX_DECIMAL);
+                }                
             }
             if (Type != typeof(Byte)) {
                 return Ravel[n].ToString();

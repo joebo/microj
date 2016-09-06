@@ -1038,11 +1038,12 @@ namespace MicroJ {
 
                 var expressionResultl = expressionResult as A<long>;
                 var expressionResultb =  expressionResult as A<bool>;
+                var expressionResultd = expressionResult as A<Decimal>;
 
                 var v = yt.Clone();
                 var indices = new List<long>();
                 for (var i = 0; i < expressionResult.GetCount(); i++) {
-                    if ((expressionResultl != null && expressionResultl.Ravel[i] == 1) || (expressionResultb != null && expressionResultb.Ravel[i])) {
+                    if ((expressionResultl != null && expressionResultl.Ravel[i] == 1) || (expressionResultd != null && expressionResultd.Ravel[i] == 1) || (expressionResultb != null && expressionResultb.Ravel[i])) {
                         indices.Add(yv.indices != null ? yv.indices[i] : i);
                     }
                 }
@@ -1647,21 +1648,22 @@ namespace MicroJ {
                     //TODO: make option
                     return math((A<double>)x, (A<double>)y, (a, b) => Math.Round(a * b,8));
                 }
-                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
-                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a * b);
+                else if (x.GetType() == typeof(A<bool>) && y.GetType() == typeof(A<bool>)) {
+                    return math((A<bool>)x, (A<bool>)y, (a, b) => ((a ? 1 : 0) * (b ? 1 : 0)) == 1 ? true : false);
                 }
                 else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
                     return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a * b);
                 }
-                else if (x.GetType() == typeof(A<bool>) && y.GetType() == typeof(A<bool>)) {
-                    return math((A<bool>)x, (A<bool>)y, (a, b) => ((a?1:0) * (b?1:0)) == 1 ? true : false);
-                }
-                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<bool>)) {
-                    return mathmixed((A<double>)x, (A<bool>)y, (a, b) => (a * (b ? 1 : 0)));
-                }
                 else if (x.CanBeInt() && y.CanBeInt()) {
                     return mathmixedLong(x, y, (a, b) => a * b);
                 }
+                 
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a * b);
+                }                                
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<bool>)) {
+                    return mathmixed((A<double>)x, (A<bool>)y, (a, b) => (a * (b ? 1 : 0)));
+                }                
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a * b);
                 }
