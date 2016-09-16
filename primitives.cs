@@ -55,8 +55,8 @@ namespace MicroJ {
     public class Verbs {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
-            "|.", "-:", "[", "p:", ",", "<", "!", ";", "q:", "{." , "}.", 
-            "<.", ">.", "{", "/:", "\\:", "*:", "+:", "\":", ">", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*."};
+            "|.", "-:", "[", "p:", ",", "!", ";", "q:", "{." , "}.", 
+            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*."};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -1691,6 +1691,29 @@ namespace MicroJ {
                     return mathmixed(x, y, (a, b) => a < b ? 1 : 0);
                 }
             }
+            else if (op == "<:") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)x, (A<long>)y, (a, b) => a <= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a <= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)x, (A<double>)y, (a, b) => a <= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a <= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
+                    return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a <= b ? 1 : 0);
+                }
+                else if (x.CanBeInt() && y.CanBeInt()) {
+                    return mathmixedLong(x, y, (a, b) => a <= b ? 1 : 0);
+                }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixed(x, y, (a, b) => a <= b ? 1 : 0);
+                }
+            }
             else if (op == ">") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a > b ? 1 : 0);
@@ -1714,6 +1737,29 @@ namespace MicroJ {
                     return mathmixed(x, y, (a, b) => a > b ? 1 : 0);
                 }
             }
+            else if (op == ">:") {
+                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
+                    return math((A<long>)x, (A<long>)y, (a, b) => a >= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>)) {
+                    return math((A<double>)x, (A<double>)y, (a, b) => a >= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)x, (A<decimal>)y, (a, b) => a >= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
+                    return mathmixed((A<long>)x, (A<double>)y, (a, b) => a >= b ? 1 : 0);
+                }
+                else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
+                    return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a >= b ? 1 : 0);
+                }
+                else if (x.CanBeInt() && y.CanBeInt()) {
+                    return mathmixedLong(x, y, (a, b) => a >= b ? 1 : 0);
+                }
+                else if (x.GetType() != y.GetType()) {
+                    return mathmixed(x, y, (a, b) => a >= b ? 1 : 0);
+                }
+            }
             else if (op == "<.") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a < b ? a : b);
@@ -1733,7 +1779,7 @@ namespace MicroJ {
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a < b ? a : b);
                 }
-            }
+            }           
             else if (op == ">.") {
                 if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>)) {
                     return math((A<long>)x, (A<long>)y, (a, b) => a > b ? a : b);
@@ -1753,7 +1799,7 @@ namespace MicroJ {
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a > b ? a : b);
                 }
-            }
+            }            
             else if (op == "+.") {
                 if (x.TypeE == AType.Types.Bool && y.TypeE == AType.Types.Bool) {
                     return math(x as A<bool>, y as A<bool>, (a,b) => a || b);
