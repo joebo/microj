@@ -407,7 +407,14 @@ namespace MicroJ {
         public A<long> tally(AType y) {
             var v = new A<long>(0);
             if (y.GetType() == typeof(A<JTable>)) { v.Ravel[0] = (y as A<JTable>).First().RowCount;  }
-            else if (y.Rank <= 1 && y.GetType() == typeof(A<JString>)) { v.Ravel[0] = y.GetString(0).Length; }
+            else if (y.Rank <= 1 && y.GetType() == typeof(A<JString>) && y.GetCount() == 1) { v.Ravel[0] = y.GetString(0).Length; }
+            else if (y.Rank <= 1 && y.GetType() == typeof(A<JString>) && y.GetCount() > 1) {
+                var vl = new A<long>(y.GetCount());
+                for (var i = 0; i < vl.Count; i++) {
+                    vl.Ravel[i] = y.GetString(i).Length;
+                }
+                return vl;
+            }
             else if (y.Rank == 0) { v.Ravel[0] = 1; }
             else { v.Ravel[0] = y.Shape[0]; }
             return v;
@@ -1533,7 +1540,7 @@ namespace MicroJ {
             SpecialCodeEval eval;
             var exp = verbs.ToString().Replace(" ", "");
             if (SpecialCode.TryGetValue(exp, out eval)) {
-                if (eval.evalType(y) && eval.dyad != null) {
+                if (((eval.evalType != null && eval.evalType(y)) || (eval.evalTypeDyad != null && eval.evalTypeDyad(x,y))) && eval.dyad != null) {
                     return eval.dyad(x,y);
                 }
             }
