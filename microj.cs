@@ -242,6 +242,11 @@ namespace MicroJ
                 a.Shape = new long[] { str.Length };
                 return a;
             }
+            //backtick to defer resolution to name resolver
+            else if (word.StartsWith("`") && Parser.NameResolver != null) {
+                var aval = Parser.NameResolver(word.TrimStart('`'));
+                return aval != null ? aval : new A<Undefined>(0);
+            }
             if (word.Contains(" ") && !word.Contains(".")) {
                 var longs = new List<long>();
                 foreach (var tpart in word.Split(' ')) {
@@ -314,6 +319,10 @@ namespace MicroJ
                 var a = new A<Verb>(1);
                 a.Ravel[0] = new Verb { op = word };
                 return a;
+            }
+            else if (Parser.NameResolver != null) {
+                var aval = Parser.NameResolver(word);
+                return aval != null ? aval : new A<Undefined>(0);
             }
             return new A<Undefined>(0);
         }
@@ -945,9 +954,12 @@ namespace MicroJ
         
         public Dictionary<string, AType> Names;
         public Dictionary<string, AType> LocalNames;
-
+        
         //needed for state in calldotnet procedures
         public Dictionary<string, object> Globals;
+
+        public static Func<string, AType> NameResolver = null;
+        public static Func<string[], string[]> ParseWordsHook = null;
 
         char[] symbols = null;
         char[] symbolPrefixes = null;
@@ -1026,7 +1038,11 @@ namespace MicroJ
                 p = c;
             }
             emit();
-            return z.ToArray();
+            var words = z.ToArray();
+            if (ParseWordsHook != null) {
+                words = ParseWordsHook(words);
+            }
+            return words;
         }
 
         public struct Token {

@@ -70,6 +70,7 @@ namespace MicroJ {
             public Func<AType, AType> monad;
             public Func<AType, AType, AType> dyad;
             public Func<AType, bool> evalType;
+            public Func<AType, AType, bool> evalTypeDyad;
         }
         Dictionary<Tuple<string, Type, Type>, Delegate> expressionDict;
         public Dictionary<string, SpecialCodeEval> SpecialCode = new Dictionary<string,SpecialCodeEval>();
