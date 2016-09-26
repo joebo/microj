@@ -1016,3 +1016,24 @@ NB. dyadic & and [
 (_1 (<&0@[ +. >) 3) -: 1
 (4 (<&0@[ +. >) 3) -: 1
 (2 (<&0@[ +. >) 3) -: 0
+
+
+NB. less than equal to
+(1 <: 1) -: 1
+(0 <: 1) -: 1
+(1.01 <: 2) -: 1
+(1.01 <: 1.01) -: 1
+(1.01 <: 1.00) -: 0
+
+NB. greater than equal to
+(1 >: 1) -: 1
+(0 >: 1) -: 0
+(1.01 >: 2) -: 0
+(1.01 >: 1.01) -: 1
+(1.01 >: 1.00) -: 1
+
+
+NB. deviation from J.. concatenate strings of different lengths
+((>('hi';'bye')) & ' joe') -: (>('hi joe';'bye joe'))
+('hi' & ' joe') -: 'hi joe'
+('hi ' & (>'joe';'bob')) -: (>'hi joe';'hi bob')
