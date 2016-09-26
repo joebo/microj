@@ -4353,13 +4353,18 @@ namespace MicroJ {
             else { //join two tables
                 var xt = (newVal as A<JTable>).First();
                 string keyColumn = yb.Count == 1 ? yb.Ravel[0].val.ToString() : yb.Ravel[1].val.ToString();
+
+                //TODO: need a smarter way to deal with this
+                bool noOrig = yb.Count >= 3 && yb.Ravel[2].val.ToString() == "[";
+                string lookupCol = yb.Count >= 3 && !noOrig ? yb.Ravel[2].val.ToString() : null;
+
                 var joinKeyIdx = Array.IndexOf(xt.Columns, keyColumn);
                 var joinKeys = new Dictionary<string, long>();
                 for (var i = 0; i < xt.RowCount; i++) {
                     var keyVal = xt.Rows[joinKeyIdx].val.GetString(i).ToUpper();
                     joinKeys[keyVal] = i;
                 }
-                var newCols = xt.Columns.Where(xv => xv != keyColumn).ToArray();
+                var newCols = xt.Columns.Where(xv => xv != keyColumn && (xv == lookupCol || lookupCol == null)).ToArray();
                 var newRows = new Box[newCols.Length];
                 for (var i = 0; i < newCols.Length; i++) {
                     var xtIdx = Array.IndexOf(xt.Columns, newCols[i]);
@@ -4378,7 +4383,13 @@ namespace MicroJ {
                     //newRows[i] = new A<long>(yt.RowCount).Box();
                 }
                 var newT = new JTable { Columns = newCols, Rows = newRows };
-                yt = Verbs.linktable(yt.WrapA(), newT.WrapA()).First();
+                if (!noOrig && lookupCol == null) {
+                    yt = Verbs.linktable(yt.WrapA(), newT.WrapA()).First();
+                }
+                else {
+                    return newT.WrapA();
+                }
+                
             }
             
             if (yt.ColumnExpressions != null) {
