@@ -1181,6 +1181,11 @@ namespace MicroJ
                         if (conj.word == ":" && lhs.word == "0" && rhs.val is A<JString>) {
                             stack.Push(new Token { val = rhs.val });
                         }
+                        //special case of 'foo' & 'bar' to concatenate strings
+                        else if (lhs.val is A<JString> && rhs.val is A<JString>) {
+                            var z = Verbs.catenate(lhs.val as A<JString>, rhs.val as A<JString>);
+                            stack.Push(new Token { val = z });
+                        }
                         else {
                             var z = new A<Verb>(0);
                             if (isVerb(lhs)) {

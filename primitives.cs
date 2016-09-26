@@ -2256,6 +2256,17 @@ namespace MicroJ {
             zt.Rows = new Box[] { keys.Box(), vals.Box() };
             return zt.WrapA();
         }
+
+        public AType catenate(A<JString> x, A<JString> y) {
+            var max = Math.Max(x.Count, y.Count);
+            var ret = new A<JString>(max);
+            for (var i = 0; i < max; i++) {
+                var str1 = i >= x.Ravel.Length ? x.GetString(0) : x.GetString(i);
+                var str2 = i >= y.Ravel.Length ? y.GetString(0) : y.GetString(i);
+                ret.Ravel[i] = new JString { str = str1 + str2 };
+            }
+            return ret;
+        }
         //candidate for code generation
         public AType Call1(AType method, AType y) {
             var verbs = (A<Verb>)method;
