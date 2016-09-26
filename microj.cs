@@ -457,6 +457,9 @@ namespace MicroJ
             if (y.GetType() == typeof(A<JString>)) {
                 var colStr = y.GetString(0);
                 colIdx = Array.IndexOf(Columns, colStr);
+                if (colIdx == -1) {
+                    colIdx = Array.IndexOf(Columns.Select(x=>x.Replace(" ","")).ToArray(), colStr);
+                }
 
             }
             else if (y.GetType() == typeof(A<Box>)) {
