@@ -353,6 +353,9 @@ namespace MicroJ
             if (childVerb != null) {
                 str = str + "(" + childVerb.ToString() + ")";
             }
+
+         
+
             if (explicitDef != null) {
                 str = explicitDef;
             }
@@ -360,6 +363,11 @@ namespace MicroJ
             if (op != null) str += op;
             if (conj != null) str += " " + conj;
             if (rhs != null) str += " " + rhs;
+
+            if (childAdverb != null) {
+                str = str + childAdverb.ToString();
+            }
+
             if (adverb != null) str += " " + adverb;
             
             return str;

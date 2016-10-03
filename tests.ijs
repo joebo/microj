@@ -1037,3 +1037,8 @@ NB. deviation from J.. concatenate strings of different lengths
 ((>('hi';'bye')) & ' joe') -: (>('hi joe';'bye joe'))
 ('hi' & ' joe') -: 'hi joe'
 ('hi ' & (>'joe';'bob')) -: (>'hi joe';'hi bob')
+
+
+NB. running sum
+
+(+/\ 1 2 3 4) -: 1 3 6 10

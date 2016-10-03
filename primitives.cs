@@ -134,6 +134,21 @@ namespace MicroJ {
                     throw new NotImplementedException();
                 }
             };
+            SpecialCode["+/\\"] = new SpecialCodeEval {
+                evalType = (y) => {
+                    //special code path only works on rank 0/1
+                    if (y.Rank > 1) { return false; }
+                    return true;
+                },
+                monad = y => {
+                    switch (y.TypeE) {
+                        case AType.Types.Long: return Adverbs.runsum(y as A<long>);
+                        case AType.Types.Double: return Adverbs.runsum(y as A<double>);
+                        case AType.Types.Decimal: return Adverbs.runsum(y as A<decimal>);
+                    }
+                    throw new NotImplementedException();
+                }
+            };
             SpecialCode["((%)^:0~:])\"0"] = new SpecialCodeEval {
                 evalType = (y) => {
                     return true;
@@ -3885,7 +3900,7 @@ namespace MicroJ {
 
     }
     public class Adverbs {
-        public static readonly string[] Words = new[] { "/", "/.", "~", "}" };
+        public static readonly string[] Words = new[] { "/", "/.", "~", "}", "\\" };
         public Verbs Verbs;
         public Conjunctions Conjunctions;
 
@@ -3931,6 +3946,34 @@ namespace MicroJ {
             return v;
         }
 
+        //special code for +/\ rank 1 (decimal)
+        public A<decimal> runsum(A<decimal> y) {
+            var v = new A<decimal>(y.Count);
+            decimal total = 0;
+            for (var i = 0; i < y.Count; i++) {
+                v.Ravel[i] = total += (decimal)y.Ravel[i];
+            }            
+            return v;
+        }
+
+        //special code for +/\ rank 1 (decimal)
+        public A<long> runsum(A<long> y) {
+            var v = new A<long>(y.Count);
+            long total = 0;
+            for (var i = 0; i < y.Count; i++) {
+                v.Ravel[i] = total += (long)y.Ravel[i];
+            }
+            return v;
+        }
+        //special code for +/\ rank 1 (decimal)
+        public A<double> runsum(A<double> y) {
+            var v = new A<double>(y.Count);
+            double total = 0;
+            for (var i = 0; i < y.Count; i++) {
+                v.Ravel[i] = total += (double)y.Ravel[i];
+            }
+            return v;
+        }
         public A<T> reduceboxed<T>(AType op, A<Box> y) where T : struct {
             if (y.Rank == 1) {
                 var v = new A<T>(0);
@@ -4469,6 +4512,12 @@ namespace MicroJ {
             }
             else if (adverb == "/" && op == "+" && y.Rank == 1 && y.GetType() == typeof(A<decimal>)) {
                 return reduceplus((A<decimal>)y);
+            }
+            else if (adverb == "\\" && op == "+" && newVerb.Ravel[0].adverb == "/" && y.GetType() == typeof(A<decimal>)) {
+                return runsum((A<decimal>)y);
+            }
+            else if (adverb == "\\" && op == "+" && newVerb.Ravel[0].adverb == "/" && y.GetType() == typeof(A<long>)) {
+                return runsum((A<long>)y);
             }
             else if (adverb == "/" && op == "%" && y.GetType() == typeof(A<long>)) {
                 //special code to convert longs to double for division
