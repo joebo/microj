@@ -3880,6 +3880,11 @@ namespace MicroJ {
                 newVerb.Ravel[0].rhs = verb.rhs;
                 return Verbs.Adverbs.keyTable( newVerb, x as A<Box>, y as A<JTable>);           
             }
+            else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString().Trim() == "}")) {
+                A<Verb> newVerb = new A<Verb>(0) { Ravel = new Verb[] { (Verb)verb.childVerb } };
+                newVerb.Ravel[0].rhs = verb.rhs;
+                return Verbs.Adverbs.amendTable((AType)newVerb.First().childNoun, x as A<JTable>, y as A<JTable>, true);
+            }
             else if (verb.conj == "&") {
                 AType xv;
                 var newVerb = new A<Verb>(0);
@@ -4351,7 +4356,45 @@ namespace MicroJ {
             y.Ravel[0] = yt;
             return y;
         }
-        public A<JTable> amendTable(AType noun, AType newVal, A<JTable> y) {
+
+        public A<JTable> lookupApprox<T>(JTable foreignTable, int foreignKeyCol, JTable primaryTable, int primaryKeyCol, bool noOrig = false, string lookupCol = null) where T : struct, IComparable {
+
+            T[] joinVals = (foreignTable.Rows[foreignKeyCol].val as A<T>).Ravel;
+            var newRows = new Box[foreignTable.Columns.Length];
+            var newCols = foreignTable.Columns.Select(x => x).ToArray();
+
+            
+            for (var k = 0; k < newCols.Length; k++) {
+                var indices = new long[primaryTable.RowCount];
+                for (var i = 0; i < primaryTable.RowCount; i++) {                    
+                    T searchVal = (T)primaryTable.Rows[primaryKeyCol].val.GetVal(i);
+                    long idx = Array.BinarySearch<T>(joinVals, searchVal);
+                    if (idx < 0) {
+                        idx = ~idx;
+                    }
+
+                    if (idx < joinVals.Length) {
+                        indices[i] = idx;
+                    }
+                    else {
+                        indices[i] = -1;
+                    }                    
+                }
+                newRows[k] = foreignTable.Rows[k].val.FromIndices(indices).Box();
+            }
+
+            var newT = new JTable { Columns = newCols, Rows = newRows };
+            if (!noOrig && lookupCol == null) {
+                primaryTable = Verbs.linktable(primaryTable.WrapA(), newT.WrapA()).First();
+            }
+            else {
+                return newT.WrapA();
+            }
+
+            return primaryTable.WrapA();
+
+        }
+        public A<JTable> amendTable(AType noun, AType newVal, A<JTable> y, bool approx = false) {
             var yt = y.First();
 
             var yl = noun as A<long>;
@@ -4385,17 +4428,20 @@ namespace MicroJ {
 
             var keys = new Dictionary<string, List<long>>();
 
-            //group for keys
-            for(var i = 0; i < yt.Rows[0].val.GetCount(); i++) {
-                var keyVal = yt.Rows[keyIdx].val.GetString(i).ToUpper();
-                List<long> keyIndices = null;
-                if (!keys.TryGetValue(keyVal, out keyIndices)) {
-                    keyIndices = new List<long>();
-                    keys[keyVal] = keyIndices;
+            if (!approx) {
+                //group for keys
+                for (var i = 0; i < yt.Rows[0].val.GetCount(); i++) {
+                    var keyVal = yt.Rows[keyIdx].val.GetString(i).ToUpper();
+                    List<long> keyIndices = null;
+                    if (!keys.TryGetValue(keyVal, out keyIndices)) {
+                        keyIndices = new List<long>();
+                        keys[keyVal] = keyIndices;
+                    }
+                    keyIndices.Add(i);
                 }
-                keyIndices.Add(i);
-            }
 
+            }
+            
             if (newVal.GetType() != typeof(A<JTable>)) {
                 for (var i = 0; i < newVal.GetCount(); i++) {
                     List<long> keyIndices = null;
@@ -4417,6 +4463,17 @@ namespace MicroJ {
                 string lookupCol = yb.Count >= 3 && !noOrig ? yb.Ravel[2].val.ToString() : null;
 
                 var joinKeyIdx = Array.IndexOf(xt.Columns, keyColumn);
+
+                if (approx) {
+                    var testVal = yt.Rows[keyIdx].val;
+                    if (testVal.GetType() == typeof(A<long>))
+                        return lookupApprox<long>(xt, joinKeyIdx, yt, keyIdx);
+                    else if (testVal.GetType() == typeof(A<decimal>))
+                        return lookupApprox<decimal>(xt, joinKeyIdx, yt, keyIdx);
+                    else if (testVal.GetType() == typeof(A<double>))
+                        return lookupApprox<double>(xt, joinKeyIdx, yt, keyIdx);
+                    throw new NotSupportedException();
+                }
                 var joinKeys = new Dictionary<string, long>();
                 for (var i = 0; i < xt.RowCount; i++) {
                     var keyVal = xt.Rows[joinKeyIdx].val.GetString(i).ToUpper();

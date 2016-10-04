@@ -1040,5 +1040,27 @@ NB. deviation from J.. concatenate strings of different lengths
 
 
 NB. running sum
-
 (+/\ 1 2 3 4) -: 1 3 6 10
+
+NB. approximate match
+
+NB. amend / join with table
+
+
+1 [ ageBinTable =. flip ('ageBin';'class');(10 20 60 150);(>('kid';'teenager';'middle age';'elderly'))
+1 [ ageTable =. flip (<'age');(1 35 85)
+
+(ageBinTable ('age';'ageBin') } !. 'approx' ageTable) -: 0 : 0
++---+------+----------+
+|age|ageBin|class     |
+|---+------+----------|
+|1  |10    |kid       |
+|---+------+----------|
+|35 |60    |middle age|
+|---+------+----------|
+|85 |150   |elderly   |
++---+------+----------+
+)
+
+NB. tierTable=: flip ('pct';'tier');(0.5 0.8 0.95 1);(>'Tier I';'Tier II';'Tier III';'Tier IV')
+
