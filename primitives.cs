@@ -4495,11 +4495,11 @@ namespace MicroJ {
                 if (approx) {
                     var testVal = yt.Rows[keyIdx].val;
                     if (testVal.GetType() == typeof(A<long>))
-                        return lookupApprox<long>(xt, joinKeyIdx, yt, keyIdx);
+                        return lookupApprox<long>(xt, joinKeyIdx, yt, keyIdx, noOrig, lookupCol);
                     else if (testVal.GetType() == typeof(A<decimal>))
-                        return lookupApprox<decimal>(xt, joinKeyIdx, yt, keyIdx);
+                        return lookupApprox<decimal>(xt, joinKeyIdx, yt, keyIdx, noOrig, lookupCol);
                     else if (testVal.GetType() == typeof(A<double>))
-                        return lookupApprox<double>(xt, joinKeyIdx, yt, keyIdx);
+                        return lookupApprox<double>(xt, joinKeyIdx, yt, keyIdx, noOrig, lookupCol);
                     throw new NotSupportedException();
                 }
                 var joinKeys = new Dictionary<string, long>();
