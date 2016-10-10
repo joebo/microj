@@ -1062,5 +1062,54 @@ NB. amend / join with table
 +---+------+----------+
 )
 
-NB. tierTable=: flip ('pct';'tier');(0.5 0.8 0.95 1);(>'Tier I';'Tier II';'Tier III';'Tier IV')
+((<'newcol is col') { flip (<'col');(1 2 3)) -: 0 : 0
++------+
+|newcol|
+|------|
+|1     |
+|------|
+|2     |
+|------|
+|3     |
++------+
+)
 
+
+NB. bug fix count on string col
+((<'k') ('# ~. k2';'{. k2') /. flip ('k';'k2';'v');(5 1 $ 'ab');(> 'a';'a';'a';'b';'b');(i.5)) -: 0 : 0
++-+-------+-----+
+|k|# ~. k2|{. k2|
+|-+-------+-----|
+|a|2      |a    |
+|-+-------+-----|
+|b|2      |a    |
++-+-------+-----+
+)
+
+
+
+(# region1 [ ('region1 region2' =: (('Region';'Region') {. (<<'joe') { ('ukey';'User') } (3!:102) '[{User:"joe", Region:""}, {User:"bob",Region:"ABC"}]'))) -: 0
+
+(((<'User') (<'# (~. Region)') /. (3!:102) '[{User:"joe", Region:"AAA"}, {User:"joe",Region:"BBB"}, {User:"joe",Region:"CCC"}]')) -: 0 : 0
++----+-------------+
+|User|# (~. Region)|
+|----+-------------|
+|joe |3            |
++----+-------------+
+)
+
+(# ~. (1 3 $ 'foo')) -: 1
+NB. (# ~. (3 $ 'foo')) -: 2
+NB. (# ~. ('foo')) -: 2
+
+(((<'User') (<'# (~. Region)') /. (3!:102) '[{User:"u1", Region:"AAA"}, {User:"u2",Region:"BBB"}, {User:"u3",Region:"CCC"}]')) -: 0 : 0
++----+-------------+
+|User|# (~. Region)|
+|----+-------------|
+|u1  |1            |
+|----+-------------|
+|u2  |1            |
+|----+-------------|
+|u3  |1            |
++----+-------------+
+)

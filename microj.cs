@@ -212,6 +212,12 @@ namespace MicroJ
                 z.Ravel = a.Ravel.Select(x =>(long) ( x == true ? 1 : 0)).ToArray();
                 return z;
             }
+            else if (Type == typeof(decimal)) {
+                var a = (A<decimal>)this;
+                var z = new A<long>(a.Count, a.Shape);
+                z.Ravel = a.Ravel.Select(x => (long)x).ToArray();
+                return z;
+            }
             throw new NotImplementedException();
         }
 
@@ -464,11 +470,20 @@ namespace MicroJ
             int colIdx = -1;
             if (y.GetType() == typeof(A<JString>)) {
                 var colStr = y.GetString(0);
-                colIdx = Array.IndexOf(Columns, colStr);
-                if (colIdx == -1) {
-                    colIdx = Array.IndexOf(Columns.Select(x=>x.Replace(" ","")).ToArray(), colStr);
+                var renames = colStr.Split(new string[] {Parser.COLUMN_ALIAS_KEYWORD }, StringSplitOptions.RemoveEmptyEntries);
+                if (renames.Length > 1) {
+                    colStr = renames[1].Trim();
                 }
 
+                Regex rgx = new Regex("[^a-zA-Z0-9 -]");
+                colIdx = Array.IndexOf(Columns, colStr);
+                if (colIdx == -1) {
+                    colIdx = Array.IndexOf(Columns.Select(x=>rgx.Replace(x,"")).ToArray(), rgx.Replace(colStr,""));
+                }
+                if (colIdx == -1) {
+                    colStr = y.GetString(0);
+                    colIdx = Array.IndexOf(Columns.Select(x => rgx.Replace(x, "")).ToArray(), rgx.Replace(colStr, ""));
+                }
             }
             else if (y.GetType() == typeof(A<Box>)) {
                 colIdx = -2;
@@ -990,6 +1005,8 @@ namespace MicroJ
 
         public static Func<string, AType> NameResolver = null;
         public static Func<string[], string[]> ParseWordsHook = null;
+
+        public static string COLUMN_ALIAS_KEYWORD = " is ";
 
         char[] symbols = null;
         char[] symbolPrefixes = null;

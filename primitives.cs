@@ -951,7 +951,7 @@ namespace MicroJ {
                 subshapeCt = 1;
             }
             A<T> v;
-            if (y.Rank == 1 && x.Count == 1) {
+            if (y.Rank == 0 || (y.Rank == 1 && x.Count == 1)) {
                 v = new A<T>(0);
             }
             else if (y.Rank == 2 && x.Count == 1) {
@@ -1008,6 +1008,8 @@ namespace MicroJ {
                 }
                 else {
                     var xbt = (x as A<Box>);
+
+                    
                     var idx = xbt.Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
                     var columns = new List<string>();
                     var rows = new List<Box>();
@@ -1018,7 +1020,12 @@ namespace MicroJ {
                         
                         //not boxed
                         if (i != -2) {
-                            columns.Add(v.Columns[i]);
+                            var colName = v.Columns[i];
+                            var suppliedColName = xbt.Ravel[k].val.GetString(0);
+                            if (suppliedColName.Contains(Parser.COLUMN_ALIAS_KEYWORD)) {
+                                colName = suppliedColName.Split(new string[] { Parser.COLUMN_ALIAS_KEYWORD }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                            }
+                            columns.Add(colName);
                             rows.Add(v.Rows[i]);
                         }
                         else {
@@ -1057,7 +1064,7 @@ namespace MicroJ {
                 }
 
                 for (var i = 0; i < yv.Columns.Length; i++) {
-                    locals[JTable.SafeColumnName(yv.Columns[i])] = yv.indices == null ? yv.Rows[i].val : yv.Rows[i].val.FromIndices(yv.indices);
+                    locals[JTable.SafeColumnName(yv.Columns[i])] = yv.indices == null ? yv.Rows[i].val : yv.Rows[i].val.FromIndices(yv.indices, true);
                 }
                 var expression = (x as A<JString>).First().str;
                 var expressionResult = Conjunctions.Parser.exec(expression, locals);
@@ -3205,6 +3212,9 @@ namespace MicroJ {
                     var ret = Parser.parse(line);
                     lastEval = ret;
                 }
+                catch (Exception e) {
+                    throw new ApplicationException(line, e);
+                }
                 finally { }
             }
             Parser.ReadLine = oldRL;
@@ -4089,7 +4099,8 @@ namespace MicroJ {
             int[] colIdx = null;
             //specify columns to key by
             if (x != null) {
-                colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
+                //colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
+                colIdx = (x as A<Box>).Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
                 for (var i = 0; i < rowCt; i++) {
                     var rowIdx = yt.indices == null ? i : yt.indices[i];
                     string key = "";
@@ -4210,12 +4221,12 @@ namespace MicroJ {
                     string col = expressions[i];
                     var parts = col.Split(' ');
                     //eg: is {. MSA
-                    if (parts[0] == "is") {
+                    if (parts[0] == Parser.COLUMN_ALIAS_KEYWORD.Trim()) {
                         col = parts.Last();
                         expressions[i] = String.Join(" ", parts.Skip(1));
                     }
                     //eg MSA is {. MSA
-                    else if (parts.Length > 1 && parts[1] == "is") {
+                    else if (parts.Length > 1 && parts[1] == Parser.COLUMN_ALIAS_KEYWORD.Trim()) {
                         col = parts[0];
                         expressions[i] = String.Join(" ", parts.Skip(2));
                     }
