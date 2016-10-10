@@ -1551,6 +1551,28 @@ namespace MicroJ {
             }
             return z;
         }
+
+        public A<JTable> copyTable(A<JTable> y) {
+            var yt = y.First();
+            var zt = new JTable {
+                Columns = yt.Columns.Select(x => x).ToArray(),
+                Rows = new Box[yt.Columns.Length]
+            };
+            
+            for (var i = 0; i < zt.Columns.Length; i++) {
+                if (yt.indices != null) {
+                    zt.Rows[i].val = yt.Rows[i].val.FromIndices(yt.indices);
+                }
+                else {
+                    zt.Rows[i].val = yt.Rows[i].val;
+                }
+                
+            }
+            return zt.WrapA();
+            
+                
+
+        }
         public AType Call2(AType method, AType x, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
             var verbs = (A<Verb>)method;
@@ -1908,7 +1930,13 @@ namespace MicroJ {
                 else return InvokeExpression("notequals", x, y, 2);
             }
             else if (op == "#") {
-                return InvokeExpression("copy", x.ConvertLong(), y, 1);
+                if (y.GetType() != typeof(A<JTable>)) {
+                    return InvokeExpression("copy", x.ConvertLong(), y, 1);
+                }
+                else {
+                    return copyTable(y as A<JTable>);
+                }
+                
             }
             else if (op == "i.") {
                 return InvokeExpression("indexof", x, y, 1);
