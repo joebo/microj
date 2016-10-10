@@ -1081,6 +1081,11 @@ namespace MicroJ {
 
         //return indices of nub
         public Dictionary<long, List<long>> NubIndex<T>(A<T> x)  where T : struct {
+            if (x.Shape == null) {
+                return new Dictionary<long, List<long>> { { 0, new List<long> { 0 } } };
+            }
+
+            
             var frame = x.Shape.Skip(1).ToArray();
             var frameCt = AType.ShapeProduct(frame);            
             var n = x.Count / frameCt;
@@ -1094,21 +1099,26 @@ namespace MicroJ {
             var indices = new Dictionary<long, List<long>>();
             if (isString) {
                 var ax = (A<JString>) (object) x;
-                var found = new Dictionary<string, List<long>>();
-                for (var i = 0; i < n; i++) {
-                    var key = ax.Ravel[i].str;
-                    List<long> spot = null;
-                    if (found.TryGetValue(key, out spot)) {
-                        spot.Add(i);
+                if (n == ax.Count) {
+                    var found = new Dictionary<string, List<long>>();
+                    for (var i = 0; i < n; i++) {
+                        var key = ax.Ravel[i].str;
+                        List<long> spot = null;
+                        if (found.TryGetValue(key, out spot)) {
+                            spot.Add(i);
+                        }
+                        else {
+                            spot = new List<long>();
+                            spot.Add(i);
+                            found[key] = spot;
+                        }
                     }
-                    else {
-                        spot = new List<long>();
-                        spot.Add(i);
-                        found[key] = spot;
+                    foreach (var val in found.Values) {
+                        indices[val[0]] = val;
                     }
                 }
-                foreach (var val in found.Values) {
-                    indices[val[0]] = val;
+                else {
+                    throw new NotImplementedException("nub not supported on single strings");
                 }
             }
             else if (x.Rank == 1) {                 
@@ -1382,9 +1392,13 @@ namespace MicroJ {
 
         public A<T> nub<T>(A<T> y) where T : struct {            
             var indices = NubIndex(y);
-            var fromIdx = new A<long>(indices.Count);
+            var fromIdx = new A<long>(indices.Count);           
             fromIdx.Ravel = indices.Values.Select(x => x.First()).OrderBy(x=>x).ToArray();
-            return from(fromIdx, y);    
+            var ret = from(fromIdx, y);
+            if (y.GetType() == typeof(A<JString>) && y.Shape != null) {
+                ret.Shape = new long[] { indices.Count, 1 };
+            }
+            return ret;
         }
 
         public A<JTable> nubTable(A<JTable> y)  {
@@ -4264,11 +4278,14 @@ namespace MicroJ {
                         locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } };
                         locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
 
-                        
 
+                        bool flattenStrings = false;
+                        if (op.ToString().Trim() == "/") {
+                            flattenStrings = true;
+                        }
                         AType expressionResult = null;
                         for (var i = 0; i < yt.Columns.Length; i++) {
-                            locals[JTable.SafeColumnName(yt.Columns[i])] = yt.Rows[i].val.FromIndices(kv.Value.ToArray());
+                            locals[JTable.SafeColumnName(yt.Columns[i])] = yt.Rows[i].val.FromIndices(kv.Value.ToArray(), flattenStrings);
                         }
                         
                         

@@ -151,7 +151,7 @@ namespace MicroJ
         public abstract void SetVal(long n, object val);
         public abstract object GetVal(long n);
         public abstract AType GetValA(long n);
-        public abstract AType FromIndices(long[] indices);
+        public abstract AType FromIndices(long[] indices, bool flattenStrings = true);
         public abstract AType TryConvertLong(Parser parse);
         public abstract bool IsAtom();
         public abstract long GetLong(int n);
@@ -733,8 +733,27 @@ namespace MicroJ
             return new A<T>(0) { Ravel = new T[] { Ravel[n] } };
         }
 
-        public override AType FromIndices(long[] indices) {
-            A<T> v = new A<T>(indices.Length);
+        public override AType FromIndices(long[] indices, bool flattenStrings = true) {
+
+            A<T> v = null;
+            if (typeof(T) == typeof(JString) && !flattenStrings) {
+                //if (indices.Length > 1) {
+                    var newShape = new long[] { indices.Length, 1 };
+                    v = new A<T>(indices.Length, newShape);
+                /*
+                }
+                else {
+                    //atom of null
+                    v = new A<T>(0);
+                }
+                 */
+                
+            }
+            else {
+                v = new A<T>(indices.Length);
+            }
+            //v = new A<T>(indices.Length);
+
             for(var i = 0; i < indices.Length;i++) {
                 var idx = indices[i];
                 if (idx != -1) {
