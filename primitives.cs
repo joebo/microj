@@ -56,7 +56,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "!", ";", "q:", "{." , "}.", 
-            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*."};
+            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\"."};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -111,8 +111,7 @@ namespace MicroJ {
                     return AType.MakeA(0);
                 } 
             }, null, 0, 0, 0);
-            
-
+        
             SpecialCode["([:,/({.,.}.))\"1"] = new SpecialCodeEval {
                 evalType = (y) => {
                     return y.GetType() == typeof(A<JTable>);
@@ -1929,7 +1928,9 @@ namespace MicroJ {
                 }
             }
             else if (op == "=") {
-                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
+                if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>))
+                    return equals((A<decimal>)x, (A<decimal>)y);
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
                     return equals((A<long>)x, (A<long>)y);
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>))
                     return equals((A<double>)x, (A<double>)y);
@@ -1940,7 +1941,9 @@ namespace MicroJ {
                 else return InvokeExpression("equals", x, y, 2);
             }
             else if (op == "~:") {
-                if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
+                if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<decimal>))
+                    return notequals((A<decimal>)x, (A<decimal>)y);
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<long>))
                     return notequals((A<long>)x, (A<long>)y);
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<double>))
                     return notequals((A<double>)x, (A<double>)y);
@@ -2327,7 +2330,7 @@ namespace MicroJ {
 
         public AType catenate(A<JString> x, A<JString> y) {
             var max = Math.Max(x.Count, y.Count);
-            var ret = new A<JString>(max);
+            var ret = max > 0 ? new A<JString>(max, new long[] { max, 1}) : new A<JString>(max);
             for (var i = 0; i < max; i++) {
                 var str1 = i >= x.Ravel.Length ? x.GetString(0) : x.GetString(i);
                 var str2 = i >= y.Ravel.Length ? y.GetString(0) : y.GetString(i);
@@ -2335,6 +2338,69 @@ namespace MicroJ {
             }
             return ret;
         }
+
+        public AType toNumbers(AType y, string defaultVal = null) {
+
+            Func<AType, AType> func = (v) => {
+                var str = v.GetString(0);
+                var parts = str.Split(' ');
+                var ret = new A<Decimal>(parts.Length);
+                for (var i = 0; i < parts.Length; i++) {
+                    decimal def = 0;
+                    if (defaultVal == "'NaN'" || defaultVal == "_") {
+                        def = Parser.DecimalInfinity;
+                    }
+                    decimal d;
+                    if (Decimal.TryParse(parts[i], out d)) {
+                        ret.Ravel[i] = d;
+                    }
+                    else {
+                        ret.Ravel[i] = def;
+                    }
+                    
+                }
+                return ret;
+            };
+
+            if (!y.IsAtom()) {
+                AType[] ret = new AType[y.GetCount()];
+
+                for (var i = 0; i < ret.Length; i++) {
+                    ret[i] = func(y.GetValA(i));
+                }
+                return ret[0].Merge(new long[] { ret.Length }, ret);
+            }
+            else {
+                return func(y);
+            }
+
+           
+        }
+
+        public AType CheckDecimal(AType vals) {
+            if (Conjunctions.Parser.UseDecimal && vals.GetType() != typeof(A<Decimal>)) {
+                A<Decimal> ret;
+                if (vals.Shape != null) {
+                    ret = new A<Decimal>(vals.Shape);
+                }
+                else {
+                    if (vals.Rank == 0) {
+                        ret = new A<Decimal>(0);
+                    }
+                    else {
+                        ret = new A<Decimal>(vals.GetCount());
+                    }
+                    
+                }
+                for (var i = 0; i < vals.GetCount(); i++) {
+                    ret.Ravel[i] = Convert.ToDecimal(vals.GetVal(i));
+                }
+                return ret;
+            }
+            else {
+                return vals;
+            }
+        }   
         //candidate for code generation
         public AType Call1(AType method, AType y) {
             var verbs = (A<Verb>)method;
@@ -2404,7 +2470,7 @@ namespace MicroJ {
                 return shape(y);
             }
             else if (op == "#") {
-                return tally(y);
+                return CheckDecimal(tally(y));
             }
             else if (op == "{.") {
                 return InvokeExpression("head", y);
@@ -2521,9 +2587,10 @@ namespace MicroJ {
                 }
                 else if (y.GetType() == typeof(A<decimal>)) {
                     return math(new A<decimal>(0), (A<decimal>)y, (a, b) => Math.Abs(b));
-                }
-                    
-                
+                }                       
+            }
+            else if (op == "\".") {
+                return toNumbers(y);
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {
                 return verbWithRank.InvokeWithRank(y);
@@ -3259,6 +3326,39 @@ namespace MicroJ {
                 }
                 rows.Add(row);
             }
+
+            if (yt.FooterExpressions != null) {
+                var locals = new Dictionary<string, AType>();
+                var self = yt;
+                
+                Action<bool> buildFooter = (filtered) => {
+                    var row = new Dictionary<string, object>();
+                    for (var i = 0; i < self.Columns.Length; i++) {
+                        locals[self.Columns[i]] = self.Rows[i].val;
+                        locals["_C" + i] = locals[self.Columns[i]];
+                    }
+                    foreach (var col in self.Columns) {                        
+                        if (self.FooterExpressions.ContainsKey(col)) {
+                            var expressionResult = new Parser().exec(self.FooterExpressions[col], locals);
+
+                            if (expressionResult.GetType() == typeof(JString)) {
+                                row[col] = expressionResult.ToString();
+                            }
+                            else {
+                                row[col] = expressionResult.GetVal(0);
+                            }
+                        }
+                        else {
+                            row[col] = "";
+                        }
+                        
+                    }
+                    rows.Add(row);
+                };
+
+                buildFooter(true);                
+            }
+
             var serializer = new JavaScriptSerializer();
             serializer.MaxJsonLength = Int32.MaxValue;
 
@@ -3837,7 +3937,10 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "1") {
                 return readcsv(null, (A<Box>)y);
-            }            
+            }
+            else if (verb.conj == "!." && (verb.childVerb != null && verb.childVerb.ToString().Trim() == "\".")) {
+                return Verbs.toNumbers(y, verb.rhs);
+            }
             throw new NotImplementedException(verb + " on y:" + y + " type: " + y.GetType());
         }
 
@@ -3855,6 +3958,9 @@ namespace MicroJ {
                 }
                 else if (x.GetType() == typeof(A<Box>)) {
                     return calldotnet((A<Box>)x, (A<JString>)y);
+                }
+                else if (x.GetType() == typeof(A<decimal>)) {
+                    return calldotnet((A<decimal>)x, (A<JString>)y);
                 }
             }
             else if (verb.conj == "\"") {
@@ -4454,7 +4560,8 @@ namespace MicroJ {
             var yt = y.First();
 
             var yl = noun as A<long>;
-            if (yl != null && yl.Ravel[0] == -1) {
+            var yd = noun as A<decimal>;
+            if ((yl != null && yl.Ravel[0] == -1) || (yd != null && yd.Ravel[0] == -1)) {
                 //yt.FooterExpressions = noun;
                 var xb = (newVal as A<Box>);
                 yt.FooterExpressions = new Dictionary<string, string>();

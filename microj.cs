@@ -253,7 +253,7 @@ namespace MicroJ
                 var aval = Parser.NameResolver(word.TrimStart('`'));
                 return aval != null ? aval : new A<Undefined>(0);
             }
-            if (word.Contains(" ") && !word.Contains(".")) {
+            if (word.Contains(" ") && !word.Contains(".") && word != "_" && !word.Contains(" _ ")) {
                 var longs = new List<long>();
                 foreach (var tpart in word.Split(' ')) {
                     string part = tpart;
@@ -261,8 +261,9 @@ namespace MicroJ
                     if (part.Length > 1 && part[0] == '_' && char.IsDigit(part[1])) {
                         part = part.Replace("_", "-");
                     }
-
+                    
                     longs.Add(int.Parse(part, CultureInfo.InvariantCulture));
+                    
                 }
 
                 if (UseDecimal) {
@@ -277,10 +278,22 @@ namespace MicroJ
                 }
 
             }
-            else if (word.Contains(" ") && word.Contains(".")) {
+            else if ((word.Contains(" ") && (word.Contains(".")) || word.Contains(" _ ") || word == "_")) {
                 var doubles = new List<double>();
                 foreach (var part in word.Split(' ')) {
-                    doubles.Add(double.Parse(part, CultureInfo.InvariantCulture));
+                    if (part == "_") {
+                        doubles.Add((double)Parser.DecimalInfinity);
+                    }
+                    else {
+                        double d = 0;
+                        if (double.TryParse(part, out d)) {
+                            doubles.Add(d);
+                        }
+                        else {
+                            doubles.Add((double)Parser.DecimalInfinity);
+                        }                        
+                    }
+                    
                 }
 
                 if (UseDecimal) {
@@ -644,7 +657,7 @@ namespace MicroJ
         public T First() { return Ravel[0];  }
 
         public override bool IsAtom() {
-            return Rank == 0 || (Rank == 1 && this.GetType() == typeof(A<JString>));
+            return Rank == 0 || (Rank == 1 && this.GetType() == typeof(A<JString>) && Ravel.Length == 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -687,6 +700,10 @@ namespace MicroJ
             return EqualFunc(a, b);
         }
 
+        public A()
+            : base(typeof(T)) {
+
+        }
         public A(long n) : base(typeof(T)) {
             //hold atoms
             Ravel = new T[n != 0 ? n : (n + 1)];
@@ -840,13 +857,14 @@ namespace MicroJ
             }
             else if (typeof(T) == typeof(decimal)) {
                 decimal v = (decimal)(object)val;
+                if (v == Parser.DecimalInfinity) {  return "_";}
                 if (v < 0) { return "_" + Math.Abs(v); }
                 else { return v.ToString(); }
             }
             else if (typeof(T) == typeof(double)) {
                 double v = (double)(object)val;
                 if (v < 0) { return "_" + Math.Abs(v); }
-                else if (double.IsInfinity(v)) { return "_"; }
+                else if (double.IsInfinity(v) || v == (double)Parser.DecimalInfinity) { return "_"; }
                 else if (v > 0) { return v.ToString(CultureInfo.InvariantCulture); }
                 else if (double.IsNaN(v)) { return "0"; }
                 else { return v.ToString(CultureInfo.InvariantCulture); }
@@ -1007,6 +1025,7 @@ namespace MicroJ
         public static Func<string[], string[]> ParseWordsHook = null;
 
         public static string COLUMN_ALIAS_KEYWORD = " is ";
+        public static decimal DecimalInfinity = new decimal(1,0,0,false,27);
 
         char[] symbols = null;
         char[] symbolPrefixes = null;
