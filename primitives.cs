@@ -2385,6 +2385,19 @@ namespace MicroJ {
             return ret;
         }
 
+        public AType catenate(AType x, AType y) {
+            var xct = x.GetCount();
+            var yct = y.GetCount();
+            var max = Math.Max(xct, yct);
+            var ret = max > 0 ? new A<JString>(max, new long[] { max, 1 }) : new A<JString>(max);
+            for (var i = 0; i < max; i++) {
+                var str1 = i >= xct ? x.GetString(0) : x.GetString(i);
+                var str2 = i >= yct ? y.GetString(0) : y.GetString(i);
+                ret.Ravel[i] = new JString { str = str1 + str2 };
+            }
+            return ret;
+        }
+
         public AType toNumbers(AType y, string defaultVal = null) {
 
             Func<AType, AType> func = (v) => {

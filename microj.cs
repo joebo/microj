@@ -1331,8 +1331,13 @@ namespace MicroJ
                             stack.Push(new Token { val = rhs.val });
                         }
                         //special case of 'foo' & 'bar' to concatenate strings
-                        else if (lhs.val is A<JString> && rhs.val is A<JString>) {
+                        else if (conj.word == "&" && lhs.val is A<JString> && rhs.val is A<JString>) {
                             var z = Verbs.catenate(lhs.val as A<JString>, rhs.val as A<JString>);
+                            stack.Push(new Token { val = z });
+                        }
+                        //special case of 'foo' & 'bar' to concatenate strings
+                        else if (conj.word == "&" && lhs.val.GetType() != typeof(A<Verb>) && rhs.val.GetType() != typeof(A<Verb>)) {
+                            var z = Verbs.catenate(lhs.val, rhs.val);
                             stack.Push(new Token { val = z });
                         }
                         else {
