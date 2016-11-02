@@ -94,6 +94,7 @@ namespace App {
                 MicroJ.Parser.MAX_DECIMAL = 6;
                 var files = new List<string>();
                 if (File.Exists("stdlib.ijs")) { files.Add("stdlib.ijs"); }
+                if (File.Exists("profile.ijs")) { files.Add("profile.ijs"); }
                 if (File.Exists("..\\stdlib.ijs")) { files.Add("..\\stdlib.ijs"); }
                 if (args.Length > 0) { files.Add(args[0]); }
 
