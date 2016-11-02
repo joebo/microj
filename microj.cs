@@ -469,6 +469,63 @@ namespace MicroJ
                 yield return obj;
             }
         }
+
+        public List<Dictionary<string, object>> ToJson() {
+            var yt = this;
+
+            var rows = new List<Dictionary<string, object>>();
+            for (var i = 0; i < yt.RowCount; i++) {
+                var idx = yt.indices != null ? yt.indices[i] : i;
+                var row = new Dictionary<string, object>();
+                for (var k = 0; k < yt.Columns.Length; k++) {
+                    var val = yt.Rows[k].val.GetVal(idx);
+                    if (val.GetType() == typeof(JString)) {
+                        row[yt.Columns[k]] = val.ToString();
+                    }
+                    else if (val.GetType() == typeof(byte)) {
+                        row[yt.Columns[k]] = yt.Rows[k].val.GetString(idx);
+                    }
+                    else {
+                        row[yt.Columns[k]] = val;
+                    }
+
+                }
+                rows.Add(row);
+            }
+
+            if (yt.FooterExpressions != null) {
+                var locals = new Dictionary<string, AType>();
+                var self = yt;
+
+                Action<bool> buildFooter = (filtered) => {
+                    var row = new Dictionary<string, object>();
+                    for (var i = 0; i < self.Columns.Length; i++) {
+                        locals[self.Columns[i]] = self.Rows[i].val;
+                        locals["_C" + i] = locals[self.Columns[i]];
+                    }
+                    foreach (var col in self.Columns) {
+                        if (self.FooterExpressions.ContainsKey(col)) {
+                            var expressionResult = new Parser().exec(self.FooterExpressions[col], locals);
+
+                            if (expressionResult.GetType() == typeof(JString)) {
+                                row[col] = expressionResult.ToString();
+                            }
+                            else {
+                                row[col] = expressionResult.GetVal(0);
+                            }
+                        }
+                        else {
+                            row[col] = "";
+                        }
+
+                    }
+                    rows.Add(row);
+                };
+
+                buildFooter(true);
+            }
+            return rows;
+        }
         public static string SafeColumnName(string col) {
             return Regex.Replace(col, @"[^A-Za-z0-9\\_]+", "");
         }
