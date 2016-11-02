@@ -111,7 +111,22 @@ namespace MicroJ {
                     return AType.MakeA(0);
                 } 
             }, null, 0, 0, 0);
-        
+
+
+            SpecialCode["*"] = new SpecialCodeEval {
+                evalTypeDyad = (x, y) => {
+                    return y.Rank == 1 && x.Rank == 1 && x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<long>);
+                },
+                dyad = (x, y) => {
+                    var dbl = x as A<double>;
+                    if (dbl == null) dbl = y as A<double>;
+                    var lng = x as A<long>;
+                    if (lng == null) lng = y as A<long>;
+                    return mathmixed(dbl, lng, (a, b) => a * (double)b);
+                }
+            };
+            
+
             SpecialCode["([:,/({.,.}.))\"1"] = new SpecialCodeEval {
                 evalType = (y) => {
                     return y.GetType() == typeof(A<JTable>);
