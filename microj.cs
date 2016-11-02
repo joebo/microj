@@ -391,11 +391,15 @@ namespace MicroJ
             
             return str;
         }
+        public AType WrapA() {
+            return new A<Verb>(0) { Ravel = new Verb[] { this } };
+        }
     }
 
     //tbd should we use chars instead?
     public struct JString : IComparable {
         public string str;
+        
         public override string ToString() {
             //todo: determine if this is a good idea, needed for tests for now
             return str.Replace("\\n", "\n");
@@ -430,7 +434,10 @@ namespace MicroJ
                 ret[i].val = new A<long>(0) { Ravel = new long[] { vals[i] } };
             }
             return new A<Box>(vals.Length) { Ravel = ret };
-        }   
+        }
+        public A<Box> WrapA() {
+            return new A<Box>(0) { Ravel = new Box[] { this } };
+        }
     }
 
     public struct JTable {
