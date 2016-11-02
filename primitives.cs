@@ -427,6 +427,35 @@ namespace MicroJ {
             return z;
         }
 
+        public A<double> mathmixed(A<double> x, A<long> y, Func<double, long, double> op) {
+            if (x.Rank == 0 && y.Rank == 0) {
+                var z = new A<double>(0);
+                z.Ravel[0] = op(x.Ravel[0], y.Ravel[0]);
+                return z;
+            }
+            if (x.Rank == 0) {
+                var z = new A<double>(y.Ravel.Length, y.Shape);
+                for (var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+                }
+                return z;
+            }
+            else if (y.Rank == 0 && x.Rank > 0) {
+                var z = new A<double>(x.Ravel.Length, x.Shape);
+                for (var i = 0; i < x.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[0]);
+                }
+                return z;
+            }
+            else {
+                var z = new A<double>(y.Ravel.Length, y.Shape);
+                for (var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
+                }
+                return z;
+            }
+            throw new NotImplementedException();
+        }
 
         public A<long> shape(AType y) {
             var v = new A<long>(y.Rank);
@@ -1739,8 +1768,7 @@ namespace MicroJ {
                 }
                 else if (x.CanBeInt() && y.CanBeInt()) {
                     return mathmixedLong(x, y, (a, b) => a * b);
-                }
-                 
+                }                 
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a * b);
                 }                                
