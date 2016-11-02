@@ -451,6 +451,9 @@ namespace MicroJ
         public Dictionary<string, long> UniqueKeys;
         public Dictionary<string, List<long>> Key;
 
+        //holds partition information
+        public A<Box> partitioned;
+
         public IEnumerator<dynamic> GetEnumerator() {
             JTable yt = this;
             for (var i = 0; i < yt.RowCount; i++) {
@@ -1465,6 +1468,20 @@ namespace MicroJ
             }
             throw new ApplicationException("no value found on stack - after " + i.ToString() + " iterations");
         }
+
+        public static void Log(string msg, Stopwatch watch = null, [CallerMemberName] string callerName = "") {
+
+            var fullMsg = System.DateTime.Now + ":Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId+ ":[" + callerName + "]: " + msg;
+            if (watch != null) {
+                watch.Stop();
+                fullMsg += " Elapsed: " + watch.ElapsedMilliseconds;
+            }
+            lock (typeof(Parser)) {
+                System.IO.File.AppendAllText("log.txt", fullMsg + "\r\n");
+            }
+            
+            
+        }
     }
        
     //todo could use some cleanup... primarily interested in getting tests to pass for now
@@ -1631,6 +1648,83 @@ namespace MicroJ
             ret = ret.TrimEnd('\n');
             return ret;
 
+        }
+    }
+
+    public class CacheNoReclaim {
+        static Dictionary<string, AType> cache = new Dictionary<string, AType>();
+        static CacheNoReclaim _instance;
+        public static CacheNoReclaim Current {
+            get {
+                if (_instance == null) {
+                    _instance = new CacheNoReclaim();
+                }
+                return _instance;
+            }
+        }
+        public void Add(string key, AType obj) {
+            lock (cache) {
+                cache[key] = obj;
+            }
+
+        }
+        // Retrieve a data object from the cache.
+        public AType this[string index] {
+            get {
+                lock (cache) {
+                    AType val;
+                    cache.TryGetValue(index, out val);
+                    if (val != null) {
+                        return val;
+                    }
+                    else {
+                        return null;
+                    }
+                }
+            }
+        }
+    }
+
+    public class Cache {
+        // Dictionary to contain the cache.
+        static Dictionary<string, WeakReference> cache = new Dictionary<string, WeakReference>();
+        static Cache _instance;
+        public static Cache Current {
+            get {
+                if (_instance == null) {
+                    _instance = new Cache();
+                }
+                return _instance;
+            }
+        }
+
+        public void Invalidate(string keyPrefix) {
+            var invalidKeys = cache.Keys.Where(x => x.StartsWith(keyPrefix)).ToList();
+            foreach (var key in invalidKeys) {
+                cache.Remove(key);
+            }
+        }
+        public void Add(string key, AType obj) {
+            lock (cache) {
+                cache[key] = new WeakReference(obj, false);
+            }
+            
+        }
+        // Retrieve a data object from the cache.
+        public AType this[string index] {
+            get {
+                lock (cache) {
+                    WeakReference val = null;
+                    cache.TryGetValue(index, out val);
+                    if (val != null) {
+                        AType d = cache[index].Target as AType;
+                        return d;
+                    }
+                    else {
+                        return null;
+                    }
+                }
+            }
         }
     }
 }

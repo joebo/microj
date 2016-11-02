@@ -2045,6 +2045,9 @@ namespace MicroJ {
                     
                     return table;
                 }
+                else if (y.GetType() == typeof(A<JTable>) && (y as A<JTable>).First().partitioned != null) {
+                    return Conjunctions.execParallelMap(new Box { val = x }.WrapA(), (y as A<JTable>).First().partitioned, "{.");            
+                }
                 return InvokeExpression("take", x, y, 1);
             }
             else if (op == "}.") {
@@ -2940,6 +2943,271 @@ namespace MicroJ {
 
         }
 
+        public AType execParallelMap(A<Box> x, A<Box> y, string fromVerb = null, AType op = null) {
+            
+            var query = x != null ? x.Ravel[0].val.GetString(0) : null;
+            var query2 = query;
+            if (x != null && x.Ravel.Length >= 2) {
+                query2 = x.Ravel[1].val.GetString(0);
+            }
+            var path = y.Ravel[0].val.GetString(0);
+            var table = y.Ravel[1].val.GetString(0);
+            string column = null;
+            A<Box> xoptions = null;
+            Dictionary<string, string> optionsDict = null;
+            if (y.Ravel.Length == 3 && y.Ravel[2].val.GetType() == typeof(A<JString>)) {
+                column = y.Ravel[2].val.GetString(0);
+                if (column == "") { column = null; }
+            }
+            else if (y.Ravel.Length == 3 && y.Ravel[2].val.GetType() == typeof(A<Box>)) {
+                xoptions = y.Ravel[2].val as A<Box>;
+                optionsDict = AHelper.ToOptions(xoptions);
+            }
+            
+            var dirs = Directory.GetDirectories(path);
+
+
+            bool hashPartition = optionsDict != null && optionsDict.ContainsKey("hashPartitionName");
+
+            if (optionsDict != null && optionsDict.ContainsKey("onlyDir")) {
+                string onlyDir = optionsDict["onlyDir"];
+                dirs = dirs.Where(t => new DirectoryInfo(t).Name == onlyDir).ToArray();
+            }
+
+            string fullCacheKey = ((x != null) ? x.ToString() : "")  + (y != null ? y.ToString() : "") + (fromVerb != null ? fromVerb : "") + (op != null ? op.ToString() : "");
+            if (op != null && op as A<Verb> != null) {
+                var opv = (op as A<Verb>).Ravel[0];
+                if (opv.childNoun != null) {
+                    fullCacheKey += opv.childNoun.ToString();
+                }
+                
+            }
+            var hash = MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(fullCacheKey));
+            string fullCacheKeyHash = BitConverter.ToString(hash).Replace("-", string.Empty);
+            bool cacheable = true;
+            //don't cache / queries
+            //if (op != null && op.ToString() != "") { cacheable = false; }
+            if (cacheable && Parser.Names.ContainsKey("DBCACHEDIR") && Parser.Names["DBCACHEDIR"].ToString() != "") {
+                var cachePath = Path.Combine(Parser.Names["DBCACHEDIR"].ToString(), fullCacheKeyHash);
+                if (Directory.Exists(cachePath)) {
+                    var yoptions = new A<Box>(2);
+                    yoptions.Ravel[0].val = new JString { str = cachePath }.WrapA();
+                    yoptions.Ravel[1].val = new JString { str = "" }.WrapA();
+                    return readTableBinary(xoptions, yoptions) as A<JTable>;
+                }
+            }
+
+            var results = dirs.AsParallel().Select(dir => {
+                
+                var parser = new Parser();
+                var locals = new Dictionary<string, AType>();
+
+                string cacheKey = dir + ":" + table + ":" + (column ?? "") + (xoptions != null ? xoptions.ToString() : "");
+                var cached = CacheNoReclaim.Current[cacheKey] as A<JTable>;
+                if (cached == null) {
+                    var yoptions = new A<Box>(2);
+                    yoptions.Ravel[0].val = new JString { str = dir + "\\" + table }.WrapA();
+                    yoptions.Ravel[1].val = new JString { str = table }.WrapA();
+                    cached = (readTableBinary(xoptions, yoptions, column) as A<JTable>);
+                    CacheNoReclaim.Current.Add(cacheKey, cached);
+                    Parser.Log("cache miss on " + cacheKey);
+                    
+                } 
+                
+                var z = cached.First();
+
+                var paritionNameStr = new DirectoryInfo(dir).Name;
+                if (hashPartition) { paritionNameStr = paritionNameStr.GetHashCode().ToString(); }
+                var partitionName = new JString { str = paritionNameStr };
+
+                locals["Partition"] = partitionName.WrapA();
+               
+                var addPartitionColumn = new Func<JTable, A<JTable>>(newt => {
+                    newt.Columns = newt.Columns.Concat(new string[] { "Partition" }).ToArray();
+                    var partitionColumn = new A<JString>(newt.RowCount);
+                    for (var i = 0; i < newt.RowCount; i++) { partitionColumn.Ravel[i] = partitionName; }
+                    newt.Rows = newt.Rows.Concat(new Box[] { new Box { val = partitionColumn } }).ToArray();
+
+                    return newt.WrapA();
+                });
+                if (op != null && op.ToString() == "addcol") {
+                    var options = new A<Box>(2);
+                    var verb = (op as A<Verb>).First();
+                    options.Ravel[0].val = new JString { str = "addcol" }.WrapA();
+                    options.Ravel[1].val = verb.childNoun as A<JString>;
+
+                    var za = parser.Adverbs.setTableProps(options, cached);
+                    //return addPartitionColumn(za.First());
+                    cached = za;
+                    CacheNoReclaim.Current.Add(cacheKey, cached);
+                    return AType.MakeA(0);
+                } 
+                else if (fromVerb == "keyTable") {
+                    try {
+                        var za = parser.Adverbs.keyTable(op, x as A<Box>, z.WrapA()) as A<JTable>;
+
+                        //trying to get a scalar using /
+                        if (query == null) {
+                            return za;
+                        }
+                        else {
+                            return addPartitionColumn(za.First());
+                        }
+                    }
+                    catch (Exception e) {
+                        return null;
+                    }
+                }
+                else if (fromVerb == "{.") {
+                    var za = Verbs.take(AType.MakeA(query, null) as A<long>, z.WrapA());
+                    return addPartitionColumn(za.First());
+                }
+                else {
+                    locals[table] = z.WrapA();
+                    locals["this"] = z.WrapA();
+
+                    for (var i = 0; i < z.Columns.Length; i++) {
+                        locals[JTable.SafeColumnName(z.Columns[i])] = z.Rows[i].val;
+                    }
+
+                    if (Parser.LocalNames != null) {
+                        foreach (var kvx in Parser.LocalNames) {
+                            locals[kvx.Key] = kvx.Value;
+                        }
+                    }
+
+                    foreach (var kv in Parser.Names) {
+                        parser.Names[kv.Key] = kv.Value;
+                    }
+                    return parser.exec(query, locals);
+                }
+                
+            }).ToArray();
+
+            List<AType> finalResults = new List<AType>();
+            List<string> partitionNames = new List<string>();
+            for (var i = 0; i < results.Length; i++) {
+                var xv = results[i];
+                if (xv != null && xv.GetType() != typeof(A<Verb>)) {
+                    finalResults.Add(xv);
+                    partitionNames.Add(new DirectoryInfo(dirs[i]).Name);
+                }
+            }
+            results = finalResults.ToArray();
+
+            var newShape = new long[] { results.Length };
+            if (results[0].Shape != null) {
+                var len = results.Sum(result => result.Shape[0]);
+                newShape = new long[] { len, 1 };
+            }
+            AType merged = null;
+            var mergedLocals = new Dictionary<string, AType>();
+            if (results[0].GetType() != typeof(A<JTable>)) {
+                merged = results[0].Merge(newShape, results);
+                if (column != null)
+                    mergedLocals[JTable.SafeColumnName(column)] = merged;          
+            }
+            else {
+                var newTable = new JTable();
+                //newTable.Columns = results.SelectMany(xv => (xv as A<JTable>).First().Columns).Distinct().ToArray();
+                //newTable.Rows = new Box[newTable.Columns.Length];
+                var totalRows = results.Select(xv => (xv as A<JTable>).First().RowCount).Sum();
+                var allCols = new Dictionary<string, Type>();
+                
+                for (var i = 0; i < results.Length; i++) {
+                    var tresult = (results[i] as A<JTable>).First();
+                    for (var k = 0; k < tresult.Columns.Length; k++) {
+                        allCols[tresult.Columns[k]] = tresult.Rows[k].val.GetType();
+                    }
+                }
+                if (!allCols.ContainsKey("Partition")) {
+                    //dont add partition if trying to get a scalar
+                    if (op != null && op.ToString().Trim() == "/") {
+
+                    }
+                    else {
+                        allCols["Partition"] = typeof(A<JString>);
+                    }
+                    
+                }
+                newTable.Columns = allCols.Keys.ToArray();
+                newTable.Rows = new Box[newTable.Columns.Length];
+                for (var k = 0; k < newTable.Columns.Length; k++) {
+                    var colName = newTable.Columns[k];
+                    var colType = allCols[colName];
+                    Box box;
+                    A<JString> scol = null;
+                    A<long> lcol = null;
+                    A<double> dcol = null;
+                    A<decimal> decol = null;
+                    if (colType == typeof(A<JString>)) {
+                        scol = new A<JString>(totalRows);
+                        box = scol.Box();
+                    }
+                    else if (colType == typeof(A<long>)) {
+                        lcol = new A<long>(totalRows);
+                        box = lcol.Box();
+                    }
+                    else if (colType == typeof(A<double>)) {
+                        dcol = new A<double>(totalRows);
+                        box = dcol.Box();
+                    }
+                    else {
+                        decol = new A<decimal>(totalRows);
+                        box = decol.Box();
+                    }
+                    var row = 0;
+                    for (var i = 0; i < results.Length; i++) {
+                        var tresult = (results[i] as A<JTable>).First();
+                        var colIdx = Array.IndexOf(tresult.Columns, colName);
+                        var paritionNameStr = partitionNames[i];
+                        if (hashPartition) { paritionNameStr = paritionNameStr.GetHashCode().ToString(); }
+                        var partitionName = new JString { str = paritionNameStr };
+
+                        for (var q = 0; q < tresult.RowCount; q++) {
+                            if (colIdx == -1) {
+                                if (colName == "Partition") { scol.Ravel[row] = partitionName; }
+                                else if (scol != null) { scol.Ravel[row] = new JString { str = "" }; }
+
+                            }
+                            else {
+                                //if (scol != null) { scol.Ravel[row] = new JString { str = tresult.Rows[colIdx].val.GetString(q).Trim() }; }
+                                if (scol != null) { scol.Ravel[row] = (JString)tresult.Rows[colIdx].val.GetVal(q); }
+                                else if (dcol != null) { dcol.Ravel[row] = (double)tresult.Rows[colIdx].val.GetVal(q); }
+                                else if (lcol != null) { lcol.Ravel[row] = (long)tresult.Rows[colIdx].val.GetVal(q); }
+                                else if (decol != null) { decol.Ravel[row] = (decimal)tresult.Rows[colIdx].val.GetVal(q); }
+                            }
+                            row++;
+                        }
+                            
+                    }
+                    newTable.Rows[k] = box;
+                }
+                merged = newTable.WrapA();
+            }
+            
+
+            mergedLocals["this"] = merged;
+
+            AType finalResult = null;            
+            if (fromVerb == "keyTable" || fromVerb == "{.") {
+                finalResult = merged;
+            }
+            else {
+                finalResult = Parser.exec(query2, mergedLocals);
+            }
+
+
+            if (cacheable && finalResult is A<JTable> && Parser.Names.ContainsKey("DBCACHEDIR") && Parser.Names["DBCACHEDIR"].ToString() != "") {
+                var cachePath = Path.Combine(Parser.Names["DBCACHEDIR"].ToString(), fullCacheKeyHash);
+                var yoptions = new A<Box>(1);
+                yoptions.Ravel[0].val = new JString { str = cachePath }.WrapA();                
+                writeTableBinary(yoptions, finalResult as A<JTable>);
+            }
+
+            return finalResult;
+
+        }
         //BYTE=1, JCHAR = 2, JFL = 8
         //(2;12) (151!:0) 'dates';'c:/temp/dates.bin';
         //(<8) (151!:0) 'tv';'c:/temp/tv.bin';                
