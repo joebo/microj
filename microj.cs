@@ -554,6 +554,10 @@ namespace MicroJ
                 if (renames.Length > 1) {
                     colStr = renames[1].Trim();
                 }
+                renames = colStr.Split(new string[] { Parser.COLUMN_MASK_KEYWORD }, StringSplitOptions.RemoveEmptyEntries);
+                if (renames.Length > 1) {
+                    colStr = renames[1].Trim();
+                }
 
                 Regex rgx = new Regex("[^a-zA-Z0-9 -]");
                 colIdx = Array.IndexOf(Columns, colStr);
@@ -588,7 +592,9 @@ namespace MicroJ
                 take = take,
                 indices = indices == null ? null : indices.Select(x=>x).ToArray(),
                 ColumnExpressions = ColumnExpressions,
-                FooterExpressions = FooterExpressions
+                FooterExpressions = FooterExpressions,
+                Key = Key,
+                UniqueKeys = UniqueKeys
             };
         }
 
@@ -609,6 +615,9 @@ namespace MicroJ
         }
             
         public override string ToString() {
+            if (partitioned != null) {
+                return partitioned.ToString();
+            }
             var ct = Rows[0].val.GetCount();
             if (indices != null) {
                 ct = indices.Length;
@@ -696,7 +705,7 @@ namespace MicroJ
             return formatter.ToString();
         }
     }
-    public class A<T> : AType where T : struct {
+    public class A<T> : AType {
 
         public T[] Ravel;
 
@@ -1092,6 +1101,7 @@ namespace MicroJ
         public static Func<string[], string[]> ParseWordsHook = null;
 
         public static string COLUMN_ALIAS_KEYWORD = " is ";
+        public static string COLUMN_MASK_KEYWORD = " ismasked ";
         public static decimal DecimalInfinity = new decimal(1,0,0,false,27);
 
         char[] symbols = null;
@@ -1112,7 +1122,7 @@ namespace MicroJ
             Verbs.Conjunctions = Conjunctions;
 
 
-            Conjunctions.Names = Names;
+            //Conjunctions.Names = Names;
             //symbols are the first letter of every verb or adverb, letter symbols and ':' cause problems currently
             symbols = Verbs.Words.Select(x => x[0]).Union(Adverbs.Words.Select(x => x[0])).Union(Conjunctions.Words.Select(x => x[0])).Where(x => !char.IsLetter(x) && x!=':').ToArray();
             symbolPrefixes = Verbs.Words.Where(x => x.Length > 1).Select(x => x[1]).Union(Adverbs.Words.Where(x => x.Length > 1).Select(x => x[1])).ToArray();

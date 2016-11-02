@@ -18,6 +18,8 @@ using CSScriptLibrary;
 using System.IO.MemoryMappedFiles;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using System.Security.Cryptography;
 
 namespace MicroJ {
    
@@ -903,9 +905,10 @@ namespace MicroJ {
             if (x.Rank > 0) { throw new NotImplementedException("Rank > 0 not implemented on take"); }
             var xct = Math.Abs(x.Ravel[0]);
             if (y.Shape != null) { newShape = new long[] { xct }.Concat(y.Shape.Skip(1)).ToArray(); }
-            var v = new A<T>(newShape);
-
+            
             if (y.GetType() == typeof(A<JString>) && y.Rank < 2) {
+                var v = new A<T>(newShape);
+
                 var idx = (int)x.Ravel[0];
                 if (idx >= 0) {
                     v.Ravel[0] = (T)(object)new JString { str = ((A<JString>)(object)y).Ravel[0].str.Substring(0, idx) };
@@ -914,12 +917,12 @@ namespace MicroJ {
                     var str = ((A<JString>)(object)y).Ravel[0].str;
                     v.Ravel[0] = (T)(object)new JString { str = str.Substring(str.Length+idx) };
                 }
-                
+                return v;
             }
-            else if (y.GetType() == typeof(A<JTable>)) {
+            else if (y.GetType() == typeof(A<JTable>)) {                
                 //todo: move to own
                 var yt = (y as A<JTable>).First();
-                var take = xct;
+                var take = Math.Min(xct, yt.RowCount);
                 var offset = 0L;
                 var xv = x.Ravel[0];
                 if (xv < 0) {
@@ -932,7 +935,7 @@ namespace MicroJ {
                     return (A<T>)(object)zt.WrapA();           
                 }
                 else {
-                    take = xct;
+                    take = Math.Min(xct, yt.RowCount);
                     long[] indices;
                     if (yt.RowCount == 0) {
                         indices = new long[0];
@@ -948,10 +951,12 @@ namespace MicroJ {
                     
             }
             else {
+                var v = new A<T>(newShape);
                 v.Ravel = y.Copy(v.Count, ascending: x.Ravel[0] >= 0);
+                return v;
             }
-            
-            return v;
+
+            throw new NotImplementedException();
         }
 
 
@@ -1068,8 +1073,35 @@ namespace MicroJ {
                             if (suppliedColName.Contains(Parser.COLUMN_ALIAS_KEYWORD)) {
                                 colName = suppliedColName.Split(new string[] { Parser.COLUMN_ALIAS_KEYWORD }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
                             }
+                            if (suppliedColName.Contains(Parser.COLUMN_MASK_KEYWORD)) {
+                                colName = suppliedColName.Split(new string[] { Parser.COLUMN_MASK_KEYWORD }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                            }
                             columns.Add(colName);
-                            rows.Add(v.Rows[i]);
+
+                            if (suppliedColName.Contains(Parser.COLUMN_MASK_KEYWORD)) {
+                                //functionto mask values
+                                var orig = v.Rows[i].val as A<JString>;
+                                var shape = orig.ShapeCopy();
+                                if (shape.Length == 1) {
+                                    shape = new long[] { v.RowCount, 1 };
+                                }
+                                var newVals = new A<JString>(shape);
+                                var maskDict = new Dictionary<string, JString>();                                
+                                var uniques = 0;
+                                for (var n = 0; n < v.RowCount; n++) {
+                                    var val = orig.GetString(n);
+                                    if (!maskDict.ContainsKey(val)) {
+                                        maskDict[val] = new JString { str = uniques.ToString() };
+                                        uniques++;
+                                    }
+                                    newVals.Ravel[n] = maskDict[val];
+                                }
+                                rows.Add(newVals.Box());
+                            }
+                            else {
+                                rows.Add(v.Rows[i]);
+                            }
+                            
                         }
                         else {
                             //(<(<'c';'a+b')) {. (flip ('a';'b');(i.3);(3 $ 1 2))
@@ -1259,9 +1291,9 @@ namespace MicroJ {
             return (A<T>)(object)z;
         }
 
-        public A<T2> sortup<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
-            var indices = gradeup(y);
-            return from(indices, x);            
+        public A<T> sortup<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
+            var indices = gradeup(x);
+            return from(indices, y);            
         }
 
         public A<T> sortdown<T2, T>(A<T2> x, A<T> y) where T : struct where T2 : struct {
@@ -2661,7 +2693,10 @@ namespace MicroJ {
         //@ and ^: handled in special code only right now
         public static readonly string[] Words = new[] { "\"", "!:", "&", ":", "!.", "@", "^:" };
         public Verbs Verbs;
-        public Dictionary<string, AType> Names;
+        //public Dictionary<string, AType> Names;
+        public Dictionary<string, AType> Names {
+            get { return Parser.Names;  }
+        }
         public Parser Parser;
 
         public Conjunctions(Verbs verbs) {
@@ -3945,6 +3980,7 @@ namespace MicroJ {
         public AType writeTableBinary(A<Box> x, A<JTable> y) {
             var yt = y.First();
             var path = x.First().val.GetString(0);
+            Directory.CreateDirectory(path);
             bool writeBytes = false;
             var optionsDict = new Dictionary<string, string>();
             if (x.Count > 1) {
@@ -3963,6 +3999,9 @@ namespace MicroJ {
                 }
                 else if (yt.Rows[k].val.GetType() == typeof(A<double>)) {
                     prefix = "d_";
+                }
+                else if (yt.Rows[k].val.GetType() == typeof(A<decimal>)) {
+                    prefix = "m_";
                 }
                 else if (yt.Rows[k].val.GetType() == typeof(A<JString>)) {
                     maxLen = (yt.Rows[k].val as A<JString>).Ravel.Select(xx => xx.str.Length).Max();
@@ -4000,10 +4039,14 @@ namespace MicroJ {
             return new JString { str = "" }.WrapA();
         }
 
-        public unsafe AType readTableBinary(A<Box> x, A<Box> y) {
+        public unsafe AType readTableBinary(A<Box> x, A<Box> y, string column = null) {
             var path = y.First().val.GetString(0);
 
             var files = new DirectoryInfo(path).GetFiles("*.bin");
+
+            if (column != null) {
+                files = new DirectoryInfo(path).GetFiles("*" + column + ".bin");
+            }
 
             string[] cols = new string[files.Length];
             Box[] newRows = new Box[files.Length];
@@ -4014,20 +4057,47 @@ namespace MicroJ {
                 optionsDict = AHelper.ToOptions(x);
             }
             bool noPad = optionsDict.ContainsKey("nopad");
+            bool stringsAsBytes = optionsDict.ContainsKey("stringsAsBytes");
+            bool unmask = optionsDict.ContainsKey("unmask");
+            var skipCols = new string[] { };
+            string[] onlyCols = null;
+
+            if (optionsDict.ContainsKey("skipCols")) {
+                skipCols = optionsDict["skipCols"].Split(',');
+            }
+            if (optionsDict.ContainsKey("onlyCols")) {
+                onlyCols = optionsDict["onlyCols"].Split(',');
+            }
 
             int offset = 0;
+            string[] fileNames = files.Select(f => f.Name).ToArray();
             foreach (var file in files) {
                 var parts = file.Name.Split('_');
                 var spec = parts[0];
                 var col = String.Join("_", parts.Skip(1).ToArray()).Replace(".bin", "");
                 var num = file.Length;
-
+                if (fileNames.Where(f=>f.EndsWith(col + ".mask.bin")).Count() > 0 && !file.Name.Contains(".mask") && !unmask) {
+                    continue;
+                }
+                if (col.EndsWith(".mask") && !unmask) {
+                    col = col.Replace(".mask", "");
+                }
+                if (skipCols.Contains(col)) {
+                    continue;
+                }
+                if (onlyCols != null && !onlyCols.Contains(col)) {
+                    continue;
+                }
+#if DEBUG
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+#endif
                 using (var mmf = MemoryMappedFile.CreateFromFile(path + "\\" + file.Name, FileMode.Open)) {
                     using (var view = mmf.CreateViewAccessor(0, num)) {
                         byte* ptr = (byte*)0;
                         AType val = null;
                         view.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
-                        if (spec.StartsWith("b")) {
+                        if (spec.StartsWith("b") || (spec.StartsWith("s") && stringsAsBytes)) {
                             int size = Int32.Parse(spec.Substring(1));
                             var rows = size > 0 ? num / size : num;
                             byte[] arr = new byte[num];
@@ -4059,6 +4129,18 @@ namespace MicroJ {
                             }
                             
                         }
+                        else if (spec.StartsWith("m")) {
+                            var rows = num / sizeof(decimal);
+                            decimal[] arr = new decimal[rows];
+                            
+                            using (var br = new BinaryReader(mmf.CreateViewStream())) {
+                                for (var i = 0; i < rows; i++) {
+                                    arr[i] = br.ReadDecimal();
+                                }
+                            }
+                            val = new A<decimal>() { Ravel = arr, Shape = new long[] { rows } };
+
+                        }
                         else if (spec.StartsWith("l")) {
                             var rows = num / sizeof(long);
                             long[] arr = new long[rows];
@@ -4077,12 +4159,16 @@ namespace MicroJ {
                         offset++;
                     }
                 }
+
+#if DEBUG                
+                Parser.Log("reading " + path + "\\" + file, sw);
+#endif
             }
                
 
             return new JTable {
-                Columns = cols,
-                Rows = newRows
+                Columns = cols.Where(f=>f!=null).ToArray(),
+                Rows = newRows.Where(f=>f.val!=null).ToArray()
             }.WrapA();
         }
 
@@ -4268,12 +4354,21 @@ namespace MicroJ {
                 if (y.GetType() == typeof(A<JTable>)) {
                     return tableToJSON((A<JTable>)y);
                 }
+                else if (y.GetType() == typeof(A<Box>)) {
+                    return boxToJSON((A<Box>) y);
+                }
+                else if (y.GetType() == typeof(A<JString>)) {
+                    return namesToJSON((A<JString>)y);
+                }
             }
             else if (verb.conj == "!:" && verb.op == "6" && verb.rhs == "2") {
                 return timeit((A<JString>)y);
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "1") {
                 return readcsv(null, (A<Box>)y);
+            }
+            else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "10") {
+                return new JTable { partitioned = y as A<Box> }.WrapA();
             }
             else if (verb.conj == "!." && (verb.childVerb != null && verb.childVerb.ToString().Trim() == "\".")) {
                 return Verbs.toNumbers(y, verb.rhs);
@@ -4298,6 +4393,9 @@ namespace MicroJ {
                 }
                 else if (x.GetType() == typeof(A<decimal>)) {
                     return calldotnet((A<decimal>)x, (A<JString>)y);
+                }
+                else if (x.GetType() == typeof(A<JTable>)) {
+                    return calldotnet((A<JTable>)x, (A<JString>)y);
                 }
             }
             else if (verb.conj == "\"") {
@@ -4336,6 +4434,9 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "5") {
                 return readTableKey((A<Box>)x, (A<Box>)y);
+            }
+            else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "10") {
+                return execParallelMap((A<Box>)x, (A<Box>)y);
             }
             //default value for missing colum
             else if (verb.conj == "!." && y.GetType() == typeof(A<JTable>) && (verb.childVerb != null && verb.childVerb.ToString() == "{")) {
@@ -4535,44 +4636,71 @@ namespace MicroJ {
         //where options=noparse, the operation is not parsed
         public AType keyTable<T2, T>(AType op, A<T2> x, A<T> y) where T : struct where T2 : struct {
             var yt = (y as A<JTable>).First();
+            if (yt.partitioned != null) {
+                return Conjunctions.execParallelMap(x as A<Box>, yt.partitioned, "keyTable", op);
+            }
             var rowCt = yt.RowCount;
 
             var keyIndices = new Dictionary<string, List<long>>();
+            var lkeyIndices = new Dictionary<long, List<long>>();
+            bool allRows = false;
 
             int[] colIdx = null;
             //specify columns to key by
             if (x != null) {
                 //colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
                 colIdx = (x as A<Box>).Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
-                for (var i = 0; i < rowCt; i++) {
-                    var rowIdx = yt.indices == null ? i : yt.indices[i];
-                    string key = "";
-                    for (var k = 0; k < colIdx.Length; k++) {
-                        key = key + yt.Rows[colIdx[k]].val.GetString(rowIdx);
+                if (colIdx.Length == 1 && yt.Rows[colIdx[0]].val.GetType() == typeof(A<long>) && yt.indices == null) {
+                    var col = yt.Rows[colIdx[0]].val as A<long>;
+                    for (var i = 0; i < rowCt; i++) {
+                        var key = col.Ravel[i];
+                        List<long> match = null;
+                        if (!lkeyIndices.TryGetValue(key, out match)) {
+                            match = new List<long>();
+                            lkeyIndices[key] = match;
+                        }
+                        match.Add(i);
                     }
-                    List<long> match = null;
-                    if (!keyIndices.TryGetValue(key, out match)) {
-                        match = new List<long>();
-                        keyIndices[key] = match;
-                    }
-                    match.Add(rowIdx);
                 }
+                else {
+                    for (var i = 0; i < rowCt; i++) {
+                        var rowIdx = yt.indices == null ? i : yt.indices[i];
+                        string key = "";
+                        for (var k = 0; k < colIdx.Length; k++) {
+                            key = key + yt.Rows[colIdx[k]].val.GetString(rowIdx);
+                        }
+                        List<long> match = null;
+                        if (!keyIndices.TryGetValue(key, out match)) {
+                            match = new List<long>();
+                            keyIndices[key] = match;
+                        }
+                        match.Add(rowIdx);
+                    }
+                }
+                
             }
             else {
                 //no columns to key by, but need to respect indices in case its filtered
 
                 //todo likely performance issue
                 //hack to support insert: '# Item_UOM' / ((<'Item_UOM') { input)
-                var indices = new List<long>();
-                for (var i = 0; i < rowCt; i++) {
-                    var rowIdx = yt.indices == null ? i : yt.indices[i];
-                    indices.Add(rowIdx);
+                if (yt.indices == null) {
+                    allRows = true;
+                    keyIndices[""] = new List<long> { -1 };
                 }
-                keyIndices[""] = indices;
+                else {
+                    var indices = new List<long>();
+                    for (var i = 0; i < rowCt; i++) {
+                        var rowIdx = yt.indices == null ? i : yt.indices[i];
+                        indices.Add(rowIdx);
+                    }
+                    keyIndices[""] = indices;
+                }
+                
                 
             }
             
-            var keyCt = keyIndices.Count;
+            var keyCt = Math.Max(keyIndices.Count, lkeyIndices.Count);
 
             var vop = op as A<Verb>;
 
@@ -4676,7 +4804,7 @@ namespace MicroJ {
                     expressionCols.Add(col);
                 }
 
-                var cols = colIdx != null ? yt.Columns.Where((xv, i) => colIdx.Contains(i)).ToArray().Concat(expressionCols).ToArray() : expressionCols.ToArray();
+                var cols = colIdx != null ? colIdx.Select(xt=>yt.Columns[xt]).ToArray().Concat(expressionCols).ToArray() : expressionCols.ToArray();
                 
                 var t = new JTable {
                     Columns = cols,
@@ -4687,23 +4815,37 @@ namespace MicroJ {
                 //special fit to not parse expressions /. !. 'noparse'
                 bool noParse = vop.Ravel[0].rhs != null && vop.Ravel[0].rhs.Contains("noparse");
 
-                for (var k = 0; colIdx != null && k < colIdx.Length; k++) {
-                    var groupRows = new List<AType>();
-
-                    foreach (var kv in keyIndices) {
-                        groupRows.Add((AType)yt.Rows[colIdx[k]].val.FromIndices(new long[] { kv.Value.First() }));
+                if (colIdx != null && colIdx.Length == 1 && keyIndices != null && keyIndices.Count > 0) {
+                    var at = new A<JString>(keyIndices.Count);
+                    var idx = 0;
+                    foreach(var kv in keyIndices) {
+                        at.Ravel[idx] = new JString { str = kv.Key };
+                        idx++;
                     }
-
-                    var newShape = new long[] { keyCt };
-                    if (groupRows[0].GetType() == typeof(A<JString>)) {
-                        //todo: dumb for now
-                        newShape = new long[] { keyCt, 1 };
-                    }
-                    var at = groupRows[0].Merge(newShape, groupRows.ToArray());
-                    rows[colOffset++] = new Box {
-                        val = at
-                    };                  
+                    rows[colOffset++] = at.Box();
                 }
+                else {
+                    for (var k = 0; colIdx != null && k < colIdx.Length; k++) {
+                        var groupRows = new List<AType>();
+
+                        foreach (var kv in keyIndices) {
+                            groupRows.Add((AType)yt.Rows[colIdx[k]].val.FromIndices(new long[] { kv.Value.First() }));
+                        }
+                        foreach (var kv in lkeyIndices) {
+                            groupRows.Add((AType)yt.Rows[colIdx[k]].val.FromIndices(new long[] { kv.Value.First() }));
+                        }
+                        var newShape = new long[] { keyCt };
+                        if (groupRows[0].GetType() == typeof(A<JString>)) {
+                            //todo: dumb for now
+                            newShape = new long[] { keyCt, 1 };
+                        }
+                        var at = groupRows[0].Merge(newShape, groupRows.ToArray());
+                        rows[colOffset++] = new Box {
+                            val = at
+                        };
+                    }
+                }
+                
 
                 
 
@@ -4715,35 +4857,48 @@ namespace MicroJ {
                     var expressionParts = expression.Split(' ');
                     var groupRows = new List<AType>();
 
-                    foreach (var kv in keyIndices) {
-
-                        var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
+                    IEnumerable<long[]> keyIndexValues = null;
+                    if (keyIndices.Count() > 0) { keyIndexValues = keyIndices.Values.ToArray().Select(z=>z.ToArray()); }
+                    if (lkeyIndices.Count() > 0) { keyIndexValues = lkeyIndices.Values.ToArray().Select(z => z.ToArray()); }
+                    foreach (var val in keyIndexValues) {
 
                         var locals = new Dictionary<string, AType>();
-
-                        if (Conjunctions.Parser.LocalNames != null) {
-                            foreach (var kvx in Conjunctions.Parser.LocalNames) {
-                                locals[kvx.Key] = kvx.Value;
-                            }
-                        }
-
-                        long groupCt = 0;
-                        locals["_N"] = rowCtA;
-                        locals["_G"] = new A<long>(0) { Ravel = new long[] { kv.Value.Count } };
-                        locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
-
-
-                        bool flattenStrings = false;
-                        if (op.ToString().Trim() == "/") {
-                            flattenStrings = true;
-                        }
                         AType expressionResult = null;
-                        for (var i = 0; i < yt.Columns.Length; i++) {
-                            locals[JTable.SafeColumnName(yt.Columns[i])] = yt.Rows[i].val.FromIndices(kv.Value.ToArray(), flattenStrings);
+
+                        if (!noParse) {
+                            var rowCtA = new A<long>(0) { Ravel = new long[] { rowCt } };
+
+                            if (Conjunctions.Parser.LocalNames != null) {
+                                foreach (var kvx in Conjunctions.Parser.LocalNames) {
+                                    locals[kvx.Key] = kvx.Value;
+                                }
+                            }
+
+                            long groupCt = 0;
+                            locals["_N"] = rowCtA;
+                            locals["_G"] = new A<long>(0) { Ravel = new long[] { val.Length } };
+                            locals["_I"] = new A<long>(0) { Ravel = new long[] { groupCt++ } };
+
+
+                            bool flattenStrings = false;
+                            if (op.ToString().Trim() == "/") {
+                                flattenStrings = true;
+                            }
+                            
+                            for (var i = 0; i < yt.Columns.Length; i++) {
+                                locals[JTable.SafeColumnName(yt.Columns[i])] = allRows ? yt.Rows[i].val : yt.Rows[i].val.FromIndices(val, flattenStrings);
+                            }
+                        
                         }
                         
                         
                         if (noParse) {
+                            for (var i = 0; i < yt.Columns.Length; i++) {
+                                if (JTable.SafeColumnName(yt.Columns[i]) == expressionParts[1]) {
+                                    locals[JTable.SafeColumnName(yt.Columns[i])] = allRows ? yt.Rows[i].val : yt.Rows[i].val.FromIndices(val, false);
+                                }
+                                
+                            }
                             var method = new A<Verb>(1) { Ravel = new Verb[] { new Verb { op = expressionParts[0] } } };
                             expressionResult = Verbs.Call1(method, locals[expressionParts[1]]);
                         }
@@ -4763,9 +4918,12 @@ namespace MicroJ {
                         //todo: dumb for now
                         newShape = new long[] { keyCt, 1 };
                     }
+                    else if (groupRows[0].GetType() == typeof(A<long>)) {
+                        newShape = new long[] { keyCt };
+                    }
 
                     //todo: hack to support /
-                    if (op.ToString().Trim() != "/") {
+                    if (op.ToString().Trim() != "/" && groupRows.Count() > 1) {
                         var at = groupRows[0].Merge(newShape, groupRows.ToArray());
                         rows[colOffset++] = new Box {
                             val = at
@@ -4850,6 +5008,22 @@ namespace MicroJ {
                     }
                     indices.Add(rowIdx);
                 }
+            }
+            else if (options.ContainsKey("addcol")) {
+                var expr = options["addcol"];
+                var op = new Verb { childNoun = new JString { str = expr }.WrapA(), op = "addcol" }.WrapA();
+                var newTable = keyTable(op, (A<JString>)null, y) as A<JTable>;
+                if (yt.partitioned == null) {
+                    yt = Verbs.linktable(y, newTable).First();
+                }
+                else if (newTable == null) {
+                    return y;
+                }
+                else {
+                    yt = newTable.First();
+                }
+                
+                
             }
             //replace instance copied by runtime since jtable is a struct
             y.Ravel[0] = yt;

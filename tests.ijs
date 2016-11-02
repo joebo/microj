@@ -524,7 +524,7 @@ NB. behead a table with multiple columns
 
 
 NB. sort
- (('a';'c';'b') /: 0 2 1) -: ('a';'b';'c')
+ (0 2 1 /: ('a';'c';'b') ) -: ('a';'b';'c')
 
 
 NB. table amend, first column as key
@@ -841,6 +841,20 @@ NB. create a column through from
 +-+
 )
 
+NB. create a column through addcol (fastest)
+((('addcol';'a+b') } (flip ('a';'b');(i.3);(3 $ 1 2)))) -: 0 : 0
++-+-+---+
+|a|b|a+b|
+|-+-+---|
+|0|1|1  |
+|-+-+---|
+|1|2|3  |
+|-+-+---|
+|2|1|3  |
++-+-+---+
+)
+
+
 add=: 3 : 0
 a+1
 )
@@ -1124,7 +1138,3 @@ NB. (# ~. ('foo')) -: 2
 +-----+-----+-----+
 )
 
-NB. include footer in json
-(3!:103) ((('k';'# k'),.('v';'+/ v')) _1 } flip ('k';'v');(> 'a';'b';'c');(5 10 15))) -: 0 : 0
-
-)
