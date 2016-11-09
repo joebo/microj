@@ -151,7 +151,7 @@ namespace MicroJ
         public abstract void SetVal(long n, object val);
         public abstract object GetVal(long n);
         public abstract AType GetValA(long n);
-        public abstract AType FromIndices(long[] indices, bool flattenStrings = true);
+        public abstract AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false);
         public abstract AType TryConvertLong(Parser parse);
         public abstract bool IsAtom();
         public abstract long GetLong(int n);
@@ -400,6 +400,7 @@ namespace MicroJ
     public struct JString : IComparable {
         public string str;
         
+
         public override string ToString() {
             //todo: determine if this is a good idea, needed for tests for now
             return str.Replace("\\n", "\n");
@@ -841,7 +842,7 @@ namespace MicroJ
             return new A<T>(0) { Ravel = new T[] { Ravel[n] } };
         }
 
-        public override AType FromIndices(long[] indices, bool flattenStrings = true) {
+        public override AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false) {
 
             A<T> v = null;
             if (typeof(T) == typeof(JString) && !flattenStrings) {
@@ -862,6 +863,10 @@ namespace MicroJ
             }
             //v = new A<T>(indices.Length);
 
+            if (allRows) {
+                v.Ravel = Ravel;
+                return v;
+            }
             for(var i = 0; i < indices.Length;i++) {
                 var idx = indices[i];
                 if (idx != -1) {
@@ -1700,14 +1705,14 @@ namespace MicroJ
         }
     }
 
-    public class Cache {
+    public class CacheReclaim {
         // Dictionary to contain the cache.
         static Dictionary<string, WeakReference> cache = new Dictionary<string, WeakReference>();
-        static Cache _instance;
-        public static Cache Current {
+        static CacheReclaim _instance;
+        public static CacheReclaim Current {
             get {
                 if (_instance == null) {
-                    _instance = new Cache();
+                    _instance = new CacheReclaim();
                 }
                 return _instance;
             }
