@@ -102,14 +102,18 @@ namespace App {
                 if (testMode) new Tests().TestAll();
                 
                 foreach(var file in files.Where(x=>!x.StartsWith("-"))) {
-                    if (!File.Exists(file)) {
+                    if (!File.Exists(file) && !file.StartsWith("~")) {
                         Console.WriteLine("file: " + file + " does not exist");
                         return;
                     }
                     testMode = argList.FindIndex(c => c.Contains("-t")) > -1;
                     bool quiet = argList.FindIndex(c => c.Contains("-q")) > -1;
                     if (file == "stdlib.ijs") { quiet = true; testMode = false;}
-                    string[] lines = File.ReadAllLines(file);
+                    string[] lines = null;
+                    if (!file.StartsWith("~"))
+                        lines = File.ReadAllLines(file);
+                    else
+                        lines = new string[] { file.Substring(1) };
                     for (var i = 0; i < lines.Length; i++) {
                         var line = lines[i];
                         try {
