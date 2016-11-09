@@ -58,7 +58,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "!", ";", "q:", "{." , "}.", 
-            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\"."};
+            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\".", "s:"};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -79,6 +79,10 @@ namespace MicroJ {
         
 
         public Dictionary<string, VerbWithRank> expressionMap;
+
+        public Parser Parser {
+            get { return Conjunctions.Parser;  }
+        }
         public Verbs() {
             expressionDict = new Dictionary<Tuple<string, Type, Type>, Delegate>();
             expressionMap = new Dictionary<string, VerbWithRank>();
@@ -114,6 +118,7 @@ namespace MicroJ {
                 } 
             }, null, 0, 0, 0);
 
+            expressionMap["s:"] = new VerbWithRank(symbolize, symbolizeDyad, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
 
             SpecialCode["*"] = new SpecialCodeEval {
                 evalTypeDyad = (x, y) => {
@@ -662,8 +667,9 @@ namespace MicroJ {
             var v = new A<JString>(size, new[] { size, len });
             for (var i = 0; i < size; i++) {
                 //intern string saves 4x memory in simple test and 20% slower
+                //v.Ravel[i].str = String.Intern(new String(chars, (int)(i * len), (int)len));
                 v.Ravel[i].str = String.Intern(new String(chars, (int)(i * len), (int)len));
-                //v.Ravel[i].str =  new String(chars, (int)(i*len), (int)len);
+                
             }
 
             return v;
@@ -2468,6 +2474,111 @@ namespace MicroJ {
            
         }
 
+        public AType symbolizeDyad(AType x, AType y) {
+            var xl = x as A<long>;
+            var xd = x as A<decimal>;
+            var xs = x as A<JString>;
+
+            if (xl == null && xd != null) { xl = xd.TryConvertLong(Parser) as A<long>;  }
+            
+            var yl = y as A<long>;
+            var yd = y as A<decimal>;
+            var ys = y as A<JString>;
+            var yb = y as A<Box>;
+
+            if (yl == null && yd != null) { yl = yd.TryConvertLong(Parser) as A<long>; }
+
+            //write symbols -- 10 s: 'sym.bin'
+            if (xl != null && ys != null && xl.First() == 10) {
+                using(var fs = new FileStream(ys.GetString(0), FileMode.Create, FileAccess.Write)) {
+                    using (var bw = new BinaryWriter(fs)) {
+                        bw.Write((-1*(Parser.ExternalStringSymbolIndex))-1);
+                        for(var i = -1; i > Parser.ExternalStringSymbolIndex; i--) {
+                            bw.Write(Parser.StringSymbolsLookup[i].str);
+                        }
+                    }
+                }                
+            }
+            //read symbols ('sym.bin') s: 10
+            if (yl != null && yl.First() == 10 && xs != null) {
+                using (var fs = new FileStream(xs.GetString(0), FileMode.Open, FileAccess.Read)) {
+                    using (var bw = new BinaryReader(fs)) {
+                        var ct = bw.ReadInt64();
+                        var strs = new A<JString>(ct);
+                        for (var i = 0; i < ct; i++) {
+                            var str = bw.ReadString();
+                            strs.Ravel[i] = new JString { str = str };
+                        }
+                        symbolize(strs, true);
+                    }
+                }
+            }
+            //write symbol enumeration to binary --- 10 s: ('DB';'Region';(1{syms))
+            if (xl != null && xl.First() == 10 && yb != null) {
+                using (var fs = new FileStream(Path.Combine(yb.Ravel[0].val.GetString(0), "l_" + yb.Ravel[1].val.GetString(0) + ".sym.bin"), FileMode.Create, FileAccess.Write)) {
+                    using (var bw = new BinaryWriter(fs)) {
+                        var vals = yb.Ravel[2].val as A<long>;
+                        for (var i = 0; i < vals.Count; i++ ) {
+                            bw.Write(vals.Ravel[i]);
+                        }
+                    }
+                }          
+            }
+            return AType.MakeA(1);
+        }
+        public AType symbolize(AType y) {
+            return symbolize(y, false);
+        }
+        public AType symbolize(AType y, bool isExternal = false) {
+            if (y.GetType() == typeof(A<JString>)) {
+                A<long> vals = new A<long>(y.GetCount());
+                for(var i = 0; i < vals.Count; i++) {
+                    long val = 0;
+                    var key = String.Intern(y.GetString(i));
+                    if (Parser.StringSymbols.TryGetValue(key, out val)) {
+                        vals.Ravel[i] = val;
+                    } else {
+                        if (isExternal == false) {
+                            val = Parser.InternalStringSymbolIndex;
+                            Parser.StringSymbols[key] = val;
+                            Parser.StringSymbolsLookup[val] = new JString { str = key };
+                            vals.Ravel[i] = val;
+                            Parser.InternalStringSymbolIndex+=1;
+                        } else {
+                            val = Parser.ExternalStringSymbolIndex;
+                            Parser.StringSymbols[key] = val;
+                            Parser.StringSymbolsLookup[val] = new JString { str = key };
+                            vals.Ravel[i] = val;
+                            Parser.ExternalStringSymbolIndex-=1;
+                        }                        
+                    }
+                }
+                return vals;                
+            }
+            else if (y.GetType() == typeof(A<long>)) {
+                A<JString> vals = new A<JString>(y.GetCount());
+                A<long> vl = y as A<long>;
+
+                for (var i = 0; i < vals.Count; i++) {
+                    vals.Ravel[i] = Parser.StringSymbolsLookup[vl.Ravel[i]];
+                }
+                return vals;
+            }
+            else if (y.GetType() == typeof(A<Box>)) {
+                var yb = y as A<Box>;
+                var z = new A<Box>(yb.Count);
+                for (var i = 0; i < yb.Count; i += 2) {
+                    var col = yb.GetString(i);
+                    var tbl = (yb.Ravel[(i + 1)].val as A<JTable>);
+                    var colValues = (fromtable(yb.Ravel[i].WrapA() as A<Box>, tbl) as A<JTable>).First() ;
+                    var symVals = symbolize(colValues.Rows[0].val, true);
+                    z.Ravel[i] = yb.Ravel[i];
+                    z.Ravel[(i + 1)] = symVals.Box();
+                }
+                return z;
+            }
+            throw new NotImplementedException("Symbolize not implemented on " + y.GetType());
+        }
         public AType CheckDecimal(AType vals) {
             if (Conjunctions.Parser.UseDecimal && vals.GetType() != typeof(A<Decimal>)) {
                 A<Decimal> ret;
@@ -4079,8 +4190,16 @@ namespace MicroJ {
                 if (fileNames.Where(f=>f.EndsWith(col + ".mask.bin")).Count() > 0 && !file.Name.Contains(".mask") && !unmask) {
                     continue;
                 }
+
+                if (fileNames.Where(f => f.EndsWith(col + ".sym.bin")).Count() > 0 && !file.Name.Contains(".sym")) {
+                    continue;
+                }
+
                 if (col.EndsWith(".mask") && !unmask) {
                     col = col.Replace(".mask", "");
+                }
+                if (col.EndsWith(".sym") ) {
+                    col = col.Replace(".sym", "");
                 }
                 if (skipCols.Contains(col)) {
                     continue;
@@ -4112,10 +4231,10 @@ namespace MicroJ {
                                 byte[] arr = new byte[size];
                                 System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), (int)(i * size)), arr, 0, (int)size);
                                 var str = System.Text.Encoding.UTF8.GetString(arr);
-                                if (noPad) { str = str.TrimEnd();  }
+                                if (noPad) { str = str.TrimEnd(); }
                                 vals[i] = new JString { str = String.Intern(str) };
                             }
-                            val = new A<JString>(new long[] { rows, size }) { Ravel = vals };
+                            val = new A<JString>(new long[] { rows, size }) { Ravel = vals };                                                        
                         }
                         else if (spec.StartsWith("d")) {
                             var rows = num / sizeof(double);
@@ -4145,12 +4264,23 @@ namespace MicroJ {
                             var rows = num / sizeof(long);
                             long[] arr = new long[rows];
                             System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), 0), arr, 0, (int)rows);
-                            if (!Parser.UseDecimal) {
-                                val = new A<long>(new long[] { rows }) { Ravel = arr };
+                            if (file.Name.Contains(".sym")) {
+                                var sval = new A<JString>(new long[] { rows, 1 });
+
+                                for (var i = 0; i < rows; i++) {
+                                    sval.Ravel[i] = Parser.StringSymbolsLookup[arr[i]];
+                                }
+                                val = sval;
                             }
                             else {
-                                val = new A<decimal>(new long[] { rows }) { Ravel = arr.Select(xv => Convert.ToDecimal(xv)).ToArray() };
+                                if (!Parser.UseDecimal) {
+                                    val = new A<long>(new long[] { rows }) { Ravel = arr };
+                                }
+                                else {
+                                    val = new A<decimal>(new long[] { rows }) { Ravel = arr.Select(xv => Convert.ToDecimal(xv)).ToArray() };
+                                }
                             }
+                            
                             
                         }
                         view.SafeMemoryMappedViewHandle.ReleasePointer();
@@ -4886,7 +5016,13 @@ namespace MicroJ {
                             }
                             
                             for (var i = 0; i < yt.Columns.Length; i++) {
-                                locals[JTable.SafeColumnName(yt.Columns[i])] = allRows ? yt.Rows[i].val : yt.Rows[i].val.FromIndices(val, flattenStrings);
+                                var v = allRows ? yt.Rows[i].val : yt.Rows[i].val.FromIndices(val, false);
+                                //hack to support / on strings (e.g. '# Item_UOM' / Items
+                                if (flattenStrings && v.GetType() == typeof(A<JString>)) {
+                                    v.Shape = new long[] { v.GetCount() };
+                                }
+                                locals[JTable.SafeColumnName(yt.Columns[i])] = v;
+                                
                             }
                         
                         }
@@ -4998,16 +5134,33 @@ namespace MicroJ {
             else if (options.ContainsKey("key")) {
                 yt.Key = new Dictionary<string, List<long>>();
                 var colIdx = yt.GetColIndex(new JString { str = options["key"] }.WrapA());
-                for (var i = 0; i < yt.RowCount; i++) {
-                    var rowIdx = yt.indices == null ? i : yt.indices[i];
-                    List<long> indices = null;
-                    var key = yt.Rows[colIdx].val.GetString(rowIdx).ToUpper();
-                    if (!yt.Key.TryGetValue(key, out indices)) {
-                        indices = new List<long>();
-                        yt.Key[key] = indices;
+                var colVals = yt.Rows[colIdx].val as A<JString>;
+                //todo support intern checks
+                if (false && yt.indices == null && colVals != null && String.IsInterned(colVals.Ravel[0].str) != null) {
+                    //special code for optimizing interned string keys                    
+                    for (var i = 0; i < yt.RowCount; i++) {
+                        List<long> indices = null;
+                        var key = colVals.Ravel[i].str;
+                        if (!yt.Key.TryGetValue(key, out indices)) {
+                            indices = new List<long>();
+                            yt.Key[key] = indices;
+                        }
+                        indices.Add(i);
                     }
-                    indices.Add(rowIdx);
                 }
+                else {
+                    for (var i = 0; i < yt.RowCount; i++) {
+                        var rowIdx = yt.indices == null ? i : yt.indices[i];
+                        List<long> indices = null;
+                        var key = yt.Rows[colIdx].val.GetString(rowIdx).ToUpper();
+                        if (!yt.Key.TryGetValue(key, out indices)) {
+                            indices = new List<long>();
+                            yt.Key[key] = indices;
+                        }
+                        indices.Add(rowIdx);
+                    }
+                }
+                
             }
             else if (options.ContainsKey("addcol")) {
                 var expr = options["addcol"];
