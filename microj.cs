@@ -1112,6 +1112,11 @@ namespace MicroJ
         char[] symbols = null;
         char[] symbolPrefixes = null;
 
+        public static Dictionary<string, long> StringSymbols = new Dictionary<string, long>();
+        public static Dictionary<long, JString> StringSymbolsLookup = new Dictionary<long, JString>();
+        public static long ExternalStringSymbolIndex = -1; //external symbols start with -1
+        public static long InternalStringSymbolIndex = 1; //external symbols start with -1
+
         public Parser() {
             Names = new Dictionary<string, AType>();
             Globals = new Dictionary<string, object>();
