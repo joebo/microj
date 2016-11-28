@@ -2748,6 +2748,9 @@ namespace MicroJ {
                 }
                 else if (y.GetType() == typeof(A<double>)) {
                     return math((A<double>)y, (A<double>)y, (a, b) => a * b);
+                }
+                else if (y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)y, (A<decimal>)y, (a, b) => a * b);
                 }                
             }
             else if (op == "+:") {
@@ -2757,6 +2760,9 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<double>)) {
                     return math((A<double>)y, (A<double>)y, (a, b) => a + b);
                 }
+                else if (y.GetType() == typeof(A<decimal>)) {
+                    return math((A<decimal>)y, (A<decimal>)y, (a, b) => a + b);
+                }                
             }
             else if (op == "!") {
                 A<double> a = new A<double>(1);
