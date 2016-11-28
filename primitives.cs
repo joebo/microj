@@ -4101,8 +4101,6 @@ namespace MicroJ {
         }
         public AType writeTableBinary(A<Box> x, A<JTable> y) {
             var yt = y.First();
-            var path = x.First().val.GetString(0);
-            Directory.CreateDirectory(path);
             bool writeBytes = false;
             var optionsDict = new Dictionary<string, string>();
             if (x.Count > 1) {
@@ -4112,6 +4110,9 @@ namespace MicroJ {
             if (optionsDict.ContainsKey("type") && optionsDict["type"] == "csv") {
                 return writeTableCSV(x, y);
             }
+            var path = x.First().val.GetString(0);
+            Directory.CreateDirectory(path);
+            
             for (var k = 0; k < yt.Columns.Length; k++) {
                 var col = JTable.SafeColumnName(yt.Columns[k]);
                 var prefix = "";
