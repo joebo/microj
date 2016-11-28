@@ -3481,6 +3481,7 @@ namespace MicroJ {
             var limit = optionsDict.ContainsKey("limit") ? Int64.Parse(optionsDict["limit"]) : Int64.MaxValue;
             var delimiter = !optionsDict.ContainsKey("delimiter") ? ',' : Char.Parse(optionsDict["delimiter"].Replace("\\t", "\t"));
             var unquote = optionsDict.ContainsKey("unquote");
+            var noHeader = optionsDict.ContainsKey("noheader");
             HashSet<string> keepColumns = null;
             if (optionsDict.ContainsKey("cols")) {
                 keepColumns = new HashSet<string>();
@@ -3502,7 +3503,10 @@ namespace MicroJ {
 
             var headerLine = File.ReadLines(fileName).First();
             headers = headerLine.Split(delimiter).Select(x=>x.Trim()).ToArray();
-            if (unquote) {
+            if (noHeader) {
+                headers = headers.Select((x,i) => "Col" + i).ToArray();
+            }
+            else if (unquote) {
                 headers = headers.Select(x => x.Trim('\"')).ToArray();
             }
             fieldCount = headers.Length;
@@ -3587,9 +3591,16 @@ namespace MicroJ {
             var doubles = new Dictionary<string, List<double>>();
             var rowCount = 0;
 
-            foreach (var line in File.ReadLines(fileName).Skip(1)) {
+            warningCt = 0;
+            foreach (var line in File.ReadLines(fileName).Skip(noHeader ? 0 : 1)) {
                 
                 var csv = line.Split(delimiter);
+                if (csv.Length < fieldCount) {
+                    if (warningCt < 5)
+                        Console.WriteLine("WARNING: Line is less than field count" + line);
+                    warningCt++;
+                    continue;
+                }
                 if (unquote) {
                     csv = csv.Select(x => x.Trim('\"')).ToArray();
                 }
@@ -3629,14 +3640,7 @@ namespace MicroJ {
                             Console.WriteLine("bad data: " + csv[i]);
                         }
                         longs[columnName].Add(lv);
-                    }
-                    else if (columnType == TYPE_STR) {
-                        if (!strings.ContainsKey(columnName)) {
-                            strings[columnName] = new List<string>();
-                        }
-                        var sv = i < csv.Length ? csv[i] : "";
-                        strings[columnName].Add(sv);
-                    }
+                    }                  
                     else if (columnType == TYPE_DOUBLE) {
                         if (!doubles.ContainsKey(columnName)) {
                             doubles[columnName] = new List<double>();
@@ -3649,6 +3653,13 @@ namespace MicroJ {
                         Double.TryParse(val, out dv);
                         doubles[columnName].Add(dv);
 
+                    }
+                    else { //else if (columnType == TYPE_STR) {
+                        if (!strings.ContainsKey(columnName)) {
+                            strings[columnName] = new List<string>();
+                        }
+                        var sv = i < csv.Length ? csv[i] : "";
+                        strings[columnName].Add(sv);
                     }
                     /*
                         else if (columnType == "System.DateTime") {
