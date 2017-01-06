@@ -58,7 +58,7 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "!", ";", "q:", "{." , "}.", 
-            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\".", "s:"};
+            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\".", "s:", "%:"};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -2708,6 +2708,12 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<long>)) {
                     return transpose((A<long>)y);
                 }
+                else if (y.GetType() == typeof(A<decimal>)) {
+                    return transpose((A<decimal>)y);
+                }
+                else if (y.GetType() == typeof(A<double>)) {
+                    return transpose((A<double>)y);
+                }
             }
             else if (op == "|.") {
                 if (y.GetType() == typeof(A<long>)) {
@@ -2763,6 +2769,15 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<decimal>)) {
                     return math((A<decimal>)y, (A<decimal>)y, (a, b) => a + b);
                 }                
+            }
+            else if (op == "%:") {
+                if (y.GetType() == typeof(A<long>) || y.GetType() == typeof(A<double>)) {
+                    var y2 = y.ConvertDouble();
+                    return math((A<double>)y2, (A<double>)y2, (a, b) => Math.Sqrt(a));
+                }
+                else if (y.GetType() == typeof(A<decimal>)) {                    
+                    return math((A<decimal>)y, (A<decimal>)y, (a, b) => Convert.ToDecimal(Math.Sqrt((double)a)));
+                }
             }
             else if (op == "!") {
                 A<double> a = new A<double>(1);
