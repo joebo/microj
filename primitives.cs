@@ -56,7 +56,7 @@ namespace MicroJ {
    
     public class Verbs {
 
-        public static readonly string[] Words = new[] { "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
+        public static readonly string[] Words = new[] { "A.", "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "!", ";", "q:", "{." , "}.", 
             "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\".", "s:", "%:"};
 
@@ -1510,6 +1510,57 @@ namespace MicroJ {
             return z.WrapA();
         }
 
+        public A<long> anagram<T>(A<T> y) where T : struct {
+            var sh = y.Shape;
+            int permutationLen = (int)sh[sh.Length - 1];
+            var zshape = new long[sh.Length - 1];
+            for (int i = 0; i < sh.Length - 1; i++) {
+                zshape[i] = sh[i];
+            }
+
+            var z = new A<long>(zshape.Length);
+            z.Shape = zshape;
+            T[] d = y.Ravel;
+            var permRankList = new List<long>(); //list of permutation ranks.
+            int idx = 0;
+            while (idx < prod(zshape)) {
+                T[] subd = new T[permutationLen];
+                for (int j = 0; j < subd.Length; j++) {
+                    subd[j] = d[idx * permutationLen + j];
+                }
+                int max = 0;
+
+                var intdic = new Dictionary<int, int>();
+                for (int i = 0; i < subd.Length; i++) {
+                    try {
+                        int c = int.Parse(subd[i].ToString());
+                        max = c > max ? c : max;
+                        intdic[c] = c;
+                    }
+                    catch (Exception) {
+                        throw new Exception("Domain error");
+                    }
+
+                }
+
+                var keys = intdic.Keys;
+                List<int> l = new List<int>();
+                for (int i = 0; i < max; i++) {
+                    if (!keys.Contains(i)) {
+                        l.Add(i);
+                    }
+                }
+                foreach (var k in keys) {
+                    l.Add(k);
+                }
+                int rank = Anagram.CalculateRank(l.ToArray());
+                permRankList.Add(rank);
+                idx += 1;
+            }
+            z.Ravel = permRankList.ToArray();
+            return z;
+        }
+
         public AType primesm(AType w) {
             return primes(null, w);
         }
@@ -2686,6 +2737,9 @@ namespace MicroJ {
                 }
                 */
                 
+            }
+            else if (op == "A.") {
+                return rank1helper(op, "anagram", y);
             }
             else if (op == "$") {
                 return shape(y);
@@ -5762,6 +5816,100 @@ namespace MicroJ {
             return result;
         }
 
+    }
+
+    public static class Anagram {
+
+        private static int factorial32(int val) {
+            if (val < 0) throw new Exception("negative!");
+            if (val > 15) throw new Exception("value too big");
+            if (val == 0 || val == 1) return 1;
+            else {
+                int total = 1;
+                for (int i = 1; i <= val; i++) {
+                    total *= i;
+                }
+                return total;
+            }
+        }
+
+        public static List<int[]> generateOrderedPermutations(int[] elements) {
+            List<int[]> permlist = new List<int[]>();
+            int[] perm = (int[])elements.Clone();
+            Array.Sort(perm);
+            permlist.Add(perm);
+            int[] h = (int[])perm.Clone();
+            int ctr = 0;
+            while (ctr++ < factorial32(elements.Length) - 1) {
+                h = getNextPermutation(h);
+                permlist.Add(h);
+            }
+            return permlist;
+
+        }
+
+        public static int[] getNextPermutation(int[] permutation) {
+            int count = permutation.Length;
+            int[] next = (int[])permutation.Clone();
+            int i = count - 2;
+
+            while (next[i + 1].CompareTo(next[i]) < 0) {
+                i--;
+                if (i == 0)
+                    break;
+            }
+
+            int j = count - 1;
+            while (next[j].CompareTo(next[i]) < 0) {
+                j--;
+            }
+            int tmp = next[j];
+            next[j] = next[i];
+            next[i] = tmp;
+
+            int[] cp = (int[])next.Clone();
+            for (int k = i + 1; k < count; k++) {
+                cp[k] = next[k];
+            }
+            for (int k = i + 1; k < count; k++) {
+                next[k] = cp[count - 1 + i + 1 - k];
+            }
+
+            return next;
+        }
+
+        public static int CalculateRank(int[] permutation) {
+
+            int[] perm = (int[])permutation.Clone(); // copy the original.
+            int size = permutation.Length;
+            int r = 0;
+            for (int j = 0; j < size; j++) {
+                r += permutation[j] * factorial32(size - j - 1);
+                for (int i = j + 1; i < size; i++) {
+                    if (permutation[i] > permutation[j])
+                        permutation[i] = permutation[i] - 1;
+                }
+            }
+            return r;
+        }
+
+        public static int[] CalculateUnrank(int r, int n) {
+            if (r < 0 || r >= factorial32(n))
+                throw new Exception("Argument r is not in valid range.");
+            int[] perm = new int[n];
+            perm[n - 1] = 0;
+            for (int j = 0; j < n - 1; j++) {
+                int d = (r % factorial32(j + 2)) / factorial32(j + 1);
+                r -= d * factorial32(j);
+                perm[n - j - 2] = d;
+                for (int i = n - j - 1; i < n; i++) {
+                    if (perm[i] > d - 1) {
+                        perm[i] = perm[i] + 1;
+                    }
+                }
+            }
+            return perm;
+        }
     }
 
     public static class Gamma {
