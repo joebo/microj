@@ -1152,3 +1152,9 @@ NB. sqrt test with decimal
 
 NB. i. with rank2
 ($ i. (2 3) $ 2 3 4 2 3 4) -: 2 2 3 4
+
+NB. anagram (monadic)
+(A. 0 1 2) -: 0
+(A. 2 1 0) -: 5
+(A. 3 4 0 1) -: 64
+(A. (2 3) $ 0 2 1) -: 1 1
