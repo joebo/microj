@@ -2886,6 +2886,15 @@ namespace MicroJ {
                 }                       
             }
             else if (op == "\".") {
+                if (y.GetType() == typeof(A<JString>) && y.IsAtom()) {
+                    var str = y.GetString(0);
+                    if (Parser.Names.ContainsKey(str)) {
+                        return Parser.Names[str];
+                    }
+                    else if (Parser.LocalNames != null && Parser.LocalNames.ContainsKey(str)) {
+                        return Parser.LocalNames[str];
+                    }
+                }
                 return toNumbers(y);
             }
             else if (expressionMap.TryGetValue(op, out verbWithRank)) {

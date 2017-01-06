@@ -1158,3 +1158,10 @@ NB. anagram (monadic)
 (A. 2 1 0) -: 5
 (A. 3 4 0 1) -: 64
 (A. (2 3) $ 0 2 1) -: 1 1
+
+NB. ". for eval
+evaltest =: 3 : 0
+A=. i.3
+". 'A'
+)
+(evaltest 0) -: (i.3)
