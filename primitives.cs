@@ -2602,7 +2602,17 @@ namespace MicroJ {
             else {
                 return vals;
             }
-        }   
+        }
+
+        AType rank1helper(string op, string method, AType y) {
+            if (y.Rank >= 2) {
+                Verb rankVerb = new Verb();
+                rankVerb.op = op;
+                rankVerb.rhs = "1";
+                return InvokeExpression("rank1ex", rankVerb.WrapA(), y, 1, Conjunctions);
+            }
+            return InvokeExpression(method, y, null);
+        }
         //candidate for code generation
         public AType Call1(AType method, AType y) {
             var verbs = (A<Verb>)method;
@@ -2658,6 +2668,13 @@ namespace MicroJ {
                 return y;
             }
             else if (op == "i.") {
+                //using rank1helper has about 20% overhead, the dispatching is probably fine on lists, but may be too expensive on 0-cells
+                //bin\microj -n 100000 -js "0 [ i. 10"
+                //2780ms with rank1helper, 2353ms without it
+                return rank1helper(op, "iota", y);
+                
+                
+                /*
                 if (y.GetType() == typeof(A<int>)) {
                     return iota((A<int>)y);
                 }
@@ -2667,6 +2684,8 @@ namespace MicroJ {
                 else if (y.GetType() == typeof(A<decimal>)) {
                     return iota((A<decimal>)y);
                 }
+                */
+                
             }
             else if (op == "$") {
                 return shape(y);
