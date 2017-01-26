@@ -58,7 +58,8 @@ namespace MicroJ {
 
         public static readonly string[] Words = new[] { "A.", "+", "-", "*", "%", "i.", "$", "#", "=", "|:", 
             "|.", "-:", "[", "p:", ",", "!", ";", "q:", "{." , "}.", 
-            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\".", "s:", "%:"};
+            "<", "<:", "<.",  ">",">:", ">." , "{", "/:", "\\:", "*:", "+:", "\":", "~.", ",.", "]", "[:", "}:", "I.", "|", ";:", "+.", "E.", "~:", "*.", "\".", "s:", "%:",
+            ",:"};
 
         public static readonly string[] ControlWords = new[] { "if.", "end.", "do.", "else.", "elseif.", "while." };
 
@@ -1435,6 +1436,21 @@ namespace MicroJ {
             return z.WrapA();
         }
 
+
+        public A<JTable> uniontable(A<JTable> x, A<JTable> y) {
+            var xv = x.First();
+            var yv = y.First();
+
+            var matches = xv.Columns.Select((v, i) => new { xv = xv, xi = i, yi = Array.IndexOf(yv.Columns, v) });
+            var z = xv.Clone();
+            z.Rows = new Box[z.Columns.Length];
+            for (var i = 0; i < z.Columns.Length; i++) {
+                z.Rows[i] = InvokeExpression("append", xv.Rows[i].val, yv.Rows[i].val, 1).Box();
+            }
+ 
+            return z.WrapA();
+        }
+
         //links a table with a boxed set of columns and row expressions
         //example: (flip ('a';'b');((1,2);(3,5)));((<'c');'a+b'))) -: 0 : 0
         public A<JTable> linktableExpression(A<JTable> x, A<Box> y) {
@@ -2110,6 +2126,12 @@ namespace MicroJ {
                 }
                 return InvokeExpression("append", x, y, 1, tryConvertLong: false);
             }
+            else if (op == ",:") {
+                //union two tables together
+                if (x.GetType() == typeof(A<JTable>) && y.GetType() == typeof(A<JTable>)) {
+                    return uniontable((A<JTable>)x, (A<JTable>)y);
+                }
+            }
             else if (op == "{.") {
                 x = x.TryConvertLong(Conjunctions.Parser);
                 if (y.GetType() == typeof(A<JTable>) && x.GetType() != typeof(A<long>)) {
@@ -2119,11 +2141,11 @@ namespace MicroJ {
                     if (table.GetCount() == 1) {
                         return table.GetValA(0);
                     }
-                    
+
                     var ytt = yt.First();
                     //handling for single row with multiple columns of all the same type
-                    if (table.GetType() == typeof(A<Box>) && (ytt.RowCount <=1)) {
-                        var allInt = ytt.Rows.Aggregate(true, (p,c) => p && c.val.GetType() == typeof(A<long>));
+                    if (table.GetType() == typeof(A<Box>) && (ytt.RowCount <= 1)) {
+                        var allInt = ytt.Rows.Aggregate(true, (p, c) => p && c.val.GetType() == typeof(A<long>));
                         var allDouble = ytt.Rows.Aggregate(true, (p, c) => p && c.val.GetType() == typeof(A<double>));
                         var allDecimal = ytt.Rows.Aggregate(true, (p, c) => p && c.val.GetType() == typeof(A<decimal>));
                         if (allInt || allDouble || allDecimal) {
@@ -2131,11 +2153,11 @@ namespace MicroJ {
                             return ret;
                         }
                     }
-                    
+
                     return table;
                 }
                 else if (y.GetType() == typeof(A<JTable>) && (y as A<JTable>).First().partitioned != null) {
-                    return Conjunctions.execParallelMap(new Box { val = x }.WrapA(), (y as A<JTable>).First().partitioned, "{.");            
+                    return Conjunctions.execParallelMap(new Box { val = x }.WrapA(), (y as A<JTable>).First().partitioned, "{.");
                 }
                 return InvokeExpression("take", x, y, 1);
             }
@@ -2153,12 +2175,13 @@ namespace MicroJ {
                         newX.Ravel = (x as A<bool>).Ravel.Select(xv => (long)(xv ? 1 : 0)).ToArray();
                         return InvokeExpression("from", newX, y, 1);
                     }
-                    
 
-                } else {
+
+                }
+                else {
                     return InvokeExpression("fromtable", x, y, 2);
                 }
-                
+
             }
             else if (op == "-:") {
                 //temporary
@@ -2172,16 +2195,16 @@ namespace MicroJ {
                         if (ax.Ravel[i] != ay.Ravel[i]) { same = false; break; }
                     }
                     z.Ravel[0] = same;
-                        /*
-                        var xv = System.Text.Encoding.UTF8.GetString(((A<Byte>)x).Ravel);
-                        var yv = System.Text.Encoding.UTF8.GetString(((A<Byte>)y).Ravel);
-                         */
-                        //z.Ravel[0] = xv == yv;
+                    /*
+                    var xv = System.Text.Encoding.UTF8.GetString(((A<Byte>)x).Ravel);
+                    var yv = System.Text.Encoding.UTF8.GetString(((A<Byte>)y).Ravel);
+                     */
+                    //z.Ravel[0] = xv == yv;
                 }
                 else {
                     z.Ravel[0] = x.ToString() == y.ToString();
                 }
-                
+
                 return z;
             }
             else if (op == "/:") {
@@ -2191,7 +2214,7 @@ namespace MicroJ {
                 else {
                     return sortTable((A<JString>)x, (A<JTable>)y, "gradeup");
                 }
-                
+
             }
             else if (op == "\\:") {
                 if (y.GetType() != typeof(A<JTable>)) {
@@ -2199,7 +2222,7 @@ namespace MicroJ {
                 }
                 else {
                     return sortTable((A<JString>)x, (A<JTable>)y, "gradedown");
-                }                
+                }
             }
             else if (op == ";") {
                 //WARNING: invoke expression will convert to long
@@ -2208,12 +2231,12 @@ namespace MicroJ {
                 }
                 else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<Box>)) {
                     return link(x as A<decimal>, y as A<Box>);
-                }    
-                else 
-                    return InvokeExpression("link", x, y, 2, tryConvertLong: false);                
+                }
+                else
+                    return InvokeExpression("link", x, y, 2, tryConvertLong: false);
             }
             else if (op == ",.") {
-                return InvokeExpression("stitch", x, y, 1);                
+                return InvokeExpression("stitch", x, y, 1);
             }
             else if (op == "I.") {
                 return InvokeExpression("intervalIndex", x, y, 1, tryConvertLong: false);
