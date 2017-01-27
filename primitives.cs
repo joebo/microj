@@ -1378,7 +1378,7 @@ namespace MicroJ {
         public A<T> append<T>(A<T> x, A<T> y) where T : struct {
             //if (x.Rank > 1 && AType.ShapeProduct(x.Shape) != AType.ShapeProduct(y.Shape)) throw new NotImplementedException("Rank > 1 non-equal shapes not implemented yet (need framing fill)");
 
-            if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>) && x.Rank <= 1 && y.Rank <= 1) {
+            if (x.GetType() == typeof(A<JString>) && y.GetType() == typeof(A<JString>) && x.Rank <= 1 && y.Rank <= 1 && y.Ravel.Length <= 1 && x.Ravel.Length <= 1) {
                 var vs = new A<JString>(0);
                 vs.Ravel[0] = new JString { str = String.Intern(x.GetString(0) + y.GetString(0)) };
                 return (A<T>)(object)vs;
@@ -1445,7 +1445,8 @@ namespace MicroJ {
             var z = xv.Clone();
             z.Rows = new Box[z.Columns.Length];
             for (var i = 0; i < z.Columns.Length; i++) {
-                z.Rows[i] = InvokeExpression("append", xv.Rows[i].val, yv.Rows[i].val, 1).Box();
+                int colb = Array.IndexOf(yv.Columns, z.Columns[i]);
+                z.Rows[i] = InvokeExpression("append", xv.Rows[i].val, yv.Rows[colb].val, 1).Box();
             }
  
             return z.WrapA();

@@ -1176,3 +1176,14 @@ NB. union table
 |2|
 +-+
 )
+
+NB. union table (different sequence of columns)
+(((3!:102) ('a';'b');1;2) ,: ((3!:102) ('b';'a');4;3)) -: 0 : 0
++-+
+|a|
+|-|
+|1|
+|-|
+|2|
++-+
+)
