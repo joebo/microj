@@ -1261,9 +1261,9 @@ namespace MicroJ
                 //new Token[] { w1,w2,w3,w4 }.Dump();
 
                 var step = -1;
-                if (isEdge(w1) && isVerb(w2) && isNoun(w3) && true) { step = 0; }
-                else if (isEdgeOrNotConj(w1) && isVerb(w2) && isVerb(w3) && isNoun(w4)) { step = 1; }
-                else if (isEdgeOrNotConj(w1) && isNoun(w2) && isVerb(w3) && isNoun(w4)) { step = 2; }
+                if (isEdge(w1) && isVerb(w2) && isNoun(w3) && true) { step = 0; } //call1
+                else if (isEdgeOrNotConj(w1) && isVerb(w2) && isVerb(w3) && isNoun(w4)) { step = 1; } //call1
+                else if (isEdgeOrNotConj(w1) && isNoun(w2) && isVerb(w3) && isNoun(w4)) { step = 2; } //call2
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isAdverb(w3) && true) { step = 3; } //adverb
                 else if (isEdgeOrNotConj(w1) && (isNoun(w2) || isVerb(w2)) && isConj(w3) && (isNoun(w2) || isVerb(w2))) { step = 4; } //conjunction
                 else if (isEdgeOrNotConj(w1) && isVerb(w2) && isVerb(w3) && isVerb(w4) ) { step = 5; } //fork

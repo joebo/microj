@@ -121,6 +121,10 @@ namespace MicroJ {
 
             expressionMap["s:"] = new VerbWithRank(symbolize, symbolizeDyad, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
 
+            expressionMap["quoteStr"] = new VerbWithRank((y) => new JString { str = "'" + y.GetString(0) + "'"}.WrapA() , null, 0, 0, 0);
+                
+            
+
             SpecialCode["*"] = new SpecialCodeEval {
                 evalTypeDyad = (x, y) => {
                     return y.Rank == 1 && x.Rank == 1 && x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<long>);
@@ -376,6 +380,32 @@ namespace MicroJ {
                 }
                 return z;
             }            
+        }
+
+        //dynamic dispatch of math operations -- slowest, around 7x slower
+        public A<decimal> mathmixedDecimal(dynamic x, dynamic y, Func<dynamic, dynamic, dynamic> op) {
+
+            if (x.Rank == 0) {
+                var z = new A<decimal>(y.Ravel.Length, y.Shape);
+                for (var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[0], y.Ravel[i]);
+                }
+                return z;
+            }
+            else if (y.Rank == 0) {
+                var z = new A<decimal>(x.Ravel.Length, x.Shape);
+                for (var i = 0; i < x.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[0]);
+                }
+                return z;
+            }
+            else {
+                var z = new A<decimal>(y.Ravel.Length, y.Shape);
+                for (var i = 0; i < y.Ravel.Length; i++) {
+                    z.Ravel[i] = op(x.Ravel[i], y.Ravel[i]);
+                }
+                return z;
+            }
         }
 
         //significantly faster than dispatch (10x)
@@ -1872,6 +1902,12 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
                     return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a * b);
                 }
+                else if (x.GetType() == typeof(A<decimal>) && y.GetType() == typeof(A<bool>)) {
+                    return mathmixedDecimal((A<decimal>)x, (A<bool>)y, (a, b) => (a * (b ? 1m : 0m)));
+                }
+                else if (x.GetType() == typeof(A<bool>) && y.GetType() == typeof(A<decimal>)) {
+                    return mathmixedDecimal((A<bool>)x, (A<decimal>)y, (a, b) => (a ? 1m : 0m) * b);
+                }    
                 else if (x.CanBeInt() && y.CanBeInt()) {
                     return mathmixedLong(x, y, (a, b) => a * b);
                 }                 
@@ -1880,7 +1916,7 @@ namespace MicroJ {
                 }                                
                 else if (x.GetType() == typeof(A<double>) && y.GetType() == typeof(A<bool>)) {
                     return mathmixed((A<double>)x, (A<bool>)y, (a, b) => (a * (b ? 1 : 0)));
-                }                
+                }               
                 else if (x.GetType() != y.GetType()) {
                     return mathmixed(x, y, (a, b) => a * b);
                 }
