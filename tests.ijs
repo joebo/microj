@@ -1187,3 +1187,12 @@ NB. union table (different sequence of columns)
 |3|4|
 +-+-+
 )
+
+NB. aggregate table with column headers
+(_ ('a is +/ a';'ct is _N') /. (flip ('a';'b');(i.10);(10 $ 1 2))) -: 0 : 0
++--+--+
+|a |ct|
+|--+--|
+|45|10|
++--+--+
+)

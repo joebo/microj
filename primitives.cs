@@ -4952,7 +4952,7 @@ namespace MicroJ {
 
             int[] colIdx = null;
             //specify columns to key by
-            if (x != null) {
+            if (x != null && !x.IsInfinity()) {
                 //colIdx = (x as A<Box>).Ravel.Select(xv => Array.IndexOf(yt.Columns, xv.val.ToString())).ToArray();
                 colIdx = (x as A<Box>).Ravel.Select(xv => yt.GetColIndex(xv.val)).ToArray();
                 if (colIdx.Length == 1 && yt.Rows[colIdx[0]].val.GetType() == typeof(A<long>) && yt.indices == null) {

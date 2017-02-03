@@ -352,6 +352,24 @@ namespace MicroJ
         public AType UnBox() {
             return (this as A<Box>).Ravel[0].val;
         }
+
+        public bool IsInfinity() {
+            var check1 = this as A<long>;
+            if (check1 != null && ((long)check1.GetVal(0)) == long.MaxValue) {
+                return true;
+            }
+            var check2 = this as A<decimal>;
+            if (check2 != null && (((decimal)check2.GetVal(0)) == Decimal.MaxValue || ((decimal)check2.GetVal(0)) == Parser.DecimalInfinity)) {
+                return true;
+            }
+            var check3 = this as A<double>;
+            if (check3 != null && (((double)check3.GetVal(0)) == Double.MaxValue || ((double)check3.GetVal(0)) == (double)Parser.DecimalInfinity)) {
+                return true;
+            }            
+            return false;
+        }
+            
+        
     }
 
     public struct Undefined { }
