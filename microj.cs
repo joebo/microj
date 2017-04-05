@@ -1139,6 +1139,8 @@ namespace MicroJ
             Names = new Dictionary<string, AType>();
             Globals = new Dictionary<string, object>();
 
+            Names["LF"] = new JString { str = "\n" }.WrapA();
+
             Verbs = new Verbs();
             Adverbs = new Adverbs(Verbs);
             Conjunctions = new Conjunctions(Verbs);
