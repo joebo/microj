@@ -2216,7 +2216,13 @@ namespace MicroJ {
 
                 }
                 else {
-                    return InvokeExpression("fromtable", x, y, 2);
+                    if ((x.GetType() == typeof(A<long>) || x.GetType() == typeof(A<Decimal>)) && x.IsAtom() && x.GetLong(0) == -1) {
+                        //return column headers
+                        return AType.MakeA((y as A<JTable>).First().Columns.Select(col => new JString { str = col }.WrapA().Box()).ToArray());
+                    }
+                    else {
+                        return InvokeExpression("fromtable", x, y, 2);
+                    }                    
                 }
 
             }

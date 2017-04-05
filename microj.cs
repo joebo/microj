@@ -224,6 +224,12 @@ namespace MicroJ
         public static AType MakeA(long val) {
             return new A<long>(0) { Ravel = new long[] { val } };
         }
+        public static AType MakeA(JString[] vals) {
+            return new A<JString>(vals.Length) { Ravel = vals };
+        }
+        public static AType MakeA(Box[] vals) {
+            return new A<Box>(vals.Length) { Ravel = vals };
+        }
         public static AType MakeA(string word, Dictionary<string, AType> names, Dictionary<string, AType> locals = null) {
             int val;
             double vald;

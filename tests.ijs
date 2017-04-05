@@ -1201,3 +1201,6 @@ NB. support for for_i.
 ((3 : ('z=:0',LF,'for_i. (i.3) do.',LF,'z=:z,i',LF,'end.',LF,'z')) 0) -: (0,0,1,2)
 ((3 : ('z=:0',LF,'for_n. (i.3) do.',LF,'z=:z,n',LF,'end.',LF,'z')) 0) -: (0,0,1,2)
 
+
+NB. column headers
+(_1 { (flip ('abc';'xyx');(i.3);(1+i.3))) -: ('abc';'xyx')
