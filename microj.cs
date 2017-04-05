@@ -1396,7 +1396,14 @@ namespace MicroJ
                             z.Ravel[0].rhs = rhs.word;
                             //todo figure out conjunctions taking verbs on right
                             if (rhs.val != null && rhs.word == null) {
-                                z.Ravel[0].rhs = rhs.val.ToString();
+                                // (3 : ('for_i. items do.',LF,'i',LF,'end.',LF,'1+1')) 0
+                                if (rhs.val.GetType() == typeof(A<JString>)) {
+                                    z.Ravel[0].rhs = "'" + rhs.val.ToString() + "'";
+                                }
+                                else {
+                                    z.Ravel[0].rhs = rhs.val.ToString();
+                                }
+                                
                             }
                             stack.Push(new Token { val = z });
                         }

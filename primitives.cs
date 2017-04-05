@@ -2454,6 +2454,8 @@ namespace MicroJ {
                     }
                     else if (line.StartsWith("for")) {
                         var test = line.Substring(line.IndexOf(".") + 1).Replace("do.", "");
+                        var forVar = System.Text.RegularExpressions.Regex.Match(line, "for_(\\w+).").Groups[1].Value;
+
                         AType t = null;
                         t = parser.parse(test);
                         var endIdx = 0;
@@ -2476,7 +2478,8 @@ namespace MicroJ {
                         }
                         else {
                             for (var n = 0; n < rep; n++) {
-                                for (var k = i + 1; k < endIdx; k++) {
+                                parser.LocalNames[forVar] = t.GetValA(n);
+                                for (var k = i + 1; k < endIdx; k++) {                                    
                                     ret = parser.parse(lines[k]);
                                 }
                             }
