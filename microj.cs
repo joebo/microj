@@ -199,6 +199,12 @@ namespace MicroJ
                 z.Ravel = a.Ravel.Select(x => (double)x).ToArray();
                 return z;
             }
+            else if (Type == typeof(decimal)) {
+                var a = (A<decimal>)this;
+                var z = new A<double>(a.Count, a.Shape);
+                z.Ravel = a.Ravel.Select(x => (double)x).ToArray();
+                return z;
+            }
             throw new NotImplementedException();
         }
 

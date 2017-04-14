@@ -12,6 +12,18 @@ fibtestx =: 3 : 0
   x2
 )
 
+NB. fib test
+fibtest =: 3 : 0
+  x1 =. 1
+  x2 =. 1
+  for_c. i. (y-2) do.
+    tmp =.  x1 
+    x1 =. x2
+    x2 =. tmp + x1
+  end.
+  x2
+)
+
 NB. requires LumenWorks.Framework.IO.dll
 NB. https://www.nuget.org/packages/LumenWorksCsvReader/    
 readcsvCode =: 0 : 0

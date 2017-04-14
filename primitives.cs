@@ -504,7 +504,13 @@ namespace MicroJ {
 
         public A<long> tally(AType y) {
             var v = new A<long>(0);
-            if (y.GetType() == typeof(A<JTable>)) { v.Ravel[0] = (y as A<JTable>).First().RowCount;  }
+            if (y.GetType() == typeof(A<JTable>)) {
+                var yt = (y as A<JTable>).First();
+                if (yt.partitioned != null) {
+                    return Conjunctions.execParallelMap(null, yt.partitioned, "tally") as A<long>;
+                }
+                v.Ravel[0] = yt.RowCount;  
+            }
             else if (y.Rank <= 1 && y.GetType() == typeof(A<JString>) && y.GetCount() == 1) { v.Ravel[0] = y.GetString(0).Length; }
             else if (y.Rank <= 1 && y.GetType() == typeof(A<JString>) && y.GetCount() > 1) {
                 var vl = new A<long>(y.GetCount());
@@ -1064,6 +1070,7 @@ namespace MicroJ {
             var yt = (y as A<JTable>).First();
             
             if (x.GetType() == typeof(A<Box>)) {
+                
                 var v = yt.Clone();
                 var xb = x as A<Box>;
                 
@@ -1167,6 +1174,12 @@ namespace MicroJ {
                 return v.WrapA();
             }
             else if (x.GetType() == typeof(A<JString>) && x.Rank < 2) {
+
+                if (yt.partitioned != null) {
+                    return Conjunctions.execParallelMap(x.Box().WrapA(), yt.partitioned, "fromtablequery") as A<JTable>;
+                }
+
+
                 var locals = new Dictionary<string, AType>();
                 var yv = (y as A<JTable>).First();
                 if (Conjunctions.Parser.LocalNames != null) {
@@ -1179,7 +1192,13 @@ namespace MicroJ {
                     locals[JTable.SafeColumnName(yv.Columns[i])] = yv.indices == null ? yv.Rows[i].val : yv.Rows[i].val.FromIndices(yv.indices, true);
                 }
                 var expression = (x as A<JString>).First().str;
-                var expressionResult = Conjunctions.Parser.exec(expression, locals);
+
+                //not thread safe
+                //var expressionResult = Conjunctions.Parser.exec(expression, locals);
+                //create new parser to ensure thread safety 
+                var parser = new Parser { UseDecimal = Conjunctions.Parser.UseDecimal };
+                parser.Names = Conjunctions.Parser.Names;
+                var expressionResult = parser.exec(expression, locals);
 
                 var expressionResultl = expressionResult as A<long>;
                 var expressionResultb =  expressionResult as A<bool>;
@@ -2560,7 +2579,7 @@ namespace MicroJ {
 
             Func<AType, AType> func = (v) => {
                 var str = v.GetString(0);
-                var parts = str.Split(' ');
+                var parts = str.Split(' ').Where(x=>x.Length>0).ToArray();
                 var ret = new A<Decimal>(parts.Length);
                 for (var i = 0; i < parts.Length; i++) {
                     decimal def = 0;
@@ -3274,6 +3293,101 @@ namespace MicroJ {
 
         }
 
+        public AType combineTableResults(AType[] results, List<string> partitionNames=null, AType op = null, bool hashPartition = false, string[] extraCols=null, Box[] extraRows=null) {
+            AType merged;
+            var newTable = new JTable();
+            //newTable.Columns = results.SelectMany(xv => (xv as A<JTable>).First().Columns).Distinct().ToArray();
+            //newTable.Rows = new Box[newTable.Columns.Length];
+            var totalRows = results.Select(xv => (xv as A<JTable>).First().RowCount).Sum();
+            var allCols = new Dictionary<string, Type>();
+
+            for (var i = 0; i < results.Length; i++) {
+                var tresult = (results[i] as A<JTable>).First();
+                for (var k = 0; k < tresult.Columns.Length; k++) {
+                    allCols[tresult.Columns[k]] = tresult.Rows[k].val.GetType();
+                }
+            }
+            if (!allCols.ContainsKey("Partition")) {
+                //dont add partition if trying to get a scalar
+                if (partitionNames == null || (op != null && op.ToString().Trim() == "/")) {
+
+                }
+                else {
+                    allCols["Partition"] = typeof(A<JString>);
+                }
+
+            }
+
+            if (extraCols == null) {
+                newTable.Columns = allCols.Keys.ToArray();
+            }
+            else {
+                newTable.Columns = extraCols.Union(allCols.Keys.ToArray()).ToArray();
+                for (var k = 0; k < extraCols.Length; k++) {
+                    allCols[extraCols[k]] = extraRows[k].val.GetType();
+                }
+            }
+            
+            newTable.Rows = new Box[newTable.Columns.Length];
+            for (var k = 0; k < newTable.Columns.Length; k++) {
+                var colName = newTable.Columns[k];
+                var colType = allCols[colName];
+                Box box;
+                A<JString> scol = null;
+                A<long> lcol = null;
+                A<double> dcol = null;
+                A<decimal> decol = null;                
+                if (colType == typeof(A<JString>)) {
+                    scol = new A<JString>(totalRows);
+                    box = scol.Box();
+
+                }
+                else if (colType == typeof(A<long>)) {
+                    lcol = new A<long>(totalRows);
+                    box = lcol.Box();
+                }
+                else if (colType == typeof(A<double>)) {
+                    dcol = new A<double>(totalRows);
+                    box = dcol.Box();
+                }
+                else {
+                    decol = new A<decimal>(totalRows);
+                    box = decol.Box();
+                }
+                var row = 0;
+                for (var i = 0; i < results.Length; i++) {
+                    var tresult = (results[i] as A<JTable>).First();
+                    var colIdx = Array.IndexOf(tresult.Columns, colName);
+                    var paritionNameStr = partitionNames != null ? partitionNames[i] : "";
+                    if (hashPartition) { paritionNameStr = paritionNameStr.GetHashCode().ToString(); }
+                    var partitionName = new JString { str = paritionNameStr };
+
+                    for (var q = 0; q < tresult.RowCount; q++) {
+                        if (colIdx == -1) {                            
+                            if (colName == "Partition") { scol.Ravel[row] = partitionName; }
+                            else if(extraCols != null && extraCols.Contains(colName)) {
+                                var idx = Array.IndexOf(extraCols, colName);
+                                box = extraRows[idx];
+                            }
+                            else if (scol != null) { scol.Ravel[row] = new JString { str = "" }; }
+
+                        }
+                        else {
+                            //if (scol != null) { scol.Ravel[row] = new JString { str = tresult.Rows[colIdx].val.GetString(q).Trim() }; }
+                            if (scol != null) { scol.Ravel[row] = (JString)tresult.Rows[colIdx].val.GetVal(q); }
+                            else if (dcol != null) { dcol.Ravel[row] = (double)tresult.Rows[colIdx].val.GetVal(q); }
+                            else if (lcol != null) { lcol.Ravel[row] = (long)tresult.Rows[colIdx].val.GetVal(q); }
+                            else if (decol != null) { decol.Ravel[row] = (decimal)tresult.Rows[colIdx].val.GetVal(q); }
+                        }
+                        row++;
+                    }
+
+                }
+                newTable.Rows[k] = box;
+            }
+            merged = newTable.WrapA();
+            return merged;
+        }
         public AType execParallelMap(A<Box> x, A<Box> y, string fromVerb = null, AType op = null) {
             
             var query = x != null ? x.Ravel[0].val.GetString(0) : null;
@@ -3324,13 +3438,18 @@ namespace MicroJ {
                     var yoptions = new A<Box>(2);
                     yoptions.Ravel[0].val = new JString { str = cachePath }.WrapA();
                     yoptions.Ravel[1].val = new JString { str = "" }.WrapA();
-                    return readTableBinary(xoptions, yoptions) as A<JTable>;
+                    //var newt = readTableBinary(xoptions, yoptions) as A<JTable>;
+                    var newt = readTableBinary(null, yoptions) as A<JTable>;
+                    return newt;
                 }
             }
 
             var results = dirs.AsParallel().Select(dir => {
                 
                 var parser = new Parser();
+                foreach (var kv in Parser.Names) {
+                    parser.Names[kv.Key] = kv.Value;
+                }
                 var locals = new Dictionary<string, AType>();
 
                 string cacheKey = dir + ":" + table + ":" + (column ?? "") + (xoptions != null ? xoptions.ToString() : "");
@@ -3372,7 +3491,10 @@ namespace MicroJ {
                     cached = za;
                     CacheNoReclaim.Current.Add(cacheKey, cached);
                     return AType.MakeA(0);
-                } 
+                }
+                else if (fromVerb == "tally") {
+                    return parser.Verbs.tally(z.WrapA());
+                }
                 else if (fromVerb == "keyTable") {
                     try {
                         var za = parser.Adverbs.keyTable(op, x as A<Box>, z.WrapA()) as A<JTable>;
@@ -3391,6 +3513,10 @@ namespace MicroJ {
                 }
                 else if (fromVerb == "{.") {
                     var za = Verbs.take(AType.MakeA(query, null) as A<long>, z.WrapA());
+                    return addPartitionColumn(za.First());
+                }
+                else if (fromVerb == "fromtablequery") {
+                    var za = Verbs.fromtable(x.Ravel[0].val as A<JString>, z.WrapA());
                     return addPartitionColumn(za.First());
                 }
                 else {
@@ -3439,90 +3565,18 @@ namespace MicroJ {
                     mergedLocals[JTable.SafeColumnName(column)] = merged;          
             }
             else {
-                var newTable = new JTable();
-                //newTable.Columns = results.SelectMany(xv => (xv as A<JTable>).First().Columns).Distinct().ToArray();
-                //newTable.Rows = new Box[newTable.Columns.Length];
-                var totalRows = results.Select(xv => (xv as A<JTable>).First().RowCount).Sum();
-                var allCols = new Dictionary<string, Type>();
-                
-                for (var i = 0; i < results.Length; i++) {
-                    var tresult = (results[i] as A<JTable>).First();
-                    for (var k = 0; k < tresult.Columns.Length; k++) {
-                        allCols[tresult.Columns[k]] = tresult.Rows[k].val.GetType();
-                    }
-                }
-                if (!allCols.ContainsKey("Partition")) {
-                    //dont add partition if trying to get a scalar
-                    if (op != null && op.ToString().Trim() == "/") {
-
-                    }
-                    else {
-                        allCols["Partition"] = typeof(A<JString>);
-                    }
-                    
-                }
-                newTable.Columns = allCols.Keys.ToArray();
-                newTable.Rows = new Box[newTable.Columns.Length];
-                for (var k = 0; k < newTable.Columns.Length; k++) {
-                    var colName = newTable.Columns[k];
-                    var colType = allCols[colName];
-                    Box box;
-                    A<JString> scol = null;
-                    A<long> lcol = null;
-                    A<double> dcol = null;
-                    A<decimal> decol = null;
-                    if (colType == typeof(A<JString>)) {
-                        scol = new A<JString>(totalRows);
-                        box = scol.Box();
-                    }
-                    else if (colType == typeof(A<long>)) {
-                        lcol = new A<long>(totalRows);
-                        box = lcol.Box();
-                    }
-                    else if (colType == typeof(A<double>)) {
-                        dcol = new A<double>(totalRows);
-                        box = dcol.Box();
-                    }
-                    else {
-                        decol = new A<decimal>(totalRows);
-                        box = decol.Box();
-                    }
-                    var row = 0;
-                    for (var i = 0; i < results.Length; i++) {
-                        var tresult = (results[i] as A<JTable>).First();
-                        var colIdx = Array.IndexOf(tresult.Columns, colName);
-                        var paritionNameStr = partitionNames[i];
-                        if (hashPartition) { paritionNameStr = paritionNameStr.GetHashCode().ToString(); }
-                        var partitionName = new JString { str = paritionNameStr };
-
-                        for (var q = 0; q < tresult.RowCount; q++) {
-                            if (colIdx == -1) {
-                                if (colName == "Partition") { scol.Ravel[row] = partitionName; }
-                                else if (scol != null) { scol.Ravel[row] = new JString { str = "" }; }
-
-                            }
-                            else {
-                                //if (scol != null) { scol.Ravel[row] = new JString { str = tresult.Rows[colIdx].val.GetString(q).Trim() }; }
-                                if (scol != null) { scol.Ravel[row] = (JString)tresult.Rows[colIdx].val.GetVal(q); }
-                                else if (dcol != null) { dcol.Ravel[row] = (double)tresult.Rows[colIdx].val.GetVal(q); }
-                                else if (lcol != null) { lcol.Ravel[row] = (long)tresult.Rows[colIdx].val.GetVal(q); }
-                                else if (decol != null) { decol.Ravel[row] = (decimal)tresult.Rows[colIdx].val.GetVal(q); }
-                            }
-                            row++;
-                        }
-                            
-                    }
-                    newTable.Rows[k] = box;
-                }
-                merged = newTable.WrapA();
+                merged = combineTableResults(results, partitionNames, op, hashPartition);
             }
             
 
             mergedLocals["this"] = merged;
 
             AType finalResult = null;            
-            if (fromVerb == "keyTable" || fromVerb == "{.") {
+            if (fromVerb == "keyTable" || fromVerb == "{." || fromVerb == "fromtablequery") {
                 finalResult = merged;
+            }
+            else if (fromVerb == "tally") {
+                finalResult = Parser.Adverbs.reduceplus(merged as A<long>);
             }
             else {
                 finalResult = Parser.exec(query2, mergedLocals);
@@ -4953,11 +5007,21 @@ namespace MicroJ {
             if (yt.partitioned != null) {
                 return Conjunctions.execParallelMap(x as A<Box>, yt.partitioned, "keyTable", op);
             }
-            var rowCt = yt.RowCount;
-
+            
             var keyIndices = new Dictionary<string, List<long>>();
             var lkeyIndices = new Dictionary<long, List<long>>();
             bool allRows = false;
+
+            var vopx = op as A<Verb>;
+            if (vopx != null && vopx.Ravel[0].childNoun != null) {
+                var tnoun = vopx.Ravel[0].childNoun as A<Box>;
+                var firstExpression = tnoun != null && tnoun.Count > 0 ? tnoun.Ravel[0].val.GetString(0) : "";
+                if (firstExpression.StartsWith("?=")) {
+                    yt = yt.Clone();
+                    yt = Verbs.fromtable(new JString { str = firstExpression.Substring(2) }.WrapA() as A<JString>, y as A<JTable>).First();
+                }
+            }
+            var rowCt = yt.RowCount;
 
             int[] colIdx = null;
             //specify columns to key by
@@ -5092,11 +5156,15 @@ namespace MicroJ {
                 //multiple expressions
                 if (noun != null) {
                     colCt = noun.Count + ((colIdx != null) ? colIdx.Length : 0);
-                    expressions = noun.Ravel.Select(xv => xv.val.ToString()).ToArray();
+                    expressions = noun.Ravel.Select(xv => xv.val.ToString()).ToArray();                    
                 }
                 else {
                     colCt = 1;
                     expressions = new string[] { (vop.Ravel[0].childNoun as A<JString>).GetString(0) };
+                }
+
+                if (expressions[0].StartsWith("?=")) { 
+                    colCt -= 1; 
                 }
                 var rows = new Box[colCt];
 
@@ -5104,6 +5172,10 @@ namespace MicroJ {
                 var expressionCols = new List<string>();
                 for(var i = 0; i < expressions.Length; i++) {
                     string col = expressions[i];
+                    
+                    //skip filters
+                    if (col.StartsWith("?=")) continue;
+
                     var parts = col.Split(' ');
                     //eg: is {. MSA
                     if (parts[0] == Parser.COLUMN_ALIAS_KEYWORD.Trim()) {
@@ -5115,6 +5187,8 @@ namespace MicroJ {
                         col = parts[0];
                         expressions[i] = String.Join(" ", parts.Skip(2));
                     }
+
+                    
                     expressionCols.Add(col);
                 }
 
@@ -5165,9 +5239,11 @@ namespace MicroJ {
 
 
                 for(var k = 0; k < expressions.Length;k++) {
+                    
                     var parser = new Parser { UseDecimal = Conjunctions.Parser.UseDecimal };
                     parser.Names = Conjunctions.Parser.Names;
                     var expression = expressions[k];
+                    if (expression.StartsWith("?=")) { continue;  }
                     var expressionParts = expression.Split(' ');
                     var groupRows = new List<AType>();
 
@@ -5241,7 +5317,11 @@ namespace MicroJ {
                     else if (groupRows[0].GetType() == typeof(A<long>)) {
                         newShape = new long[] { keyCt };
                     }
-
+                    else if (groupRows[0].GetType() == typeof(A<JTable>)) {
+                                                
+                        var newt = Conjunctions.combineTableResults(groupRows.ToArray(), extraCols: new string[] { t.Columns[0] }, extraRows: new Box[] { rows[0] });
+                        return newt;
+                    }
                     //todo: hack to support /
                     if (op.ToString().Trim() != "/" && groupRows.Count() > 1) {
                         var at = groupRows[0].Merge(newShape, groupRows.ToArray());
