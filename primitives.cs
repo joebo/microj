@@ -1203,11 +1203,12 @@ namespace MicroJ {
                 var expressionResultl = expressionResult as A<long>;
                 var expressionResultb =  expressionResult as A<bool>;
                 var expressionResultd = expressionResult as A<Decimal>;
+                var expressionResultdbl = expressionResult as A<double>;
 
                 var v = yt.Clone();
                 var indices = new List<long>();
                 for (var i = 0; i < expressionResult.GetCount(); i++) {
-                    if ((expressionResultl != null && expressionResultl.Ravel[i] == 1) || (expressionResultd != null && expressionResultd.Ravel[i] == 1) || (expressionResultb != null && expressionResultb.Ravel[i])) {
+                    if ((expressionResultl != null && expressionResultl.Ravel[i] == 1) || (expressionResultd != null && expressionResultd.Ravel[i] == 1) || (expressionResultb != null && expressionResultb.Ravel[i]) || (expressionResultdbl != null && expressionResultdbl.Ravel[i]==1)) {
                         indices.Add(yv.indices != null ? yv.indices[i] : i);
                     }
                 }
@@ -2640,6 +2641,7 @@ namespace MicroJ {
             }
             //read symbols ('sym.bin') s: 10
             if (yl != null && yl.First() == 10 && xs != null) {
+                Parser.ResetSymbols();
                 using (var fs = new FileStream(xs.GetString(0), FileMode.Open, FileAccess.Read)) {
                     using (var bw = new BinaryReader(fs)) {
                         var ct = bw.ReadInt64();
@@ -3508,6 +3510,7 @@ namespace MicroJ {
                         }
                     }
                     catch (Exception e) {
+                        System.Diagnostics.Debug.WriteLine(e.ToString());
                         return null;
                     }
                 }
@@ -5318,8 +5321,18 @@ namespace MicroJ {
                         newShape = new long[] { keyCt };
                     }
                     else if (groupRows[0].GetType() == typeof(A<JTable>)) {
-                                                
-                        var newt = Conjunctions.combineTableResults(groupRows.ToArray(), extraCols: new string[] { t.Columns[0] }, extraRows: new Box[] { rows[0] });
+                                     
+                        var extraCols = new string[ colIdx.Length ];
+                        for (var i = 0; i < colIdx.Length; i++) {
+                            extraCols[i] = t.Columns[i];
+                        }
+
+                        var extraRows = new Box[colIdx.Length];
+                        for (var i = 0; i < colIdx.Length; i++) {
+                            extraRows[i] = rows[i];
+                        }
+
+                        var newt = Conjunctions.combineTableResults(groupRows.ToArray(), extraCols: extraCols, extraRows: extraRows);
                         return newt;
                     }
                     //todo: hack to support /

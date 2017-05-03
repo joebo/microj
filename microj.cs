@@ -1170,6 +1170,13 @@ namespace MicroJ
             symbolPrefixes = Verbs.Words.Where(x => x.Length > 1).Select(x => x[1]).Union(Adverbs.Words.Where(x => x.Length > 1).Select(x => x[1])).ToArray();
         }
 
+        public static void ResetSymbols() {
+            StringSymbols = new Dictionary<string, long>();
+            StringSymbolsLookup = new Dictionary<long, JString>();
+            ExternalStringSymbolIndex = -1; //external symbols start with -1
+            InternalStringSymbolIndex = 1; //external symbols start with -1
+        }
+
         public string[] toWords(string w) {
             var z = new List<string>();
             var currentWord = new StringBuilder();
@@ -1500,7 +1507,11 @@ namespace MicroJ
                         //try to parse word before putting on stack
                         var val = AType.MakeA(newWord.word, Names, LocalNames);
                         var token = new Token();
-                        if (val.GetType() == typeof(A<Undefined>)) {
+                        if (val == null && Names.ContainsKey(newWord.word)) {
+                            Names.Remove(newWord.word);
+                            
+                        }
+                        if (val == null || val.GetType() == typeof(A<Undefined>)) {
                             token.word = newWord.word;
                             if (Verbs.expressionMap.ContainsKey(newWord.word)) {
                                 token.val = new A<Verb>(0) { Ravel = new Verb[] { new Verb { op = newWord.word } } };
