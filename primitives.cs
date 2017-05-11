@@ -4421,6 +4421,26 @@ namespace MicroJ {
                 onlyCols = optionsDict["onlyCols"].Split(',');
             }
 
+            Dictionary<long, JString> symbolDict = Parser.StringSymbolsLookup;
+
+            if (optionsDict.ContainsKey("symfile")) {
+                string symfile = Path.Combine(path, optionsDict["symfile"]);
+                symbolDict = new Dictionary<long, JString>();
+                //read local symbols
+                using (var fs = new FileStream(symfile, FileMode.Open, FileAccess.Read)) {
+                    using (var bw = new BinaryReader(fs)) {
+                        var ct = bw.ReadInt64();
+                        var strs = new A<JString>(ct);
+                        for (var i = 0; i < ct; i++) {
+                            var str = bw.ReadString();
+                            long symid = -1 * (i + 1);
+                            symbolDict[symid] = new JString { str = String.Intern(str) };
+                        }
+                        
+                    }
+                }
+            }
+
             int offset = 0;
             string[] fileNames = files.Select(f => f.Name).ToArray();
             foreach (var file in files) {
@@ -4509,7 +4529,7 @@ namespace MicroJ {
                                 var sval = new A<JString>(new long[] { rows, 1 });
 
                                 for (var i = 0; i < rows; i++) {
-                                    sval.Ravel[i] = Parser.StringSymbolsLookup[arr[i]];
+                                    sval.Ravel[i] = symbolDict[arr[i]];
                                 }
                                 val = sval;
                             }
