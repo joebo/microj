@@ -96,7 +96,7 @@ namespace App {
                 if (File.Exists("stdlib.ijs")) { files.Add("stdlib.ijs"); }
                 if (File.Exists("profile.ijs")) { files.Add("profile.ijs"); }
                 if (File.Exists("..\\stdlib.ijs")) { files.Add("..\\stdlib.ijs"); }
-                if (args.Length > 0) { files.Add(args[0]); }
+                if (args.Length > 0) { files.AddRange(args); }
 
                 bool testMode = argList.FindIndex(c => c.Contains("-t")) > -1;
                 if (testMode) new Tests().TestAll();
