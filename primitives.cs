@@ -3038,21 +3038,24 @@ namespace MicroJ {
                 newVerb.Ravel[0] = new Verb { op = verb.op, adverb = verb.adverb };
             }
 
-            if (newRank == y.Rank) { return Verbs.Call1(newVerb, y); }
+            bool isString = y.GetType() == typeof(A<JString>);
+            var rank = y.Rank;
+            if (isString && rank == 1 && y.Count > 1) { rank = 2;  }
+
+            if (newRank == rank) { return Verbs.Call1(newVerb, y); }
 
             var shape = y.ShapeCopy();
-            bool isString = y.GetType() == typeof(A<JString>);
-
-            if (isString) {
+            
+            if (isString && y.Rank >= 2) {
                 //drop the last part of the shape for strings, since it's an indirect reference
                 shape = y.Shape.Take(y.Shape.Length - 1).ToArray();
             }
-            var newShape = shape.Take(y.Rank - newRank).ToArray();
+            var newShape = shape.Take(rank - newRank).ToArray();
 
 
             var newCt = AType.ShapeProduct(newShape);
             var vs = new AType[newCt];
-            var subShape = shape.Skip(y.Rank - newRank).ToArray();
+            var subShape = shape.Skip(rank - newRank).ToArray();
             var subShapeCt = AType.ShapeProduct(subShape);
             var offset = 0;
 
@@ -4563,6 +4566,33 @@ namespace MicroJ {
             }.WrapA();
         }
 
+
+        public A<JTable> getTableDefinition(A<JTable> y) {
+            var yt = y.First();
+            string[] cols = new string[] { "Column", "Type" };
+            
+            var colNames = new A<JString>(yt.Columns.Length, new long[] { yt.Columns.Length, 1 });
+            var colTypes = new A<JString>(yt.Columns.Length, new long[] { yt.Columns.Length, 1 });
+            for (var i = 0; i < yt.Columns.Length; i++ ) {
+                colNames.Ravel[i] = new JString { str = yt.Columns[i] };
+                var t = yt.Rows[i].val.GetType();
+                string type = "";
+                if (t == typeof(A<JString>)) {
+                    type = "string";
+                }
+                else if (t == typeof(A<double>)) {
+                    type = "double";
+                }
+                else if (t == typeof(A<decimal>)) {
+                    type = "decimal";
+                } else if (t == typeof(A<long>)) {
+                    type = "int";
+                }
+                colTypes.Ravel[i] = new JString { str = type };
+            }
+            return new JTable { Columns = cols, Rows = new Box[] { colNames.Box(), colTypes.Box() } }.WrapA();
+        }
+
         public AType Call1(AType method, AType y) {
             var verb = ((A<Verb>)method).Ravel[0];
 
@@ -4682,6 +4712,10 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "4" && verb.rhs == "1") {
                 //names       
+
+                if (y.GetType() == typeof(A<JTable>)) {
+                    return getTableDefinition(y as A<JTable>);
+                }
                 var type = (y as A<long>).First();
                 var vals = Parser.Names.Where(xv => {
                     var isVerb = xv.Value.GetType() == typeof(A<Verb>);
