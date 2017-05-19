@@ -1894,6 +1894,10 @@ namespace MicroJ {
                 else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<double>)) {
                     return mathmixed((A<long>)x, (A<double>)y, (a, b) => a - b);
                 }
+                else if (x.GetType() == typeof(A<long>) && y.GetType() == typeof(A<decimal>)) {
+                    var xd = x.ConvertDecimal();
+                    return math((A<decimal>)xd, (A<decimal>)y, (a, b) => a - b);
+                }
                 else if (x.GetType() == typeof(A<BigInteger>) && y.GetType() == typeof(A<BigInteger>)) {
                     return math((A<BigInteger>)x, (A<BigInteger>)y, (a, b) => a - b);
                 }
@@ -2107,12 +2111,20 @@ namespace MicroJ {
                     return math((A<decimal>)x, (A<decimal>)y, (a, b) => b != 0 ? a / b : 0 );
                 }
                 else {
-                    var a2 = x.ConvertDouble();
-                    var b2 = y.ConvertDouble();
-                    //round to 6 decimal points
-                    //TODO: make option
-                    return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : Math.Round(a / b, 6));
-                    //return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : a / b);
+                    if (Parser.UseDecimal) {
+                        var a2 = x.ConvertDecimal();
+                        var b2 = y.ConvertDecimal();
+                        return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : Math.Round(a / b, 6));
+                    }
+                    else {
+                        var a2 = x.ConvertDouble();
+                        var b2 = y.ConvertDouble();
+                        //round to 6 decimal points
+                        //TODO: make option
+                        return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : Math.Round(a / b, 6));
+                        //return math(a2, b2, (a, b) => a == 0 && b == 0 ? 0 : a / b);
+                    }
+                    
                 }
                 
             }

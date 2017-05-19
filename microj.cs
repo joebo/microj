@@ -208,6 +208,24 @@ namespace MicroJ
             throw new NotImplementedException();
         }
 
+        public A<decimal> ConvertDecimal() {
+            if (Type == typeof(decimal)) {
+                return (A<decimal>)this;
+            }
+            else if (Type == typeof(long)) {
+                var a = (A<long>)this;
+                var z = new A<decimal>(a.Count, a.Shape);
+                z.Ravel = a.Ravel.Select(x => (decimal)x).ToArray();
+                return z;
+            }
+            else if (Type == typeof(double)) {
+                var a = (A<double>)this;
+                var z = new A<decimal>(a.Count, a.Shape);
+                z.Ravel = a.Ravel.Select(x => (decimal)x).ToArray();
+                return z;
+            }
+            throw new NotImplementedException();
+        }
         public A<long> ConvertLong() {
             if (Type == typeof(long)) {
                 return (A<long>)this;
