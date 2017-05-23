@@ -4115,33 +4115,40 @@ namespace MicroJ {
             }
             var rowCount = obj.Count;
             var rows = new Box[columns.Count];
+            
             for (var i = 0; i < columns.Count; i++) {
                 var key = columns[i];
-                var val = first[key];
+                try { 
+                        var val = first[key];
 
-                var allInt = obj.Select(x => x[key].GetType() == typeof(int)).Where(x => x).Count() == obj.Count();
+                        var allInt = obj.Select(x => x[key].GetType() == typeof(int)).Where(x => x).Count() == obj.Count();
 
-                if (Parser.UseDecimal && (val.GetType() == typeof(long) || val.GetType() == typeof(int) || val.GetType() == typeof(double) || val.GetType() == typeof(decimal))) {
-                    var vals = obj.Select(x => Convert.ToDecimal(x[key])).ToArray();
-                    rows[i] = new A<decimal>(rowCount) { Ravel = vals }.Box();
+                        if (Parser.UseDecimal && (val.GetType() == typeof(long) || val.GetType() == typeof(int) || val.GetType() == typeof(double) || val.GetType() == typeof(decimal))) {
+                            var vals = obj.Select(x => Convert.ToDecimal(x[key])).ToArray();
+                            rows[i] = new A<decimal>(rowCount) { Ravel = vals }.Box();
+                        }
+                        else if (val.GetType() == typeof(long)) {
+                            var vals = obj.Select(x => (long)x[key]).ToArray();
+                            rows[i] = new A<long>(rowCount) { Ravel = vals }.Box();
+                        }
+                        else if (val.GetType() == typeof(int) && allInt) {
+                            var vals = obj.Select(x => (long)(int)x[key]).ToArray();
+                            rows[i] = new A<long>(rowCount) { Ravel = vals }.Box();
+                        }
+                        else if (val.GetType() == typeof(double) || val.GetType() == typeof(decimal) || val.GetType() == typeof(int)) {
+                            var vals = obj.Select(x => Convert.ToDouble(x[key])).ToArray();
+                            rows[i] = new A<double>(rowCount) { Ravel = vals }.Box();
+                        }
+                        else if (val.GetType() == typeof(string)) {
+                            var vals = obj.Select(x => new JString { str=String.Intern(x[key].ToString()) }).ToArray();
+                            rows[i] = new A<JString>(rowCount) { Ravel = vals }.Box();
+                        }
                 }
-                else if (val.GetType() == typeof(long)) {
-                    var vals = obj.Select(x => (long)x[key]).ToArray();
-                    rows[i] = new A<long>(rowCount) { Ravel = vals }.Box();
-                }
-                else if (val.GetType() == typeof(int) && allInt) {
-                    var vals = obj.Select(x => (long)(int)x[key]).ToArray();
-                    rows[i] = new A<long>(rowCount) { Ravel = vals }.Box();
-                }
-                else if (val.GetType() == typeof(double) || val.GetType() == typeof(decimal) || val.GetType() == typeof(int)) {
-                    var vals = obj.Select(x => Convert.ToDouble(x[key])).ToArray();
-                    rows[i] = new A<double>(rowCount) { Ravel = vals }.Box();
-                }
-                else if (val.GetType() == typeof(string)) {
-                    var vals = obj.Select(x => new JString { str=String.Intern(x[key].ToString()) }).ToArray();
-                    rows[i] = new A<JString>(rowCount) { Ravel = vals }.Box();
-                }
+                catch (KeyNotFoundException e) {
+                    throw new ApplicationException("Key not found: " + key);
+                }                
             }
+            
             return new JTable {
                 Columns = columns.ToArray(),
                 Rows = rows
