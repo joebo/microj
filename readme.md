@@ -5,8 +5,6 @@ Credits: JSoftware, Inc. for releasing the source code and for making excellent 
 Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab/blob/master/csharp/jsharp/jsharp.cs). The initial version did not use generics and then was rewritten to its current form. Generics were chosen when I found I was adding type specific code to every verb.
 
 
-## Status: Proof of concept
-
 ### Repl - Building / Running (tested on windows/linux)
 1. run build.bat (windows) or mcs microj.cs primitives.cs repl.cs (mono)
 2. run bin\microj.exe or microj.exe to get a repl, hit ctrl+c to exit or type exit
@@ -29,38 +27,7 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 Starting with list from
 [http://www.jsoftware.com/jwiki/DevonMcCormick/MinimalBeginningJ](http://www.jsoftware.com/jwiki/DevonMcCormick/MinimalBeginningJ)
 
-| Primitive | Status                                          | Monad  | Dyad            |
-|-----------|-------------------------------------------------|--------|-----------------|
-| =.        | Not Implemented (HOLD) / waiting on local scope |        |                 |
-| =:        | Implemented                                     |        |                 |
-| _         | Implemented                                     |        |                 |
-| NB.       | Implemented                                     |        |                 |
-| $         | Implemented                                     | shape  | reshape         |
-| #         | Implemented                                     | tally  | copy            |
-| ,         | Partially Implemented (missing non-equal shapes)| ravel  | append          |
-| ;         | Not Implemented                                 |        |                 |
-| {.        | Partially Implemented                           | head   | take            |
-| }.        | Partially Implemented                           | behead | drop            |
-| /         | Implemented                                     | insert | table           |
-| i.        | Partially Implemented                           | iota   | indexof         |
-| +         | Partially Implemented                           |        | plus (math)     |
-| *         | Partially Implemented                           |        | times (math)    |
-| -         | Partially Implemented                           |        | subtract (math) |
-| %         | Partially Implemented                           |        | divide (math)   |
-| ^         | Not Implemented                                 |        |                 |
-| ^.        | Not Implemented                                 |        |                 |
-| <.        | Implemented                                     | floor  | min             |
-| >.        | Implemented                                     | ceiling| max             |
-
-Data Types:
-- integer (long) -- (consider int32 support)
-- float (double)
-- string
-- bool (partial)
-- boxed
-
-## Todo:
-1. More J primitives
+See [tests.ijs](test.ijs) for what's implemented
 
 ## Vision:
 Not intended to be a replacement for J. It may be useful to hack on to learn J better or embed in C#
