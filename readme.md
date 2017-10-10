@@ -27,7 +27,7 @@ Original version can be found in my [lang-lab](https://github.com/joebo/lang-lab
 Starting with list from
 [http://www.jsoftware.com/jwiki/DevonMcCormick/MinimalBeginningJ](http://www.jsoftware.com/jwiki/DevonMcCormick/MinimalBeginningJ)
 
-See [tests.ijs](test.ijs) for what's implemented
+See [tests.ijs](tests.ijs) for what's implemented
 
 ## Vision:
 Not intended to be a replacement for J. It may be useful to hack on to learn J better or embed in C#
