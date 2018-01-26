@@ -210,12 +210,28 @@ namespace MicroJ {
                     path = System.IO.Directory.GetCurrentDirectory();
                 }
                 FileInfo[] files = new System.IO.DirectoryInfo(path).GetFiles();
+                DirectoryInfo[] dirs = new System.IO.DirectoryInfo(path).GetDirectories();
 
-                var columns = new string[] { "FullName", "Name", "Extension"};
+                var columns = new string[] { "FullName", "Name", "Extension", "IsDir"};
                 var rows = new Box[columns.Length];
-                rows[0] = new A<JString>(new long[] { files.Length, 1}) { Ravel = files.Select(x=>new JString { str = x.FullName }).ToArray() }.Box();
-                rows[1] = new A<JString>(new long[] { files.Length, 1}) { Ravel = files.Select(x=>new JString { str = x.Name }).ToArray() }.Box();
-                rows[2] = new A<JString>(new long[] { files.Length, 1}) { Ravel = files.Select(x=>new JString { str = x.Extension}).ToArray() }.Box();
+                rows[0] = new A<JString>(new long[] { files.Length + dirs.Length, 1}).Box();
+                rows[1] = new A<JString>(new long[] { files.Length + dirs.Length, 1}).Box();
+                rows[2] = new A<JString>(new long[] { files.Length + dirs.Length, 1}).Box();
+                rows[3] = new A<long>(new long[] { files.Length + dirs.Length, 1}).Box();
+
+                for(var i = 0; i < dirs.Length; i++) {
+                    (rows[0].val as A<JString>).Ravel[i] = new JString { str = dirs[i].FullName };
+                    (rows[1].val as A<JString>).Ravel[i] = new JString { str = dirs[i].Name };
+                    (rows[2].val as A<JString>).Ravel[i] = new JString { str = ""};
+                    (rows[3].val as A<long>).Ravel[i] = 1;
+                }
+                int offset = dirs.Length;
+                for(var i = 0; i < files.Length; i++) {
+                    (rows[0].val as A<JString>).Ravel[offset+i] = new JString { str = files[i].FullName };
+                    (rows[1].val as A<JString>).Ravel[offset+i] = new JString { str = files[i].Name };
+                    (rows[2].val as A<JString>).Ravel[offset+i] = new JString { str = files[i].Extension };
+                    (rows[3].val as A<long>).Ravel[offset+i] = 0;
+                }
                 return new JTable {
                     Columns = columns,
                     Rows = rows
