@@ -238,6 +238,10 @@ namespace MicroJ {
                 }.WrapA();
             }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
 
+            expressionMap["smoutput"] = new VerbWithRank(y=> {
+                Console.WriteLine(y.ToString());
+                return new JString { str = "" }.WrapA();
+            }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
             //END should move to helper
 
             SpecialCode["*"] = new SpecialCodeEval {
@@ -3020,10 +3024,14 @@ namespace MicroJ {
             throw new NotImplementedException("Symbolize not implemented on " + y.GetType());
         }
         public AType symbolizeTable(A<JString> x, A<JTable> y)  {
+            var yt = y.First();
+            if (yt.RowCount == 0) { return AType.MakeA(0); }
             var definition = Conjunctions.getTableDefinition(y).First();
             var types = definition.Rows[1];
             var ct = 0;
             var path = x.GetString(0);
+
+            Directory.CreateDirectory(path);
 
             for(var i = 0; i < definition.RowCount;i++) {
                 if (types.val.GetString(i) == "string") {
