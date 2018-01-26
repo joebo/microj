@@ -202,6 +202,26 @@ namespace MicroJ {
                 yta.Ravel[0] = yt;
                 return yta;
             }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
+
+            expressionMap["dir"] = new VerbWithRank(y=> {
+                var ys = y as A<JString>;
+                var path = ys != null ? ys.GetString(0) : "";
+                if (path == "" || path == " ") {
+                    path = System.IO.Directory.GetCurrentDirectory();
+                }
+                FileInfo[] files = new System.IO.DirectoryInfo(path).GetFiles();
+
+                var columns = new string[] { "FullName", "Name", "Extension"};
+                var rows = new Box[columns.Length];
+                rows[0] = new A<JString>(new long[] { files.Length, 1}) { Ravel = files.Select(x=>new JString { str = x.FullName }).ToArray() }.Box();
+                rows[1] = new A<JString>(new long[] { files.Length, 1}) { Ravel = files.Select(x=>new JString { str = x.Name }).ToArray() }.Box();
+                rows[2] = new A<JString>(new long[] { files.Length, 1}) { Ravel = files.Select(x=>new JString { str = x.Extension}).ToArray() }.Box();
+                return new JTable {
+                    Columns = columns,
+                    Rows = rows
+                }.WrapA();
+            }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
+
             //END should move to helper
 
             SpecialCode["*"] = new SpecialCodeEval {
