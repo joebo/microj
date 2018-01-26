@@ -223,6 +223,174 @@ namespace MicroJ {
             };
         }
 
+        
+        public AType aggregate(AType y) {
+            var yb = y as A<Box>;
+                var groupBy = yb.UnboxString(0);
+                var yt = (yb.Ravel[2].val as A<JTable>).First();
+
+                var groupByBox = yb.Ravel[0].val as A<JString>;
+                if (yb.Ravel[0].val is A<Box>) {
+                    var swap = new A<JString>(new long[] {yb.Ravel[0].val.GetCount(), 1 });
+                    for(var i = 0; i < yb.Ravel[0].val.GetCount();i++) {
+                        swap.Ravel[i] = new JString { str = (yb.Ravel[0].val as A<Box>).UnboxString(i)};
+                    }
+                    groupByBox = swap;
+                }
+
+                var colIdx = groupByBox.Ravel.Select(xv => yt.GetColIndex(xv.WrapA())).ToArray();
+                var expressions = yb.Ravel[1].val as A<Box>;
+
+                List<string> outputColumns = new List<string>();
+                var outputRows = new Box[expressions.Count+1];
+
+                long[] vals;
+                if (colIdx.Length > 1 || yt.Symbols == null || !yt.Symbols.TryGetValue(yt.Columns[colIdx[0]], out vals)) {
+                    //throw new ApplicationException("aggregate only supports symbol columns");
+
+                    //generate unique numeric key
+                    var keyDict = new Dictionary<string, long>();
+                    vals = new long[yt.RowCount];
+                    for(var i = 0; i < vals.Length;i++) {
+                        string key ="";
+                        for(var k = 0; k < colIdx.Length;k++) {
+                            key+="|"+yt.Rows[colIdx[k]].val.GetString(i);
+                        }
+                        long val;
+                        if (!keyDict.TryGetValue(key, out val)) {
+                            keyDict[key] = i;
+                            val = i;
+                        }
+                        vals[i] = val;
+                    }
+                }
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+
+                var indices = new long[vals.Length];
+                var keys = new long[vals.Length];
+                for (long i = 0; i < indices.Length; i++) {
+                    indices[i] = i;
+                    keys[i] = vals[i];
+                }
+                Parser.Log("before sort",sw,reset:true);
+                Array.Sort(keys, indices);
+                Parser.Log("after sort",sw,reset:true);
+                long lastKey = Int32.MaxValue;
+
+
+                var groupIndices = new long[vals.Length];
+                long groupLength = 0;
+                long keyCounter = 0;
+
+                outputColumns.Add(yt.Columns[colIdx[0]]);
+                for(var i = 0; i < keys.Length; i++) {
+                    if (lastKey != keys[i]) {
+                        groupIndices[keyCounter++] = indices[i];
+                    }
+                    lastKey = keys[i];
+                }
+
+                var keyRows = yt.Rows[colIdx[0]].val.FromIndices(groupIndices, keyCounter);
+                var keyCt = keyRows.GetCount();
+                outputRows[0] = keyRows.Box();
+
+                Parser.Log("after keygen",sw,reset:true);
+
+                for(var k = 0; k < expressions.Ravel.Length; k++) {
+                    var expression = expressions.UnboxString(k);
+                    var expressionParts = expression.Split(' ');
+                    var expressionCol = expressionParts.Last();
+                    var expressionColIdx = Array.FindIndex(yt.Columns, z=>z==expressionCol);
+                    groupLength = 0;
+                    keyCounter = 0;
+
+                    var results = new AType[keyCt];
+
+                    outputColumns.Add(expressionParts[0]);
+
+                    if (expressionColIdx == -1) {
+                        throw new ApplicationException("Column: " + expressionCol + " not found");
+                    }
+                    var Eval = new Func<AType>(()=> {
+                        AType colVals = yt.Rows[expressionColIdx].val.FromIndices(groupIndices, groupLength );
+                        AType result = null;
+                        //special code will never be called as it's picked up
+                        //if (expressionParts[2] == "+/") {
+                        //    result = Adverbs.reduceplus(colVals as A<double>);
+                        //} else {
+                        var method = new A<Verb>(1) { Ravel = new Verb[] { new Verb { op = expressionParts[2]} } };
+                        result = Call1(method, colVals);
+                        //}
+                        results[keyCounter] = result;
+                        keyCounter++;
+                        return null;
+                    });
+                    var colvals = yt.Rows[expressionColIdx].val;
+                    var colvalsd = (colvals as A<double>);
+                    var colvalss = (colvals as A<JString>);
+                    //special code
+                    var op = expressionParts[2];
+                    if (colvalsd != null && (op == "+/" || op == "#" || op == "{.")) {
+                        double total=0;
+                        double[] dvals = colvalsd.Ravel;
+                        double[] dresult = new double[keys.Length];
+                        //explicit ops are better than a conditional within
+                        if (op == "+/") {
+                            for(var i = 1; i < keys.Length;i++) {
+                                total+= dvals[indices[i-1]];
+                                if (keys[i]!=keys[i-1]) {dresult[keyCounter++] = total; total = 0;}
+                            }
+                        }
+                        if (op == "#") {
+                            for(var i = 1; i < keys.Length;i++) {
+                                total+=1;
+                                if (keys[i]!=keys[i-1]) {dresult[keyCounter++] = total; total = 0;}
+                            }
+                        }
+                        if (op == "{.") {
+                            for(var i = 1; i < keys.Length;i++) {
+                                total= dvals[indices[i-1]];
+                                if (keys[i]!=keys[i-1]) {dresult[keyCounter++] = total; total = 0;}
+                            }
+                        }
+                        dresult[keyCounter++] = total;
+                        outputRows[(k+1)] = new A<double>(keys.Length) { Ravel = dresult }.Box();
+                    }
+                    else if (colvalss != null && (op == "{.")) {
+                        JString[] sresult = new JString[keys.Length];
+                        //explicit ops are better than a conditional within
+                        if (op == "{.") {
+                            for(var i = 1; i < keys.Length;i++) {
+                                if (keys[i]!=keys[i-1])
+                                    sresult[keyCounter++] =  colvalss.Ravel[indices[i-1]];
+                            }
+                            sresult[keyCounter++] = colvalss.Ravel[keys.Length-1];
+                        }
+                        outputRows[(k+1)] = new A<JString>(new long[] { keys.Length, 1}) { Ravel = sresult }.Box();
+                    }
+                    else {
+                        for(var i = 0; i < keys.Length; i++) {
+                            if (lastKey != keys[i]) {
+                                if (groupLength > 0) {
+                                    Eval();
+                                }
+                                groupLength=0;
+                            }
+                            groupIndices[groupLength++] = indices[i];
+                            lastKey = keys[i];
+                        }
+                        Eval();
+                        outputRows[(k+1)] = results[0].Merge(new long[] { keyCt }, results).Box();
+                    }
+                    Parser.Log("after expression " + expression,sw,reset:true);
+                }
+                var newt = new JTable {
+                    Columns = outputColumns.ToArray(),
+                    Rows = outputRows
+                };
+                return newt.WrapA();
+        }
         public AType InvokeExpression(string op, AType x, AType y, int generics, object callee = null, AType newVerb = null, bool tryConvertLong = true) {
             var key = new Tuple<string, Type, Type>(op, x.GetType(), y.GetType());
             Delegate d;
