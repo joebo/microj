@@ -152,6 +152,7 @@ namespace MicroJ
         public abstract object GetVal(long n);
         public abstract AType GetValA(long n);
         public abstract AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false);
+        public abstract AType FromIndices(long[] indices, long count);
         public abstract AType TryConvertLong(Parser parse);
         public abstract bool IsAtom();
         public abstract long GetLong(int n);
@@ -499,6 +500,9 @@ namespace MicroJ
         public Dictionary<string, string> FooterExpressions;
         public Dictionary<string, long> UniqueKeys;
         public Dictionary<string, List<long>> Key;
+        public Dictionary<string, long[]> Symbols;
+        public List<string> Calculations;
+        public bool Dirty;
 
         //holds partition information
         public A<Box> partitioned;
@@ -643,7 +647,9 @@ namespace MicroJ
                 ColumnExpressions = ColumnExpressions,
                 FooterExpressions = FooterExpressions,
                 Key = Key,
-                UniqueKeys = UniqueKeys
+                UniqueKeys = UniqueKeys,
+                Symbols = Symbols,
+                Calculations = Calculations
             };
         }
 
@@ -890,6 +896,14 @@ namespace MicroJ
             return new A<T>(0) { Ravel = new T[] { Ravel[n] } };
         }
 
+        public override AType FromIndices(long[] indices, long length) {
+            A<T> v = null;
+            v = new A<T>(length);
+            for(var i = 0; i < length;i++) {
+                v.Ravel[i] = Ravel[indices[i]];
+            }
+            return v;
+        }
         public override AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false) {
 
             A<T> v = null;
@@ -1027,6 +1041,10 @@ namespace MicroJ
             
         }
 
+        public string UnboxString(long n) {
+            var yb = (this as A<Box>);
+            return yb.Ravel[n].val.GetString(0);
+        }       
         public override string GetString(long n, string format) {
             return String.Format(format, Ravel[n]);
         }
@@ -1562,8 +1580,8 @@ namespace MicroJ
             throw new ApplicationException("no value found on stack - after " + i.ToString() + " iterations");
         }
 
-        public static void Log(string msg, Stopwatch watch = null, [CallerMemberName] string callerName = "") {
-
+        public static void Log(string msg, Stopwatch watch = null, [CallerMemberName] string callerName = "", bool reset = false) {
+#if DEBUG
             var fullMsg = System.DateTime.Now + ":Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId+ ":[" + callerName + "]: " + msg;
             if (watch != null) {
                 watch.Stop();
@@ -1572,9 +1590,13 @@ namespace MicroJ
             lock (typeof(Parser)) {
                 System.IO.File.AppendAllText("log.txt", fullMsg + "\r\n");
             }
-            
+            if(reset) {
+                watch.Reset();
+                watch.Start();
+            } 
             
         }
+#endif
     }
        
     //todo could use some cleanup... primarily interested in getting tests to pass for now
