@@ -1234,3 +1234,26 @@ NB. table results from key
 |2|25  |25  |
 +-+----+----+
 )
+
+
+NB. amend a column through addcol 
+(('addcol';'a is a <. 3') } flip ((<'a');i.5)) -: 0 : 0
++-+
+|a|
+|-|
+|0|
+|-|
+|1|
+|-|
+|2|
+|-|
+|3|
+|-|
+|3|
++-+
+)
+
+
+(left('201704';4)) -: '2017'
+
+
