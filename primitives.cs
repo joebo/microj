@@ -3986,7 +3986,7 @@ namespace MicroJ {
                     if (unquote) {
                         csv = csv.Select(x => x.Trim('\"')).ToArray();
                     }
-                    if (iLine++ > 1000 && iLine > limit) { break; }
+                    if (iLine++ > 1000 || iLine > limit) { break; }
                     for (var k = 0; k < fieldCount; k++) {
                         int n = 0;
                         double d = 0;              
