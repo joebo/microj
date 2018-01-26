@@ -687,6 +687,9 @@ namespace MicroJ
                 footer++;
             }
 
+            if (ttake > Parser.OUTPUT_MAX_ROWS) {
+                ttake = Parser.OUTPUT_MAX_ROWS;
+            }
             var newShape = new long[] {ttake+1+footer , Columns.Length};
             var formatter = new Formatter(newShape, "");
             foreach (var col in Columns) {
