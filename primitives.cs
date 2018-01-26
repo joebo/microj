@@ -2846,6 +2846,10 @@ namespace MicroJ {
                     }
                 }          
             }
+
+            if (xs != null && yt != null) {
+                return symbolizeTable(xs, yt);
+            }
             return AType.MakeA(1);
         }
         public AType symbolize(AType y) {
@@ -2901,6 +2905,40 @@ namespace MicroJ {
             }
             throw new NotImplementedException("Symbolize not implemented on " + y.GetType());
         }
+        public AType symbolizeTable(A<JString> x, A<JTable> y)  {
+            var definition = Conjunctions.getTableDefinition(y).First();
+            var types = definition.Rows[1];
+            var ct = 0;
+            var path = x.GetString(0);
+
+            for(var i = 0; i < definition.RowCount;i++) {
+                if (types.val.GetString(i) == "string") {
+                    var param = new Box[] {
+                        new Box { val = (new JString { str = definition.Rows[0].val.GetString(i) }).WrapA() },
+                        new Box { val = y }
+                    };
+                    A<Box> syms = symbolize(new A<Box> { Ravel = param }) as A<Box>;
+                    symbolizeDyad(AType.MakeA(10), new A<Box> {
+                        Ravel = new Box[] {
+                            new Box { val = (new JString { str = path }).WrapA() },
+                            new Box { val = (new JString { str = definition.Rows[0].val.GetString(i) }).WrapA() },
+                            new Box { val = syms.Ravel[1].val}
+                        }
+                    });
+                    ct += 1;
+                }
+            }
+            //write symbols
+            symbolizeDyad(AType.MakeA(10), new JString { str = Path.Combine(path, "sym.bin") }.WrapA());
+
+            //write table
+            var yoptions = new A<Box>(1);
+            yoptions.Ravel[0].val = new JString { str = path }.WrapA();
+            Conjunctions.writeTableBinary(yoptions, y);
+
+            return AType.MakeA(ct);
+        }
+
         public AType CheckDecimal(AType vals) {
             if (Conjunctions.Parser.UseDecimal && vals.GetType() != typeof(A<Decimal>)) {
                 A<Decimal> ret;
