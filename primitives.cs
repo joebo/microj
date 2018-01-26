@@ -1642,6 +1642,7 @@ namespace MicroJ {
             var xv = x.First();
             var yv = y.First();
 
+            if (xv.RowCount != yv.RowCount) { throw new ApplicationException("Cannot link tables due to differing row count x:" + xv.RowCount.ToString() + " y:" + yv.RowCount.ToString());  }
             var matches = xv.Columns.Select((v, i) => new { xv = xv, xi = i, yi = Array.IndexOf(yv.Columns, v) });
             var z = xv.Clone();
             foreach (var match in matches.Where(v=>v.yi >= 0)) {
