@@ -1256,6 +1256,7 @@ namespace MicroJ
 
                     if (c == '(' || c == ')') { emit(); currentWord.Append(c); emit(); }
                     else if (!isDigit(p) && c == ' ') { emit(); }
+                    else if (p == '_' && c == ' ') { emit(); } //special case for "foo_ 1"
                     else if (p == ' ' && !isDigit(c)) { emit(); currentWord.Append(c); }
                     else if (isDigit(p) && c != ' ' && c != '.' && !isDigit(c) && !char.IsLetter(c)) { emit(); currentWord.Append(c); }
                     else if ((c == '.' && p == '=') || (c == ':' && p == '=')) { currentWord.Append(c); emit(); }
