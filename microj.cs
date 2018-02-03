@@ -151,13 +151,16 @@ namespace MicroJ
         public abstract void SetVal(long n, object val);
         public abstract object GetVal(long n);
         public abstract AType GetValA(long n);
-        public abstract AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false);
+        public abstract AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false, AType missingVal = null);
         public abstract AType FromIndices(long[] indices, long count);
+        public abstract AType Clone(long extra=0);
+
         public abstract AType TryConvertLong(Parser parse);
         public abstract bool IsAtom();
         public abstract long GetLong(int n);
         public abstract bool CanBeInt();
-        
+        public abstract AType PickFromBox(int[] which,A<Box> vals);
+
         public JString GetCharJString(long n) {
             return new JString { str = GetChar(n) };
         }
@@ -587,7 +590,7 @@ namespace MicroJ
         }
         public long RowCount {
             get {
-                if (Rows.Length == 0) { return 0; }
+                if (Rows == null || Rows.Length == 0) { return 0; }
                 if (indices == null) {
                     //return Rows[0].val.Shape[0];
                     return Rows[0].val.GetCount();
@@ -649,8 +652,7 @@ namespace MicroJ
                 FooterExpressions = FooterExpressions,
                 Key = Key,
                 UniqueKeys = UniqueKeys,
-                Symbols = Symbols,
-                Calculations = Calculations
+                Symbols = Symbols
             };
         }
 
@@ -711,8 +713,8 @@ namespace MicroJ
                 footer++;
             }
 
-            if (ttake > Parser.OUTPUT_MAX_ROWS) {
-                ttake = Parser.OUTPUT_MAX_ROWS;
+            if (ttake > maxRows) {
+                ttake = maxRows;
             }
             var newShape = new long[] {ttake+1+footer , Columns.Length};
             var formatter = new Formatter(newShape, "");
@@ -725,7 +727,7 @@ namespace MicroJ
             }
 
             var newIndices = new List<long>();
-            for (var i = offset; i < (offset+ttake) && i < ct && i < Parser.OUTPUT_MAX_ROWS; i++) {
+            for (var i = offset; i < (offset+ttake) && i < ct && i < maxRows; i++) {
                 if (indices == null) {
                     newIndices.Add(i);
                 }
@@ -923,6 +925,17 @@ namespace MicroJ
             return new A<T>(0) { Ravel = new T[] { Ravel[n] } };
         }
 
+        public override AType Clone(long extra=0) {
+            var len = Ravel.Length;
+            A<T> v = new A<T>(len+extra);
+            v.Shape = ShapeCopy();
+            v.Shape[0] = len + extra;
+            for(var i = 0; i < len;i++) {
+                v.Ravel[i] = Ravel[i];
+            }
+            
+            return v;
+        }
         public override AType FromIndices(long[] indices, long length) {
             A<T> v = null;
             v = new A<T>(length);
@@ -931,7 +944,7 @@ namespace MicroJ
             }
             return v;
         }
-        public override AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false) {
+        public override AType FromIndices(long[] indices, bool flattenStrings = true, bool allRows = false, AType missingVal = null) {
 
             A<T> v = null;
             if (typeof(T) == typeof(JString) && !flattenStrings) {
@@ -962,8 +975,11 @@ namespace MicroJ
                     v.Ravel[i] = Ravel[indices[i]];
                 }
                 else {
-                    //todo speed up
-                    if (typeof(T) == typeof(JString)) {
+                    //todo speed up                    
+                    if (missingVal != null) {
+                        v.Ravel[i] = (T) (object) missingVal.GetVal(0);
+                    }
+                    else if (typeof(T) == typeof(JString)) {
                         v.Ravel[i] = (T) (object) new JString { str = "" };
                     }
                     else {
@@ -1161,6 +1177,31 @@ namespace MicroJ
             }          
             return z;
         }
+
+        public override AType PickFromBox(int[] which, A<Box> options) {
+            long[] shape;
+            if (typeof(T) == typeof(JString)) {
+                shape = new long[2] { which.Length, 1};
+            } else {
+                shape = new long[1] { which.Length };
+            }
+            A<T> result = new A<T>(shape);
+            try {
+                for(var i = 0; i < which.Length; i++) {
+                    var choice = (options.Ravel[which[i]].val as A<T>);
+                    if (choice.Count == 1) {
+                        result.Ravel[i] = choice.Ravel[0];
+                    }
+                    else {
+                        result.Ravel[i] = choice.Ravel[i];
+                    }
+                }
+            }
+            catch (Exception e) {
+                throw new ApplicationException("PickFromBox error -- mostly likely incorrect types", e);
+            }
+            return result;
+        }
     }
 
     public class AHelper {
@@ -1178,7 +1219,7 @@ namespace MicroJ
     public class Parser {
 
         public static bool ThrowError = true;
-        public static int OUTPUT_MAX_ROWS = 10000;
+        public static int OUTPUT_MAX_ROWS = 500;
 
         public bool UseDecimal = false;
         public static int MAX_DECIMAL = -1;
@@ -1272,9 +1313,8 @@ namespace MicroJ
             bool inDouble = false;
             for (var ci = 0; ci < w.Length; ci++ ) {
                 var c = w[ci];
-                if (!inQuote && c == '\'') { emit(); currentWord.Append(c); inQuote = true; }
+                if (!inQuote && c == '\'') { emit(); currentWord.Append(c); inQuote = true;  }
                 else if (inQuote && c == '\'' && (ci < w.Length-1 && w[ci+1] != '\'' && w[ci-1] != '\'')) { currentWord.Append(c); emit(); inQuote = !inQuote; }
-                //else if (inQuote) { /*if (ci >= w.Length -1 || !(c == '\'' && w[ci-1] == '\'')) {*/ currentWord.Append(c); /*}*/  }
                 else if (inQuote) { if (ci >= w.Length - 1 || !(c == '\'' && w[ci - 1] == '\'') || inDouble) { currentWord.Append(c); inDouble = false; } else { inDouble = true; } }
                 else {
 
@@ -1290,6 +1330,7 @@ namespace MicroJ
                     else if ((isSymbol(p) || isSymbolPrefix(p)) && isDigit(c)) { emit(); currentWord.Append(c); } //1+2
                     else if (isSymbol(c) && !isSymbol(p)) { emit(); currentWord.Append(c); }
                     else currentWord.Append(c);
+                    
                 }
                 p = c;
             }
@@ -1623,8 +1664,8 @@ namespace MicroJ
                 watch.Start();
             } 
             
-        }
 #endif
+        }
     }
        
     //todo could use some cleanup... primarily interested in getting tests to pass for now
