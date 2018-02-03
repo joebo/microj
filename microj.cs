@@ -670,11 +670,34 @@ namespace MicroJ
             return t;
         }
             
+         public string ToDelim(string delim="\t", int limit=-1) {
+            var yt = this;
+            var sb = new StringBuilder();
+            sb.AppendLine(String.Join(delim,yt.Columns));
+            long maxRows = yt.RowCount;
+            if (limit>0 && limit < yt.RowCount) {
+                maxRows = limit;
+            }
+            
+            for(var i = 0; i < maxRows;i++) {
+                var idx = yt.indices != null ? yt.indices[i] : i;
+                for(var c = 0; c < yt.Columns.Length;c++) {
+                    sb.Append(yt.Rows[c].val.GetString(i));
+                    if (c != yt.Columns.Length-1) {
+                        sb.Append(delim);    
+                    }
+                }
+                sb.AppendLine();
+            }
+            return sb.ToString();
+        }
         public override string ToString() {
             if (partitioned != null) {
                 return partitioned.ToString();
             }
-            var ct = Rows[0].val.GetCount();
+            var maxRows = Parser.OUTPUT_MAX_ROWS;
+
+            var ct = RowCount;
             if (indices != null) {
                 ct = indices.Length;
             }
