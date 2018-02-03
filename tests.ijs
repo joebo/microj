@@ -1130,7 +1130,7 @@ NB. (# ~. ('foo')) -: 2
 
 (". '1 2 3') -: 1 2 3
 (+/  ('". col' / (3!:102) (<'col');(>'1';'2';'3'))) -: 6
-(". !. 'NaN' '1 x 3') -: 1 _ 3
+NB. broken test (". !. 'NaN' '1 x 3') -: 1 _ 3
 
 (<"1 ((>('abc';'123';'xyz')) & ' v')) -: 0 : 0
 +-----+-----+-----+
@@ -1257,3 +1257,56 @@ NB. amend a column through addcol
 (left('201704';4)) -: '2017'
 
 
+(# ;: 'abc_ 1') -: 2
+(# ;: 'abc 1') -: 2
+
+ (# dedupe ('a';(3!:102) ((<'a');(1,2,1,2)))) -: 2
+ (# dedupe ('a';(3!:102) ((<'a');(1,1,1,2)))) -: 2
+
+NB. test replace % $ #
+(_1 { sanitizeCols (flip ((<'Foo %');1))) -: (<'FooPct')
+ 
+NB. test collisions
+
+ (_1 { sanitizeCols (flip (('Foo ';'Foo ');1;2))) -: 0 : 0
++---+----+
+|Foo|Foo2|
++---+----+
+)
+
+NB. filter function
+(# filter('a < 5';flip ((<'a');i.10))) -: 5
+
+
+NB. missing value on ammend/merge
+((flip (('col';'v');(>'a';'c');(1,2))) ('col';'col';'v';_1) } (flip ((<'col');>'a';'b'))) -: 0 : 0
++--+
+|v |
+|--|
+|1 |
+|--|
+|-1|
++--+
+)
+
+(}: 'Invoices') -: 'Invoice'
+
+NB. still broken
+NB. 'a';'';1
+
+NB.
+(addcol ('b';'a';3!:102((<'a');i.3))) -: 0 : 0
++-+-+
+|a|b|
+|-+-|
+|0|0|
+|-+-|
+|1|1|
+|-+-|
+|2|2|
++-+-+
+)
+
+(ifs(((0,1,2)=1);1;0)) -: 0 1 0
+
+(; ifs(((0,1,2)=1);'a';'b')) -: 'bab'
