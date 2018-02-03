@@ -4589,7 +4589,9 @@ namespace MicroJ {
             var serializer = new JavaScriptSerializer();
             serializer.MaxJsonLength = Int32.MaxValue;
 
-            return new JString { str =serializer.Serialize(rows) }.WrapA();
+            var str = serializer.Serialize(rows);
+            str = str.Replace("Infinity","null"); //todo make smarter
+            return new JString { str = str }.WrapA();
         }
 
         public AType boxToJSON(A<Box> y) {
@@ -4610,7 +4612,9 @@ namespace MicroJ {
                     dto.Add(y.Ravel[i].val.GetVal(0));
                 }
             }
-            return new JString { str = serializer.Serialize(dto) }.WrapA();
+            var str = serializer.Serialize(dto) ;
+            str = str.Replace("Infinity","null"); //todo make smarter
+            return new JString { str = str }.WrapA();
         }
 
         public AType namesToJSON(A<JString> y) {
