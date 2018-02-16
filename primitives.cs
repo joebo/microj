@@ -4663,6 +4663,7 @@ namespace MicroJ {
         public AType tableFromJSON(A<JString> y) {
             var str = y.First();
             var serializer = new JavaScriptSerializer();
+            serializer.MaxJsonLength = Int32.MaxValue;
             var obj = serializer.Deserialize<List<Dictionary<string, object>>>(str.str);
 
             var columns = new List<string>();
