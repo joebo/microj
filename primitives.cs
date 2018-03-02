@@ -143,7 +143,7 @@ namespace MicroJ {
                     else if (yi!=null)
                         ret.Ravel[i] = new JString { str = yi.Ravel[i].ToString()  };
                     else
-                        throw new NotImplementedException();
+                        throw new NotImplementedException("cannot convert from " + y.GetType());
                 }
                 return ret;
             }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
@@ -164,7 +164,7 @@ namespace MicroJ {
                         long.TryParse(ys.Ravel[i].str, out val);
                         //todo add debugging
                         ret.Ravel[i] = val;
-                    }                        
+                    }
                     else
                         throw new NotImplementedException();
                 }
@@ -223,7 +223,7 @@ namespace MicroJ {
             expressionMap["addcol"] = new VerbWithRank(y=> {
                 var options = new A<Box>(2);
                 var yb = y as A<Box>;
-                
+
                 //add a column from a table to another table
                 if (yb.Ravel[0].val is A<JTable>) {
                     var ybt = yb.Ravel[1].val as A<JTable>;
@@ -234,7 +234,7 @@ namespace MicroJ {
                 }
 
                 options.Ravel[0].val = new JString { str = "addcol" }.WrapA();
-                
+
                 var expression = yb.Ravel[0].val.GetString(0);
                 if (yb.GetCount()==3) {
                     expression = yb.Ravel[0].val.GetString(0) + " is " + yb.Ravel[1].val.GetString(0);
@@ -246,7 +246,7 @@ namespace MicroJ {
                 var yt = yta.Ravel[0];
                 if (yt.Calculations != null && yt.Calculations.Contains(expression)) {
                     return yta;
-                } 
+                }
                 var table = Adverbs.setTableProps(options, yta);
                 yt = table.Ravel[0];
                 if (yt.Calculations == null) { yt.Calculations = new List<string>(); }
@@ -306,19 +306,19 @@ namespace MicroJ {
                 var keyColumn = ys.GetString(0);
                 var keyIdx = Array.IndexOf(yt.Columns, keyColumn);
                 if (keyIdx == -1) { throw new ApplicationException("key column " + keyColumn + " not found"); }
-                
+
                 var rowCt = yt.RowCount;
-               
+
                 var sw = new Stopwatch();
                 Parser.Log("before sort",sw,reset:true);
 
-                var keys = yt.Rows[keyIdx].val.Clone();                    
+                var keys = yt.Rows[keyIdx].val.Clone();
                 var keyss = keys as A<JString>;
                 var keysl = keys as A<long>;
 
                 var newIndices = new List<long>();
                 //add the first one
-                if (keyss!=null) {                   
+                if (keyss!=null) {
                     //hashset is higher performance
                     var idx = new HashSet<string>();
                     for(var i = 0; i<rowCt;i++) {
@@ -346,7 +346,7 @@ namespace MicroJ {
                 }
                 yt.indices = newIndices.ToArray();
                 return copyTable(yt.WrapA());
-                
+
             }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
 
             expressionMap["sanitizeCols"] = new VerbWithRank(y => {
@@ -381,19 +381,19 @@ namespace MicroJ {
                 if (yb.Count % 2 == 0) {
                     throw new ArgumentException("ifs must have odd number of parameters");
                 }
-                
+
                 var bools = new A<bool>[yb.Count];
                 var ints = new A<long>[yb.Count];
-                
+
                 for(var k = 0;k < yb.Count; k++) {
                     bools[k] = yb.Ravel[k].val as A<bool>;
                     ints[k] = yb.Ravel[k].val as A<long>;
-                    
+
                 }
                 var ct = yb.Ravel[0].val.GetCount();
                 var which = new int[ct];
                 var last = (int)yb.Count-1;
-                for(var i = 0; i < ct; i++) {                    
+                for(var i = 0; i < ct; i++) {
                     which[i] = last;
                     for(var k = 0; k < yb.Count-2; k=k+2) {
                         if (bools[k]!=null && bools[k].Ravel[i]) {
@@ -408,8 +408,14 @@ namespace MicroJ {
                 }
                 return yb.Ravel[yb.Count-1].val.PickFromBox(which,yb);
                 //return new A<int>(ct) { Ravel=which };
-                
+
             }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
+
+
+            expressionMap["throw"] = new VerbWithRank(y => {
+                throw new ApplicationException(y.GetString(0));
+            }, null, VerbWithRank.Infinite,  VerbWithRank.Infinite, VerbWithRank.Infinite);
+
             //END should move to helper
 
             SpecialCode["*"] = new SpecialCodeEval {
@@ -510,7 +516,7 @@ namespace MicroJ {
             };
         }
 
-        
+
         public AType aggregate(AType y) {
             var yb = y as A<Box>;
                 var groupBy = yb.UnboxString(0);
@@ -1388,7 +1394,7 @@ namespace MicroJ {
 
 
         public A<T> curtail<T>(A<T> y) where T : struct {
-            var vs = y as A<JString>;            
+            var vs = y as A<JString>;
             if (vs != null && vs.GetCount() == 1) {
                 var str = vs.Ravel[0].str;
                 if (str.Length <= 1) {
@@ -1400,7 +1406,7 @@ namespace MicroJ {
             long[] newShape = y.ShapeCopy();
             newShape[0] = newShape[0] - 1;
             var v = new A<T>(newShape);
-            
+
             v.Ravel = y.Copy(v.Count > 0 ? v.Count : 1);
             return v;
         }
@@ -1559,8 +1565,18 @@ namespace MicroJ {
                         }
                         return v.WrapA();
                     }
-
-
+                }
+                else if (xb.GetCount() == 1 && (xb.Ravel[0].val.GetType() == typeof(A<long>) || xb.Ravel[0].val.GetType() == typeof(A<decimal>))  && xb.Ravel[0].val.GetCount() == 2) {
+                    var start = xb.Ravel[0].val.GetLong(0);
+                    var end = xb.Ravel[0].val.GetLong(1);
+                    var indices = new List<long>();
+                    var ct = 0;
+                    for(var i = start; i < yt.RowCount && ct < end; i++) {
+                        ct += 1;
+                        indices.Add(i);
+                    }
+                    v.indices = indices.ToArray();
+                    return v.WrapA();
                 }
                 else {
                     var xbt = (x as A<Box>);
@@ -2261,9 +2277,9 @@ namespace MicroJ {
                 zt.Rows = null;
                 return zt.WrapA();
             }
-            for (var i = 0; i < zt.Columns.Length; i++) {                
-                if (yt.indices != null) {                    
-                    zt.Rows[i].val = yt.Rows[i].val.FromIndices(yt.indices);                    
+            for (var i = 0; i < zt.Columns.Length; i++) {
+                if (yt.indices != null) {
+                    zt.Rows[i].val = yt.Rows[i].val.FromIndices(yt.indices);
                 }
                 else {
                     zt.Rows[i].val = yt.Rows[i].val;
@@ -2993,7 +3009,7 @@ namespace MicroJ {
 
                         var rep = t.GetCount();
                         var names = parser.LocalNames;
-                        
+
                         if (line.Contains("!hotspot") && rep > 1000) {
                             var code = codeGenHotSpot(lines.Skip(i).Take(endIdx-1).ToArray());
                             var func = CSScript.LoadDelegate<Action<Parser, Dictionary<string, AType>>>(code, null, false, "System.Collections.Generic", "System.Numerics");
@@ -3022,7 +3038,7 @@ namespace MicroJ {
                 }
                 catch (Exception e) {
                     //Console.WriteLine(line + "\n" + e);
-                    if (Parser.ThrowError) { throw new ApplicationException("Last LINE: " + lastLine + "\nFull Line:" + line + "\nwith: " + (y != null ? y.ToString() : "") + "\n" + (x!=null?x.ToString():"") + "\ndef: " + def, e); }                    
+                    if (Parser.ThrowError) { throw new ApplicationException("Last LINE: " + lastLine + "\nFull Line:" + line + "\nwith: " + (y != null ? y.ToString() : "") + "\n" + (x!=null?x.ToString():"") + "\ndef: " + def, e); }
                 }
             }
             return ret;
@@ -3914,26 +3930,29 @@ namespace MicroJ {
                     if (hashPartition) { paritionNameStr = paritionNameStr.GetHashCode().ToString(); }
                     var partitionName = new JString { str = paritionNameStr };
 
-                    for (var q = 0; q < tresult.RowCount; q++) {
-                        if (colIdx == -1) {
-                            if (colName == "Partition") { scol.Ravel[row] = partitionName; }
-                            else if(extraCols != null && extraCols.Contains(colName)) {
-                                var idx = Array.IndexOf(extraCols, colName);
-                                box = extraRows[idx];
+                    try {
+                        for (var q = 0; q < tresult.RowCount; q++) {
+                            if (colIdx == -1) {
+                                if (colName == "Partition") { scol.Ravel[row] = partitionName; }
+                                else if(extraCols != null && extraCols.Contains(colName)) {
+                                    var idx = Array.IndexOf(extraCols, colName);
+                                    box = extraRows[idx];
+                                }
+                                else if (scol != null) { scol.Ravel[row] = new JString { str = "" }; }
+
                             }
-                            else if (scol != null) { scol.Ravel[row] = new JString { str = "" }; }
-
+                            else {
+                                //if (scol != null) { scol.Ravel[row] = new JString { str = tresult.Rows[colIdx].val.GetString(q).Trim() }; }
+                                if (scol != null) { scol.Ravel[row] = (JString)tresult.Rows[colIdx].val.GetVal(q); }
+                                else if (dcol != null) { dcol.Ravel[row] = (double)tresult.Rows[colIdx].val.GetVal(q); }
+                                else if (lcol != null) { lcol.Ravel[row] = (long)tresult.Rows[colIdx].val.GetVal(q); }
+                                else if (decol != null) { decol.Ravel[row] = (decimal)tresult.Rows[colIdx].val.GetVal(q); }
+                            }
+                            row++;
                         }
-                        else {
-                            //if (scol != null) { scol.Ravel[row] = new JString { str = tresult.Rows[colIdx].val.GetString(q).Trim() }; }
-                            if (scol != null) { scol.Ravel[row] = (JString)tresult.Rows[colIdx].val.GetVal(q); }
-                            else if (dcol != null) { dcol.Ravel[row] = (double)tresult.Rows[colIdx].val.GetVal(q); }
-                            else if (lcol != null) { lcol.Ravel[row] = (long)tresult.Rows[colIdx].val.GetVal(q); }
-                            else if (decol != null) { decol.Ravel[row] = (decimal)tresult.Rows[colIdx].val.GetVal(q); }
-                        }
-                        row++;
+                    } catch (Exception e) {
+                        throw new ApplicationException("Could not combineTableResults on Partition: " + partitionName + ", Column: " + colName, e);
                     }
-
                 }
                 newTable.Rows[k] = box;
             }
@@ -3996,6 +4015,18 @@ namespace MicroJ {
                 }
             }
 
+            if (optionsDict != null && optionsDict.ContainsKey("translateTsv")) {
+                var translatePath = Path.Combine(path, optionsDict["translateTsv"]);
+                if (File.Exists(translatePath)) {
+                    JTable translateTsv = (Parser.exec("(('delimiter';'\t'),.('unquote';1)) (151!:1) ('" + translatePath + "';'NIL')") as A<JTable>).First();
+                    var translateTableDict = new Dictionary<string,Dictionary<JString, JString>>();
+                    var translateOption = new A<Box>(2);
+                    translateOption.Ravel[0].val = new JString { str = "translateTable" }.WrapA();
+                    translateOption.Ravel[1].val = translateTsv.WrapA();
+                    xoptions = Verbs.stitch(xoptions, translateOption);
+                }
+            }
+
             var results = dirs.AsParallel().Select(dir => {
 
                 var parser = new Parser();
@@ -4010,6 +4041,7 @@ namespace MicroJ {
                     var yoptions = new A<Box>(2);
                     yoptions.Ravel[0].val = new JString { str = dir + "\\" + table }.WrapA();
                     yoptions.Ravel[1].val = new JString { str = table }.WrapA();
+
                     cached = (readTableBinary(xoptions, yoptions, column) as A<JTable>);
                     CacheNoReclaim.Current.Add(cacheKey, cached);
                     Parser.Log("cache miss on " + cacheKey);
@@ -4492,7 +4524,7 @@ namespace MicroJ {
                 }
                 var newName = createName(col);
                 newNames.Add(newName);
-                
+
                 //remove default of adding names this way
                 //Parser.Names[newName] = val;
                 finalColumnNames.Add(col);
@@ -4920,14 +4952,14 @@ namespace MicroJ {
                 return writeTableCSV(x, y);
             }
             var path = x.First().val.GetString(0);
-            
+
             Directory.CreateDirectory(path);
-            
+
             foreach(var file in Directory.GetFiles(path, "*.bin")) {
                 FileInfo fileInfo = new FileInfo(file);
                 //skip sym.bin otherwise it can loop
                 if (!fileInfo.Name.EndsWith("sym.bin"))
-                    File.Delete(file);                
+                    File.Delete(file);
             }
 
 
@@ -4992,7 +5024,7 @@ namespace MicroJ {
             bool noIntern = optionsDict.ContainsKey("noIntern");
             bool noDetect = optionsDict.ContainsKey("noDetect");
             bool unquote = optionsDict.ContainsKey("unquote");
-            
+
             int limit = Int32.MaxValue;
             if (optionsDict.ContainsKey("limit"))
             {
@@ -5050,7 +5082,7 @@ namespace MicroJ {
 			            var drows = new List<long>();
 			            while (count < limit && (line = sr.ReadLine()) != null) {
                         if (unquote) { line = line.Trim('\"'); }
-			            long lval = 0;  
+			            long lval = 0;
                         double dval = 0;
 			            //keep leading zeros
 
@@ -5083,7 +5115,7 @@ namespace MicroJ {
 			            while (count < limit && (line = sr.ReadLine()) != null) {
                         if (unquote) { line = line.Trim('\"'); }
                         double dval = 0;
-                        
+
                         if ((!Double.TryParse(line, out dval) && line != "") ||
 		                        (line.StartsWith("0") && !line.Contains(".") && line.Length > 1)) {
 		                        isDouble = false;
@@ -5103,10 +5135,10 @@ namespace MicroJ {
                         }
 		            }
                     count = 0;
-                    
+
                     //may get here if it gets promoted
 		            List<JString> rows = new List<JString>();
-                    
+
                     while (count < limit && (line = sr.ReadLine()) != null) {
                         if (unquote) { line = line.Replace("\"",""); }
                         rows.Add(new JString { str = noIntern ? line : String.Intern(line) });
@@ -5121,9 +5153,9 @@ namespace MicroJ {
                             rows.Add(new JString { str =  "" });
                         }
                     }
-		            
+
                     /*
-                    var lines = sr.ReadToEnd().Split('\n');                    
+                    var lines = sr.ReadToEnd().Split('\n');
                     limit = lines.Length < limit ? lines.Length : limit;
                     while (count < limit) {
                         line = lines[count];
@@ -5135,7 +5167,7 @@ namespace MicroJ {
                     */
 
                     var val = new A<JString>(new long[] { rows.Count, 1 }) { Ravel = rows.ToArray() };
-                    
+
 		            return val.Box();
 
                 }
@@ -5151,6 +5183,99 @@ namespace MicroJ {
             return newT.WrapA();
         }
 
+        public void populateTranslateTable(Dictionary<string,Dictionary<JString, JString>> translateTableDict, JTable jt) {
+            foreach(IDictionary<string, object> row in jt) {
+                var col = row["Column"].ToString();
+                var originalValue = new JString { str = row["OriginalValue"].ToString() };
+                var newValue = new JString { str = row["NewValue"].ToString() };
+                if (!translateTableDict.ContainsKey(col)) {
+                    translateTableDict[col] = new Dictionary<JString, JString>();
+                }
+                translateTableDict[col][originalValue] = newValue;
+            }
+        }
+
+        public JTable translateTable(A<Box> x, JTable table, string path) {
+
+            if (table.Rows.Length == 0) { return table; }
+
+            var translateTableDict = new Dictionary<string,Dictionary<JString, JString>>();
+
+            Dictionary<string, AType> optionsDictA = x!=null ? AHelper.ToOptionsA(x) : new Dictionary<string, AType>();
+            Dictionary<string, string> optionsDict = x!=null ? AHelper.ToOptions(x) : new Dictionary<string, string>();
+
+            if (optionsDict.ContainsKey("translateTsv")) {
+                var translatePath = Path.Combine(path, optionsDict["translateTsv"]);
+                if (File.Exists(translatePath)) {
+                    JTable translateTsv = (Parser.exec("(('delimiter';'\t'),.('unquote';1)) (151!:1) ('" + translatePath + "';'NIL')") as A<JTable>).First();
+                    populateTranslateTable(translateTableDict, translateTsv);
+                }
+            }
+
+            if (optionsDictA.ContainsKey("translateTable")) {
+                JTable translateTsv = (optionsDictA["translateTable"] as A<JTable>).First();
+                populateTranslateTable(translateTableDict, translateTsv);
+            }
+
+
+            List<string> newColumns = new List<string>();
+            List<Box> newRows = new List<Box>();
+
+            for(var n = 0; n < table.Columns.Length; n++) {
+                var columnName = table.Columns[n];
+                newColumns.Add(columnName);
+                newRows.Add(table.Rows[n]);
+
+                if (table.Rows[n].val.GetType() != typeof(A<JString>)) { continue; }
+
+                var translator = new Dictionary<JString, JString>();
+                if (!translateTableDict.TryGetValue(columnName, out translator)) { continue; }
+
+                var sval = table.Rows[n].val as A<JString>;
+
+                if (optionsDict.ContainsKey("translateKeepOrig") || optionsDict.ContainsKey("translateKeepOriginal")) {
+                    newColumns.Add(columnName+"Original");
+                    var svalCopy = new A<JString>(sval.Shape);
+                    Array.Copy(sval.Ravel, svalCopy.Ravel, sval.Ravel.Length);
+                    newRows.Add(svalCopy.Box());
+                    if (table.Symbols.ContainsKey(columnName)) {
+                        table.Symbols[columnName+"Original"] = table.Symbols[columnName];
+                    }
+                }
+
+                JString missing = new JString { str = "UNKNOWN"};
+                if (translator.ContainsKey(new JString { str = ""})) {
+                    missing = translator[new JString { str = ""}];
+                }
+                if (translator.ContainsKey(new JString { str = "MISSING"})) {
+                    missing = translator[new JString { str = "MISSING"}];
+                }
+                if (optionsDict.ContainsKey("translateMissingValue")) {
+                    missing = translator[new JString { str = optionsDict["translateMissingValue"]}];
+                }
+                bool noMissing = optionsDict.ContainsKey("translateNoMissing");
+
+                var rows = table.RowCount;
+                long[] colSyms = new long[rows];
+                for (var i = 0; i < rows; i++) {
+                    JString replacement;
+                    if (translator.TryGetValue(sval.Ravel[i], out replacement)) {
+                        sval.Ravel[i] = replacement;
+                    } else {
+                        sval.Ravel[i] = !noMissing ? missing : sval.Ravel[i];
+                    }
+                    colSyms[i] = sval.Ravel[i].GetHashCode();
+                }
+                table.Symbols[columnName] = colSyms;
+            }
+
+            var ret = new JTable {
+                Columns = newColumns.ToArray(),
+                Rows = newRows.ToArray(),
+                Symbols = table.Symbols
+            };
+            return ret;
+        }
         public unsafe AType readTableBinary(A<Box> x, A<Box> y, string column = null) {
             var optionsDict = new Dictionary<string, string>();
 
@@ -5233,6 +5358,8 @@ namespace MicroJ {
                     }
                 }
             }
+
+
 #if DEBUG
             Parser.Log("after reading symbols", totalTime);
             totalTime.Start();
@@ -5311,6 +5438,7 @@ namespace MicroJ {
                             int size = Int32.Parse(spec.Substring(1));
                             var rows = size > 0 ? num / size : num;
                             var vals = new JString[rows];
+
                             for (var i = 0; i < rows; i++) {
                                 byte[] arr = new byte[size];
                                 System.Runtime.InteropServices.Marshal.Copy(IntPtr.Add(new IntPtr(ptr), (int)(i * size)), arr, 0, (int)size);
@@ -5354,8 +5482,8 @@ namespace MicroJ {
                                 for (var i = 0; i < rows; i++) {
                                     sval.Ravel[i] = symbolDict[arr[i]];
                                 }
-                                val = sval;
                                 columnSymbols[col] = arr;
+                                val = sval;
                             }
                             else {
                                 if (!Parser.UseDecimal) {
@@ -5384,6 +5512,8 @@ namespace MicroJ {
                 Rows = newRows.Where(f=>f.val!=null).ToArray(),
                 Symbols = columnSymbols
             }.WrapA();
+
+            table = translateTable(x, table.Ravel[0], path).WrapA();
 
             if (skipSyms) {
 #if DEBUG
@@ -5694,7 +5824,7 @@ namespace MicroJ {
             }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "5") {
                 return readTableKey((A<Box>)x, (A<Box>)y);
-            }            
+            }
             else if (verb.conj == "!:" && verb.op == "151" && verb.rhs == "10") {
                 return execParallelMap((A<Box>)x, (A<Box>)y);
             }
@@ -6351,7 +6481,7 @@ namespace MicroJ {
             else if (options.ContainsKey("addcol")) {
                 var expr = options["addcol"];
                 var op = new Verb { childNoun = new JString { str = expr }.WrapA(), op = "addcol" }.WrapA();
-               //todo add conversion from [Column] 
+               //todo add conversion from [Column]
                 try {
                     var newTable = keyTable(op, (A<JString>)null, y) as A<JTable>;
                     if (yt.partitioned == null) {

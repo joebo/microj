@@ -532,6 +532,9 @@ namespace MicroJ
         public List<Dictionary<string, object>> ToJson() {
             var yt = this;
 
+            bool format2Decimal = Parser.MAX_DECIMAL != -1;
+            int maxDecimal = Parser.MAX_DECIMAL;
+
             var rows = new List<Dictionary<string, object>>();
             for (var i = 0; i < yt.RowCount; i++) {
                 var idx = yt.indices != null ? yt.indices[i] : i;
@@ -543,6 +546,13 @@ namespace MicroJ
                     }
                     else if (val.GetType() == typeof(byte)) {
                         row[yt.Columns[k]] = yt.Rows[k].val.GetString(idx);
+                    }
+                    else if (val.GetType() == typeof(double)) {
+                        if (format2Decimal) {
+                          row[yt.Columns[k]] = Math.Round((double)val,maxDecimal,MidpointRounding.AwayFromZero);
+                        } else {
+                          row[yt.Columns[k]] = val;
+                        }
                     }
                     else {
                         row[yt.Columns[k]] = val;
@@ -1212,6 +1222,15 @@ namespace MicroJ
             var offset = xb.Rank > 1 ? ct : 1;
             for (var i = 0; i < ct; i++) {
                 options[xb.Ravel[i].val.ToString()] = xb.Ravel[(i + offset)].val.ToString();
+            }
+            return options;
+        }
+        public static Dictionary<string, AType> ToOptionsA(A<Box> xb) {
+            var options = new Dictionary<string, AType>();
+            var ct = xb.Rank > 1 ? xb.Shape[xb.Shape.Length - 1] : 1;
+            var offset = xb.Rank > 1 ? ct : 1;
+            for (var i = 0; i < ct; i++) {
+                options[xb.Ravel[i].val.ToString()] = xb.Ravel[(i + offset)].val;
             }
             return options;
         }
