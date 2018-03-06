@@ -1812,10 +1812,9 @@ namespace MicroJ {
             return z;
         }
 
-        public A<T> sortTable<T2, T>(A<T2> x, A<T> y, string gradeFunc)
-            where T : struct
-            where T2 : struct {
+        public A<T> sortTable<T2, T>(A<T2> x, A<T> y, string gradeFunc) where T : struct where T2 : struct {
             var yt = (y as A<JTable>).First();
+                if (yt.RowCount == 0) { return y;}
             var indices = InvokeExpression(gradeFunc, yt.Rows[yt.GetColIndex(x)].val) as A<long>;
             var z = new A<JTable>(1) { Ravel = new JTable[] { yt.Clone() } };
             if (yt.indices != null) {
@@ -1825,6 +1824,10 @@ namespace MicroJ {
             }
 
             z.Ravel[0].indices = indices.Ravel;
+            //copy small tables to drop the indices
+            if (yt.RowCount < 500) {
+                z = copyTable(z);
+            }
             return (A<T>)(object)z;
         }
 
@@ -4076,6 +4079,31 @@ namespace MicroJ {
                     CacheNoReclaim.Current.Add(cacheKey, cached);
                     return AType.MakeA(0);
                 }
+                else if (op != null && op.ToString() == "addcolif") {
+                    var options = new A<Box>(2);
+                    var verb = (op as A<Verb>).First();
+                    var expression = verb.childNoun as A<JString>;
+                    var expressionStr = expression.GetString(0);
+
+                    if (z.Calculations != null && z.Calculations.Contains(expressionStr)) {
+                        return AType.MakeA(0);
+                    }
+
+                    options.Ravel[0].val = new JString { str = "addcol" }.WrapA();
+                    options.Ravel[1].val = expression;
+
+                    var za = parser.Adverbs.setTableProps(options, cached);
+                    //return addPartitionColumn(za.First());
+
+                    var yt = za.First();
+                    if (yt.Calculations == null) { yt.Calculations = new List<string>(); }
+                    yt.Calculations.Add(expressionStr);
+                    yt.Dirty = true;
+
+                    cached = za;
+                    CacheNoReclaim.Current.Add(cacheKey, cached);
+                    return AType.MakeA(0);
+                }
                 else if (fromVerb == "tally") {
                     return parser.Verbs.tally(z.WrapA());
                 }
@@ -6242,6 +6270,15 @@ namespace MicroJ {
                 //special fit to not parse expressions /. !. 'noparse'
                 bool noParse = vop.Ravel[0].rhs != null && vop.Ravel[0].rhs.Contains("noparse");
 
+
+                //no rows!
+                if (keyIndices.Count == 0 && lkeyIndices.Count == 0) {
+                    return new JTable {
+                        Rows = null,
+                        Columns = cols
+                    }.WrapA();
+                }
+
                 if (colIdx != null && colIdx.Length == 1 && keyIndices != null && keyIndices.Count > 0) {
                     var at = new A<JString>(keyIndices.Count);
                     var idx = 0;
@@ -6275,6 +6312,7 @@ namespace MicroJ {
 
 
                 stopWatch = Conjunctions.measureTime(stopWatch, "after expressions");
+
 
                 for(var k = 0; k < expressions.Length;k++) {
 
@@ -6344,6 +6382,7 @@ namespace MicroJ {
                             expressionResult = parser.exec(expression, locals);
                         }
                         //var expressionResult = new A<long>(0);
+                        stopWatch = Conjunctions.measureTime(stopWatch, "after eval " + expression);
                         groupRows.Add(expressionResult);
                     }
                     stopWatch = Conjunctions.measureTime(stopWatch, "after eval");
