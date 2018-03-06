@@ -4079,31 +4079,6 @@ namespace MicroJ {
                     CacheNoReclaim.Current.Add(cacheKey, cached);
                     return AType.MakeA(0);
                 }
-                else if (op != null && op.ToString() == "addcolif") {
-                    var options = new A<Box>(2);
-                    var verb = (op as A<Verb>).First();
-                    var expression = verb.childNoun as A<JString>;
-                    var expressionStr = expression.GetString(0);
-
-                    if (z.Calculations != null && z.Calculations.Contains(expressionStr)) {
-                        return AType.MakeA(0);
-                    }
-
-                    options.Ravel[0].val = new JString { str = "addcol" }.WrapA();
-                    options.Ravel[1].val = expression;
-
-                    var za = parser.Adverbs.setTableProps(options, cached);
-                    //return addPartitionColumn(za.First());
-
-                    var yt = za.First();
-                    if (yt.Calculations == null) { yt.Calculations = new List<string>(); }
-                    yt.Calculations.Add(expressionStr);
-                    yt.Dirty = true;
-
-                    cached = za;
-                    CacheNoReclaim.Current.Add(cacheKey, cached);
-                    return AType.MakeA(0);
-                }
                 else if (fromVerb == "tally") {
                     return parser.Verbs.tally(z.WrapA());
                 }
